@@ -52,4 +52,3 @@ jobs:
           TEST_PG_HOST: localhost:5432
           TEST_PG_USER: postgres
           TEST_PG_PASSWORD: postgres
-          TEST_PG_DSN: postgres://postgres:postgres@localhost:5432/repo-test?sslmode=disable
