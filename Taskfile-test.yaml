@@ -1,0 +1,73 @@
+version: '3'
+
+vars:
+  TEST_PG_HOST: '{{.TEST_PG_HOST | default "host.docker.internal:5432"}}'
+  TEST_PG_USER: '{{.TEST_PG_USER | default "postgres"}}'
+  TEST_PG_PASSWORD: '{{.TEST_PG_PASSWORD | default "postgres"}}'
+  TEST_PG_DB: '{{.TEST_PG_DB | default "a-club-test"}}'
+  TEST_ROOT_DSN: 'postgres://{{.TEST_PG_USER}}:{{.TEST_PG_PASSWORD}}@{{.TEST_PG_HOST}}/postgres?sslmode=disable'
+  TEST_PG_DSN: 'postgres://{{.TEST_PG_USER}}:{{.TEST_PG_PASSWORD}}@{{.TEST_PG_HOST}}/{{.TEST_PG_DB}}?sslmode=disable'
+  COVER_DIR: coverage
+  COVER_PKGS: ./internal/...
+
+tasks:
+  gen:mocks:
+    desc: Генерация minimock-моков
+    cmds:
+      - go generate ./internal/contracts/mocks/
+      - go generate ./internal/pkg/mocks/
+
+  unit:all:
+    desc: Все unit-тесты с покрытием (без моков)
+    cmds:
+      - go vet ./...
+      - mkdir -p {{.COVER_DIR}}
+      - go test -count=1 -coverprofile={{.COVER_DIR}}/unit_raw.out -coverpkg={{.COVER_PKGS}} ./internal/... -tags=''
+      - grep -v -e '_mock.go' -e '_mock_test.go' -e '_repo\.go' -e 'sql_gen/' {{.COVER_DIR}}/unit_raw.out > {{.COVER_DIR}}/unit.out
+      - go tool cover -func={{.COVER_DIR}}/unit.out | grep -v -e '_mock' -e '_repo\.go' -e 'sql_gen/' | tee {{.COVER_DIR}}/unit.txt
+
+  unit:
+    desc: Все unit-тесты
+    deps:
+      - unit:all
+
+  db:create:
+    desc: Создание тестовой БД
+    cmds:
+      - go install github.com/pressly/goose/v3/cmd/goose@latest
+      - psql "{{.TEST_ROOT_DSN}}" -c "DROP DATABASE IF EXISTS \"{{.TEST_PG_DB}}\";"
+      - psql "{{.TEST_ROOT_DSN}}" -c "CREATE DATABASE \"{{.TEST_PG_DB}}\";"
+      - goose -dir migrations postgres "{{.TEST_PG_DSN}}" up
+
+  db:drop:
+    desc: Удаление тестовой БД
+    cmds:
+      - psql "{{.TEST_ROOT_DSN}}" -c "DROP DATABASE IF EXISTS \"{{.TEST_PG_DB}}\";"
+
+
+  full-ci:
+    desc: Полный CI-прогон
+    deps:
+      - unit
+
+    cmds:
+      - echo "===== Покрытие unit ====="
+      - go tool cover -func={{.COVER_DIR}}/unit.out | grep -v -e '_mock' -e '_repo\.go' -e 'sql_gen/'
+
+  coverage:
+    desc: Показать сохранённое покрытие (unit + smoke, без моков)
+    cmds:
+      - sh -c 'go tool cover -func="{{.COVER_DIR}}/unit.out" | grep -v -e _mock -e _repo\\.go -e sql_gen/' || true
+      - echo ""
+      - sh -c 'go tool cover -func="{{.COVER_DIR}}/smoke.out" | grep -v -e _mock -e _repo\\.go -e sql_gen/' || true
+
+  cover:html:
+    desc: HTML-отчёт по unit-покрытию (без моков)
+    cmds:
+      - sh -c 'go tool cover -html="{{.COVER_DIR}}/unit.out" -o "{{.COVER_DIR}}/unit.html"'
+      - echo "Saved to {{.COVER_DIR}}/unit.html"
+
+  clean:coverage:
+    desc: Удалить файлы покрытия
+    cmds:
+      - rm -rf {{.COVER_DIR}}
