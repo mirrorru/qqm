@@ -23,7 +23,7 @@ func TestSmoke_CRUD_Rooms(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := &executor.DBAdapter{DB: db}
+	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
 	_, err = db.Exec(`
@@ -84,7 +84,7 @@ func TestSmoke_CRUD_RoomMapping(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := &executor.DBAdapter{DB: db}
+	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
 	_, err = db.Exec(`
@@ -154,7 +154,7 @@ func TestSmoke_ListWithFilters(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	ex := &executor.DBAdapter{DB: db}
+	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 	tbl := table.NewTable[*fixtures.UserWithAge](dialect.SQLiteDialect{})
 
@@ -265,7 +265,7 @@ func TestSmoke_CRUD_FullRoomMapping(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := &executor.DBAdapter{DB: db}
+	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
 	_, err = db.Exec(`
@@ -322,4 +322,84 @@ func TestSmoke_CRUD_FullRoomMapping(t *testing.T) {
 
 	_, err = tbl.GetByKey(ctx, ex, int64(300), int64(400))
 	assert.Error(t, err)
+}
+
+func TestSmoke_CRUD_WithTx(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	_, err = db.Exec(`
+		CREATE TABLE rooms (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			square REAL NOT NULL,
+			created_at INTEGER NOT NULL DEFAULT 0
+		)
+	`)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	tbl := table.NewTable[*fixtures.Rooms](dialect.SQLiteDialect{})
+
+	t.Run("commit transaction", func(t *testing.T) {
+		tx, err := db.BeginTx(ctx, nil)
+		require.NoError(t, err)
+
+		ex := executor.NewTxAdapter(tx)
+
+		inserted, err := tbl.Insert(ctx, ex, &fixtures.Rooms{
+			Name:   "Tx Room",
+			Square: 100.0,
+		})
+		require.NoError(t, err)
+		assert.NotZero(t, inserted.ID)
+
+		err = tx.Commit()
+		require.NoError(t, err)
+
+		fetched, err := tbl.GetByKey(ctx, executor.NewDBAdapter(db), inserted.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "Tx Room", fetched.Name)
+	})
+
+	t.Run("rollback transaction", func(t *testing.T) {
+		tx, err := db.BeginTx(ctx, nil)
+		require.NoError(t, err)
+
+		ex := executor.NewTxAdapter(tx)
+
+		inserted, err := tbl.Insert(ctx, ex, &fixtures.Rooms{
+			Name:   "Rollback Room",
+			Square: 200.0,
+		})
+		require.NoError(t, err)
+		assert.NotZero(t, inserted.ID)
+
+		err = tx.Rollback()
+		require.NoError(t, err)
+
+		_, err = tbl.GetByKey(ctx, executor.NewDBAdapter(db), inserted.ID)
+		assert.Error(t, err, "should not find rolled-back row")
+	})
+
+	t.Run("GetByKey within transaction", func(t *testing.T) {
+		ex := executor.NewDBAdapter(db)
+		inserted, err := tbl.Insert(ctx, ex, &fixtures.Rooms{
+			Name:   "Tx GetByKey",
+			Square: 300.0,
+		})
+		require.NoError(t, err)
+
+		tx, err := db.BeginTx(ctx, nil)
+		require.NoError(t, err)
+
+		txEx := executor.NewTxAdapter(tx)
+		fetched, err := tbl.GetByKey(ctx, txEx, inserted.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "Tx GetByKey", fetched.Name)
+
+		err = tx.Commit()
+		require.NoError(t, err)
+	})
 }

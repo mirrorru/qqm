@@ -67,6 +67,10 @@ func (m *mockExecutor) QueryContext(_ context.Context, query string, args ...any
 	return m.rows, nil
 }
 
+func (m *mockExecutor) QueryRowContext(_ context.Context, _ string, _ ...any) executor.Row {
+	return m.rows
+}
+
 func TestFilter_Helpers(t *testing.T) {
 	t.Run("Eq", func(t *testing.T) {
 		c := Eq(42)

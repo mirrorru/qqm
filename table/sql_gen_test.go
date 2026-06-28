@@ -163,3 +163,24 @@ func TestTable_PostgreSQL_SomeTableSQL(t *testing.T) {
 	assert.Contains(t, deleteSQL, `DELETE FROM some_table`)
 	assert.Contains(t, deleteSQL, `WHERE some_id = $1`)
 }
+
+func TestTable_NamedStructPrefix_SQLite(t *testing.T) {
+	tbl := NewTable[*fixtures.PersonWithAddress](dialect.SQLiteDialect{})
+
+	meta := tbl.Internals().Meta()
+	assert.Contains(t, meta.Columns, "home_city")
+	assert.Contains(t, meta.Columns, "home_street")
+	assert.Contains(t, meta.Columns, "home_zip")
+	assert.Contains(t, meta.Columns, "work_city")
+	assert.Contains(t, meta.Columns, "work_street")
+	assert.Contains(t, meta.Columns, "work_zip")
+	assert.Contains(t, meta.Columns, "name")
+	assert.Contains(t, meta.Columns, "id")
+
+	insertSQL := tbl.Internals().InsertSQL()
+	assert.Contains(t, insertSQL, `home_city`)
+	assert.Contains(t, insertSQL, `work_city`)
+
+	selectSQL := tbl.Internals().SelectSQL()
+	assert.Contains(t, selectSQL, `home_city, home_street, home_zip, work_city, work_street, work_zip`)
+}

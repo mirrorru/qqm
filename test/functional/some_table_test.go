@@ -45,7 +45,7 @@ func TestFunctional_SomeTable_CRUD_PostgreSQL(t *testing.T) {
 	db := openTestPG(t)
 	defer func() { _ = db.Close() }()
 
-	ex := &executor.DBAdapter{DB: db}
+	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
 	_, err := db.Exec(`

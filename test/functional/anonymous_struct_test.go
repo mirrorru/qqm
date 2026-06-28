@@ -70,3 +70,22 @@ func TestFunctional_AnonymousStruct_PKAuto(t *testing.T) {
 	assert.NotContains(t, insertCols, "id", "auto PK should not be in InsertColumns")
 	assert.Contains(t, insertCols, "name")
 }
+
+func TestFunctional_NamedStructPrefix_TagParsing(t *testing.T) {
+	tbl := table.NewTable[*fixtures.PersonWithAddress](dialect.PostgreSQLDialect{})
+	m := tbl.Internals().Meta()
+
+	assert.Equal(t, "person_with_address", m.TableName)
+
+	assert.Contains(t, m.Columns, "home_city")
+	assert.Contains(t, m.Columns, "home_street")
+	assert.Contains(t, m.Columns, "home_zip")
+	assert.Contains(t, m.Columns, "work_city")
+	assert.Contains(t, m.Columns, "work_street")
+	assert.Contains(t, m.Columns, "work_zip")
+	assert.Contains(t, m.Columns, "name")
+	assert.Contains(t, m.Columns, "id")
+
+	require.Len(t, m.PKFields, 1)
+	assert.Equal(t, "id", m.PKFields[0].Column)
+}

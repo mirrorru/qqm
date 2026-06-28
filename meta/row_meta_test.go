@@ -177,6 +177,60 @@ func TestBuildRowMeta_AnonymousNonStructNotPK(t *testing.T) {
 }
 
 // Created at 2026-06-28
+// TestBuildRowMeta_NamedStructPrefix проверяет префикс на именованных полях-структурах
+func TestBuildRowMeta_NamedStructPrefix(t *testing.T) {
+	type Address struct {
+		City   string `qqm:"col=city"`
+		Street string `qqm:"col=street"`
+		Zip    string `qqm:"col=zip"`
+	}
+	type Person struct {
+		ID          int64 `qqm:"pk"`
+		Name        string
+		HomeAddress Address `qqm:"prefix=home_"`
+		WorkAddress Address `qqm:"prefix=work_"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Person{}), "person")
+
+	assert.Contains(t, rm.Columns, "home_city")
+	assert.Contains(t, rm.Columns, "home_street")
+	assert.Contains(t, rm.Columns, "home_zip")
+	assert.Contains(t, rm.Columns, "work_city")
+	assert.Contains(t, rm.Columns, "work_street")
+	assert.Contains(t, rm.Columns, "work_zip")
+	assert.Contains(t, rm.Columns, "id")
+	assert.Contains(t, rm.Columns, "name")
+
+	assert.Len(t, rm.PKFields, 1)
+	assert.Equal(t, "id", rm.PKFields[0].Column)
+
+	// home_ и work_ поля не должны быть PK
+	for _, f := range rm.Fields {
+		if f.Name == "City" || f.Name == "Street" || f.Name == "Zip" {
+			assert.False(t, f.IsPK, "field %s should not be PK", f.Name)
+		}
+	}
+}
+
+// Created at 2026-06-28
+// TestBuildRowMeta_NamedStructPrefixWithoutPrefix проверяет, что без префикса поля-структуры создаются как обычные поля
+func TestBuildRowMeta_NamedStructPrefixWithoutPrefix(t *testing.T) {
+	type Address struct {
+		City string
+	}
+	type Person struct {
+		ID      int64 `qqm:"pk"`
+		Address Address
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Person{}), "person")
+
+	assert.Contains(t, rm.Columns, "address")
+	assert.NotContains(t, rm.Columns, "city")
+}
+
+// Created at 2026-06-28
 // TestBuildRowMeta_PKOrderDeclaration проверяет что порядок PK определяется порядком объявления
 func TestBuildRowMeta_PKOrderDeclaration(t *testing.T) {
 	type Row struct {

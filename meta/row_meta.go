@@ -146,6 +146,19 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 		tagRaw := sf.Tag.Get(tagName)
 		opts := ParseTag(tagRaw)
 
+		// неанонимное поле-структура с префиксом — разворачиваем её поля
+		if opts.Prefix != "" {
+			ft := sf.Type
+			for ft.Kind() == reflect.Pointer {
+				ft = ft.Elem()
+			}
+			if ft.Kind() == reflect.Struct {
+				childPrefix := prefix + opts.Prefix
+				rm.walkFields(ft, idx, childPrefix, pkCounter)
+				continue
+			}
+		}
+
 		// если нет col=, используем ToSnakeCase от имени поля
 		col := opts.Col
 		if col == "" {

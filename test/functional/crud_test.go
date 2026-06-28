@@ -20,7 +20,7 @@ func TestFunctional_CRUD_Rooms_PostgreSQL(t *testing.T) {
 	db := openTestPG(t)
 	defer func() { _ = db.Close() }()
 
-	ex := &executor.DBAdapter{DB: db}
+	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
 	_, err := db.Exec(`
@@ -86,7 +86,7 @@ func TestFunctional_CRUD_RoomMapping_PostgreSQL(t *testing.T) {
 	db := openTestPG(t)
 	defer func() { _ = db.Close() }()
 
-	ex := &executor.DBAdapter{DB: db}
+	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
 	_, err := db.Exec(`
@@ -151,7 +151,7 @@ func TestFunctional_ListWithFilters_PostgreSQL(t *testing.T) {
 	db := openTestPG(t)
 	defer func() { _ = db.Close() }()
 
-	ex := &executor.DBAdapter{DB: db}
+	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
 	_, err := db.Exec(`
@@ -254,7 +254,7 @@ func TestFunctional_CRUD_FullRoomMapping_PostgreSQL(t *testing.T) {
 	db := openTestPG(t)
 	defer func() { _ = db.Close() }()
 
-	ex := &executor.DBAdapter{DB: db}
+	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
 	_, err := db.Exec(`

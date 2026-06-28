@@ -4,10 +4,16 @@ package executor
 import "context"
 
 // Executor — интерфейс для выполнения SQL-запросов.
-// Абстрагирует database/sql.DB и database/sql.Tx.
+// Абстрагирует database/sql.DB, database/sql.Tx, pgx.Conn, pgx.Tx.
 type Executor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) Row
+}
+
+// Row — одна строка результата запроса.
+type Row interface {
+	Scan(dest ...any) error
 }
 
 // Result — результат выполнения ExecContext.

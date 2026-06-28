@@ -8,34 +8,50 @@ import (
 
 // DBAdapter адаптирует *sql.DB к интерфейсу Executor.
 type DBAdapter struct {
-	DB *sql.DB
+	db *sql.DB
 }
 
-// Created at 2026-06-28
+// NewDBAdapter создает адаптер для *sql.DB к интерфейсу Executor
+func NewDBAdapter(db *sql.DB) *DBAdapter {
+	return &DBAdapter{db: db}
+}
+
 // ExecContext выполняет запрос, не возвращающий строк.
 func (a *DBAdapter) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
-	return a.DB.ExecContext(ctx, query, args...)
+	return a.db.ExecContext(ctx, query, args...)
 }
 
-// Created at 2026-06-28
 // QueryContext выполняет запрос, возвращающий строки.
 func (a *DBAdapter) QueryContext(ctx context.Context, query string, args ...any) (Rows, error) {
-	return a.DB.QueryContext(ctx, query, args...)
+	return a.db.QueryContext(ctx, query, args...)
+}
+
+// QueryRowContext выполняет запрос, возвращающий одну строку.
+func (a *DBAdapter) QueryRowContext(ctx context.Context, query string, args ...any) Row {
+	return a.db.QueryRowContext(ctx, query, args...)
 }
 
 // TxAdapter адаптирует *sql.Tx к интерфейсу Executor.
 type TxAdapter struct {
-	Tx *sql.Tx
+	tx *sql.Tx
 }
 
-// Created at 2026-06-28
+// NewTxAdapter создает адаптер для *sql.Tx к интерфейсу Executor
+func NewTxAdapter(tx *sql.Tx) *TxAdapter {
+	return &TxAdapter{tx: tx}
+}
+
 // ExecContext выполняет запрос, не возвращающий строк.
 func (a *TxAdapter) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
-	return a.Tx.ExecContext(ctx, query, args...)
+	return a.tx.ExecContext(ctx, query, args...)
 }
 
-// Created at 2026-06-28
 // QueryContext выполняет запрос, возвращающий строки.
 func (a *TxAdapter) QueryContext(ctx context.Context, query string, args ...any) (Rows, error) {
-	return a.Tx.QueryContext(ctx, query, args...)
+	return a.tx.QueryContext(ctx, query, args...)
+}
+
+// QueryRowContext выполняет запрос, возвращающий одну строку.
+func (a *TxAdapter) QueryRowContext(ctx context.Context, query string, args ...any) Row {
+	return a.tx.QueryRowContext(ctx, query, args...)
 }

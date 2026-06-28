@@ -2,16 +2,11 @@ package table
 
 import (
 	"context"
-	"errors"
 	"reflect"
 
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/executor"
 	"github.com/mirrorru/qqm/meta"
-)
-
-const (
-	errInsertNoRows = "qqm: no rows returned from INSERT RETURNING"
 )
 
 type SQLNamer interface {
@@ -119,20 +114,10 @@ func (t *Table[ROW]) Insert(ctx context.Context, ex executor.Executor, src ROW) 
 	args := t.internal.meta.InsertValues(src)
 
 	if t.internal.dialect.SupportsReturning() {
-		rows, err := ex.QueryContext(ctx, t.internal.InsertSQL(), args...)
-		if err != nil {
-			var zero ROW
-			return zero, err
-		}
-		defer func() { _ = rows.Close() }()
-
+		row := ex.QueryRowContext(ctx, t.internal.InsertSQL(), args...)
 		result := t.newRow()
 		dest := t.internal.meta.ScanDest(result)
-		if !rows.Next() {
-			var zero ROW
-			return zero, errors.New(errInsertNoRows)
-		}
-		if err := rows.Scan(dest...); err != nil {
+		if err := row.Scan(dest...); err != nil {
 			var zero ROW
 			return zero, err
 		}
@@ -154,20 +139,11 @@ func (t *Table[ROW]) Update(ctx context.Context, ex executor.Executor, src ROW) 
 }
 
 func (t *Table[ROW]) GetByKey(ctx context.Context, ex executor.Executor, keys ...any) (ROW, error) {
-	rows, err := ex.QueryContext(ctx, t.internal.SelectSQL(), keys...)
-	if err != nil {
-		var zero ROW
-		return zero, err
-	}
-	defer func() { _ = rows.Close() }()
+	row := ex.QueryRowContext(ctx, t.internal.SelectSQL(), keys...)
 
 	result := t.newRow()
 	dest := t.internal.meta.ScanDest(result)
-	if !rows.Next() {
-		var zero ROW
-		return zero, errors.New(errNoRowsReturned)
-	}
-	if err := rows.Scan(dest...); err != nil {
+	if err := row.Scan(dest...); err != nil {
 		var zero ROW
 		return zero, err
 	}

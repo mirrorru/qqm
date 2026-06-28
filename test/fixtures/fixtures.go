@@ -132,3 +132,18 @@ type RowWithPKAuto struct {
 	PKWithAuto
 	Name string `qqm:"col=name"`
 }
+
+// Address — структура для тестирования префикса на именованных полях-структурах
+type Address struct {
+	City   string
+	Street string
+	Zip    string
+}
+
+// PersonWithAddress — структура с двумя именованными полями-структурами с префиксами
+type PersonWithAddress struct {
+	ID          int64 `qqm:"pk"`
+	Name        string
+	HomeAddress Address `qqm:"prefix=home_"`
+	WorkAddress Address `qqm:"prefix=work_"`
+}
