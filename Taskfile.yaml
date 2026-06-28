@@ -1,0 +1,96 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+vars:
+  LOCAL_BIN: '{{.TASKFILE_DIR}}/bin'
+
+  PG_HOST: '{{.PG_HOST | default "localhost:5432"}}'
+  PG_SQL: '{{.PG_SQL | default "migrations"}}'
+  PG_DB: '{{.PG_DB | default "a-club"}}'
+  PG_USER: '{{.PG_USER | default "postgres"}}'
+  PG_PASSWORD: '{{.PG_PASSWORD | default "postgres"}}'
+  _DEFAULT_DSN: 'postgres://{{.PG_USER}}:{{.PG_PASSWORD}}@{{.PG_HOST}}/{{.PG_DB}}?sslmode=disable'
+  PG_DSN: '{{.PG_DSN | default ._DEFAULT_DSN}}'
+
+env:
+  PATH: '{{.LOCAL_BIN}}:{{.PATH}}'
+
+includes:
+  test: ./Taskfile-test.yaml
+
+tasks:
+  # ──────────────────────────────────────────────
+  # Help-заглушка
+  # ──────────────────────────────────────────────
+  default:
+    desc: Список доступных задач
+    # deps: [clean, install-deps] # Сначала очистит и установит зависимости
+    cmds:
+      - task --list
+    silent: true
+
+  # Универсальная задача для проверки/установки любой команды
+  ensure:
+    silent: true
+    internal: true
+    cmds:
+      - |
+        echo "Checking if '{{.CMD}}' is installed..."
+        if command -v {{.CMD}} >/dev/null 2>&1; then
+          echo "'{{.CMD}}' is already installed."
+        else
+          echo "'{{.CMD}}' not found. Installing..."
+          {{.INSTALL_CMD}}
+          echo "Installation of '{{.CMD}}' complete."
+        fi
+    vars:
+      # Значения по умолчанию (можно оставить пустыми)
+      CMD: '{{default "" .CMD}}'
+      INSTALL_CMD: '{{default "" .INSTALL_CMD}}'
+
+  install:
+    desc: Установка программ
+    cmds:
+      - task: install:lint
+
+
+  install:lint: ## Установка golangci-lint
+    cmds:
+      - task: ensure
+        vars:
+          CMD: golangci-lint
+          INSTALL_CMD: GOBIN={{.LOCAL_BIN}} go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+
+  gen:
+    desc: Выполнение полной генерации кода
+    deps:
+      - task: gen:go
+
+  gen:go:
+    desc: Выполнение генерации кода через `go generate` установленными инструментами
+    cmd: go generate ./...
+
+#.PHONY: lint
+  lint:
+    desc: Проверка кода линтером golangci
+    cmd: '{{.LOCAL_BIN}}/golangci-lint run --config=.golangci.pipeline.yaml'
+
+  pg:up:
+    desc: Применить новые миграции к БД PostgreSQL
+    cmds:
+      - task: _install_goose
+      - goose postgres {{.PG_DSN}} -dir {{.PG_SQL}} up
+
+  pg:down:
+    desc: Отменить последнюю актуальную миграцию в БД PostgreSQL
+    cmds:
+      - task: _install_goose
+      - goose postgres {{.PG_DSN}} -dir {{.PG_SQL}} down
+
+  pg:tmp:
+    desc: Применить новые миграции к БД PostgreSQL
+    cmds:
+      - task: _install_goose
+      - goose postgres {{.PG_DSN}} -dir tmp/migrations down
