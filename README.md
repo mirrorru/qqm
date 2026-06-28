@@ -1,0 +1,2 @@
+# qqm
+Quick query maker
