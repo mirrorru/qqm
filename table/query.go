@@ -1,0 +1,174 @@
+package table
+
+import (
+	"strings"
+	"sync"
+
+	"github.com/mirrorru/qqm/dialect"
+	"github.com/mirrorru/qqm/meta"
+)
+
+const (
+	sqlInsertInto     = "INSERT INTO "
+	sqlValues         = " VALUES "
+	sqlReturning      = " RETURNING "
+	sqlUpdate         = "UPDATE "
+	sqlSet            = " SET "
+	sqlSelect         = "SELECT "
+	sqlFrom           = " FROM "
+	sqlWhere          = " WHERE "
+	sqlDelete         = "DELETE FROM "
+	sqlAnd            = " AND "
+	sqlEquals         = " = "
+	sqlCommaSpace     = ", "
+	sqlSpace          = " "
+	sqlOpenParen      = "("
+	sqlCloseParen     = ")"
+	sqlIn             = " IN "
+	errNoRowsReturned = "qqm: no rows returned from INSERT RETURNING"
+)
+
+type queryBuilder struct {
+	insertOnce sync.Once
+	updateOnce sync.Once
+	selectOnce sync.Once
+	deleteOnce sync.Once
+	listOnce   sync.Once
+
+	insertSQL string
+	updateSQL string
+	selectSQL string
+	deleteSQL string
+	listSQL   string
+}
+
+func newQueryBuilder() *queryBuilder {
+	return &queryBuilder{}
+}
+
+func (qb *queryBuilder) InsertSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
+	qb.insertOnce.Do(func() {
+		qb.insertSQL = buildInsertSQL(d, m)
+	})
+	return qb.insertSQL
+}
+
+func (qb *queryBuilder) UpdateSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
+	qb.updateOnce.Do(func() {
+		qb.updateSQL = buildUpdateSQL(d, m)
+	})
+	return qb.updateSQL
+}
+
+func (qb *queryBuilder) SelectSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
+	qb.selectOnce.Do(func() {
+		qb.selectSQL = buildSelectSQL(d, m)
+	})
+	return qb.selectSQL
+}
+
+func (qb *queryBuilder) DeleteSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
+	qb.deleteOnce.Do(func() {
+		qb.deleteSQL = buildDeleteSQL(d, m)
+	})
+	return qb.deleteSQL
+}
+
+func (qb *queryBuilder) ListSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
+	qb.listOnce.Do(func() {
+		qb.listSQL = buildListSQL(d, m)
+	})
+	return qb.listSQL
+}
+
+func buildInsertSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
+	cols := m.InsertColumns()
+	if len(cols) == 0 {
+		return ""
+	}
+
+	quotedCols := make([]string, len(cols))
+	placeholders := make([]string, len(cols))
+	for i, col := range cols {
+		quotedCols[i] = d.QuoteIdent(col)
+		placeholders[i] = d.Placeholder(i + 1)
+	}
+
+	sql := sqlInsertInto + d.QuoteIdent(m.TableName) + sqlSpace +
+		sqlOpenParen + strings.Join(quotedCols, sqlCommaSpace) + sqlCloseParen +
+		sqlValues + sqlOpenParen + strings.Join(placeholders, sqlCommaSpace) + sqlCloseParen
+
+	if d.SupportsReturning() {
+		allCols := make([]string, len(m.Columns))
+		for i, col := range m.Columns {
+			allCols[i] = d.QuoteIdent(col)
+		}
+		sql += sqlReturning + strings.Join(allCols, sqlCommaSpace)
+	}
+
+	return sql
+}
+
+func buildUpdateSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
+	cols := m.UpdateColumns()
+	if len(cols) == 0 || len(m.PKFields) == 0 {
+		return ""
+	}
+
+	setClauses := make([]string, len(cols))
+	for i, col := range cols {
+		setClauses[i] = d.QuoteIdent(col) + sqlEquals + d.Placeholder(i+1)
+	}
+
+	whereClauses := buildWhereClauses(d, m, len(cols))
+
+	return sqlUpdate + d.QuoteIdent(m.TableName) +
+		sqlSet + strings.Join(setClauses, sqlCommaSpace) +
+		sqlWhere + strings.Join(whereClauses, sqlAnd)
+}
+
+func buildSelectSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
+	if len(m.PKFields) == 0 {
+		return ""
+	}
+
+	allCols := make([]string, len(m.Columns))
+	for i, col := range m.Columns {
+		allCols[i] = d.QuoteIdent(col)
+	}
+
+	whereClauses := buildWhereClauses(d, m, 0)
+
+	return sqlSelect + strings.Join(allCols, sqlCommaSpace) +
+		sqlFrom + d.QuoteIdent(m.TableName) +
+		sqlWhere + strings.Join(whereClauses, sqlAnd)
+}
+
+func buildDeleteSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
+	if len(m.PKFields) == 0 {
+		return ""
+	}
+
+	whereClauses := buildWhereClauses(d, m, 0)
+
+	return sqlDelete + d.QuoteIdent(m.TableName) +
+		sqlWhere + strings.Join(whereClauses, sqlAnd)
+}
+
+func buildListSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
+	allCols := make([]string, len(m.Columns))
+	for i, col := range m.Columns {
+		allCols[i] = d.QuoteIdent(col)
+	}
+
+	return sqlSelect + strings.Join(allCols, sqlCommaSpace) +
+		sqlFrom + d.QuoteIdent(m.TableName)
+}
+
+func buildWhereClauses(d dialect.DialectProvider, m *meta.RowMeta, offset int) []string {
+	whereClauses := make([]string, len(m.PKFields))
+	for i, pk := range m.PKFields {
+		whereClauses[i] = d.QuoteIdent(pk.Column) + sqlEquals + d.Placeholder(offset+i+1)
+	}
+	return whereClauses
+}
