@@ -1,15 +1,18 @@
 # qqm — Quick Query Maker
 
-**qqm** — это ORM-подобная Go-библиотека для типизированной работы с SQL-базами данных через структуры. Она автоматически генерирует SQL-запросы на основе тегов в полях структуры и предоставляет простой CRUD-интерфейс.
+**qqm** — это ORM-подобная Go-библиотека для типизированной работы с SQL-базами данных через структуры. Она автоматически генерирует SQL-запросы на основе тегов в полях структуры и предоставляет простой CRUD-интерфейс, включая multi-table SELECT с JOIN.
 
 ## Возможности
 
 - **Типизированные таблицы** — `Table[ROW]` параметризуется вашей структурой.
+- **Multi-table запросы** — `Query[QROW]` для SELECT с JOIN по ref-связям.
 - **Автогенерация SQL** — INSERT, UPDATE, SELECT, DELETE строятся по метаданным структуры.
 - **Поддержка диалектов** — SQLite (`?`) и PostgreSQL (`$1`, `$2`, …).
 - **CRUD-интерфейс** — Insert, Update, GetByKey, Delete, List.
 - **Гибкая фильтрация** — And/Or-комбинации, операторы Eq, Gt, Lt, Gte, Lte, Between, In.
-- **Теги полей** — колонка, первичный ключ, внешний ключ, readonly, auto, omit.
+- **Квалифицированные имена** — фильтры по полям присоединённых таблиц (`"Order.Amount"`).
+- **LEFT JOIN с nil** — `*ROW`-поля автоматически становятся nil при отсутствии строки.
+- **Теги полей** — колонка, первичный ключ, внешний ключ, readonly, auto, omit, join, on, table, primary.
 - **Embedded структуры** — поддержка встраивания с префиксом колонок.
 - **Именованные поля-структуры** — префикс для неанонимных структур (например, несколько адресов).
 - **Составные ключи** —任意ное количество полей в PK.
@@ -94,7 +97,7 @@ func Example() {
 
 ## Настройка колонок через теги
 
-Формат тега: `qqm:"col=name;pk;ref=table.col;readonly;auto;omit;prefix=..."`
+Формат тега: `qqm:"col=name;pk;ref=table.col;readonly;auto;omit;prefix=...;join=TYPE;on=...;table=...;primary"`
 
 | Опция | Описание |
 |-------|----------|
@@ -105,6 +108,10 @@ func Example() {
 | `readonly` | Не участвует в UPDATE |
 | `auto` | Не участвует в INSERT (например, SERIAL) |
 | `omit` | Полностью исключается из SQL |
+| `join=TYPE` | Тип JOIN для Query: LEFT, INNER, RIGHT, FULL |
+| `on=...` | Явное условие JOIN (переопределяет авто-вывод из ref=) |
+| `table=...` | Переопределение имени таблицы для Query-поля |
+| `primary` | Явное указание primary-таблицы в Query |
 
 ### Префикс для именованных полей-структур
 
@@ -124,6 +131,103 @@ type Person struct {
     WorkAddress Address `qqm:"prefix=work_"`
 }
 // Колонки: id, name, home_city, home_street, home_zip, work_city, work_street, work_zip
+```
+
+## Multi-table запросы (JOIN)
+
+`Query[QROW]` — типизированный SELECT с JOIN. Поля QROW — существующие ROW-структуры. JOIN-условия выводятся автоматически из тегов `ref=`.
+
+### Определение Query-структуры
+
+```go
+// ROW-структуры
+type User struct {
+    ID    int64  `qqm:"pk"`
+    Name  string
+    Email string
+}
+
+type Order struct {
+    ID     int64   `qqm:"pk;auto"`
+    UserID int64   `qqm:"ref=users.id"`
+    Amount float64
+}
+
+// Query-структура
+type UserWithOrder struct {
+    User  User    // INNER JOIN
+    Order *Order  // LEFT JOIN (указатель → nil при отсутствии строки)
+}
+```
+
+### Использование
+
+```go
+q, err := qqm.NewQuery[UserWithOrder](qqm.SQLiteDialect)
+// err != nil если не найден FK для JOIN
+
+results, err := q.List(ctx, ex,
+    qqm.AndFilter(
+        qqm.Field("User.Name", qqm.And, qqm.Eq("Alice")),
+        qqm.Field("Order.Amount", qqm.And, qqm.Gt(100.0)),
+    ),
+)
+
+for _, r := range results {
+    fmt.Println(r.User.Name, r.Order) // Order == nil для LEFT JOIN без строки
+}
+```
+
+### Правила вывода JOIN
+
+| Тип поля | JOIN по умолчанию |
+|----------|-------------------|
+| `Order` (value) | INNER |
+| `*Order` (pointer) | LEFT |
+
+JOIN-условие ON строится по тегу `ref=users.id` на поле `UserID` структуры `Order`: `orders.user_id = users.id`.
+
+### Явное управление JOIN
+
+```go
+type CustomQuery struct {
+    User  User   `qqm:"table=app_users;primary"`  // переопределение имени + primary
+    Order *Order `qqm:"join=LEFT"`                 // явный тип JOIN
+}
+
+type WithExplicitON struct {
+    User User
+    Ref  RefData `qqm:"on=ref.user_id=users.id"`   // явное условие
+}
+```
+
+### LEFT JOIN и nil
+
+Если строки в присоединённой таблице нет, поле-указатель устанавливается в nil:
+
+```go
+type UserWithOrderPtr struct {
+    User  User
+    Order *Order
+}
+
+results, _ := q.List(ctx, ex)
+for _, r := range results {
+    if r.Order == nil {
+        fmt.Println(r.User.Name, "has no orders")
+    }
+}
+```
+
+### Фильтры с квалифицированными именами
+
+Имена полей в фильтрах: `"TableName.FieldName"`:
+
+```go
+qqm.AndFilter(
+    qqm.Field("User.Name", qqm.And, qqm.Eq("Alice")),
+    qqm.Field("Order.Amount", qqm.And, qqm.Gt(200.0)),
+)
 ```
 
 ## Примеры
