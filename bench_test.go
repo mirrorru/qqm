@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/executor"
 	"github.com/mirrorru/qqm/meta"
 	"github.com/mirrorru/qqm/test/fixtures"
 )
@@ -58,16 +57,16 @@ type benchExecutor struct {
 	sql string
 }
 
-func (e *benchExecutor) ExecContext(_ context.Context, _ string, _ ...any) (executor.Result, error) {
+func (e *benchExecutor) ExecContext(_ context.Context, _ string, _ ...any) (Result, error) {
 	return mockResult{}, nil
 }
 
-func (e *benchExecutor) QueryContext(_ context.Context, query string, _ ...any) (executor.Rows, error) {
+func (e *benchExecutor) QueryContext(_ context.Context, query string, _ ...any) (Rows, error) {
 	e.sql = query
 	return &benchRows{count: 10}, nil
 }
 
-func (e *benchExecutor) QueryRowContext(_ context.Context, _ string, _ ...any) executor.Row {
+func (e *benchExecutor) QueryRowContext(_ context.Context, _ string, _ ...any) Row {
 	return &benchRows{count: 1}
 }
 

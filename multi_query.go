@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/executor"
 	"github.com/mirrorru/qqm/meta"
 )
 
@@ -38,7 +37,7 @@ func NewQuery[QROW any](d dialect.DialectProvider) (*Query[QROW], error) {
 	}, nil
 }
 
-func (q *Query[QROW]) List(ctx context.Context, ex executor.Executor, filters ...Filter) ([]*QROW, error) {
+func (q *Query[QROW]) List(ctx context.Context, ex Executor, filters ...Filter) ([]*QROW, error) {
 	query := q.qmeta.listSQL
 
 	var args []any

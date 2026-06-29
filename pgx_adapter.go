@@ -1,5 +1,5 @@
 // Created at 2026-06-28
-package executor
+package qqm
 
 import (
 	"context"
@@ -13,12 +13,12 @@ type PGXAdapter struct {
 	conn *pgx.Conn
 }
 
-// NewPGXTxAdapter создает адаптер для *pgx.Conn к интерфейсу Executor
-func NewPGXAdapter(conn *pgx.Conn) *PGXAdapter {
-	return &PGXAdapter{conn: conn}
+// NewPGXTxAdapterVal создает адаптер для *pgx.Conn к интерфейсу Executor
+func NewPGXAdapterVal(conn *pgx.Conn) PGXAdapter {
+	return PGXAdapter{conn: conn}
 }
 
-func (a *PGXAdapter) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
+func (a PGXAdapter) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
 	tag, err := a.conn.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -26,7 +26,7 @@ func (a *PGXAdapter) ExecContext(ctx context.Context, query string, args ...any)
 	return &PgxResult{tag: tag}, nil
 }
 
-func (a *PGXAdapter) QueryContext(ctx context.Context, query string, args ...any) (Rows, error) {
+func (a PGXAdapter) QueryContext(ctx context.Context, query string, args ...any) (Rows, error) {
 	rows, err := a.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (a *PGXAdapter) QueryContext(ctx context.Context, query string, args ...any
 	return &PgxRows{rows: rows}, nil
 }
 
-func (a *PGXAdapter) QueryRowContext(ctx context.Context, query string, args ...any) Row {
+func (a PGXAdapter) QueryRowContext(ctx context.Context, query string, args ...any) Row {
 	return a.conn.QueryRow(ctx, query, args...)
 }
 
@@ -43,12 +43,12 @@ type PGXTxAdapter struct {
 	tx pgx.Tx
 }
 
-// NewPGXTxAdapter создает адаптер для pgx.Tx к интерфейсу Executor
-func NewPGXTxAdapter(tx pgx.Tx) *PGXTxAdapter {
-	return &PGXTxAdapter{tx: tx}
+// NewPGXTxAdapterVal создает адаптер для pgx.Tx к интерфейсу Executor
+func NewPGXTxAdapterVal(tx pgx.Tx) PGXTxAdapter {
+	return PGXTxAdapter{tx: tx}
 }
 
-func (a *PGXTxAdapter) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
+func (a PGXTxAdapter) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
 	tag, err := a.tx.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func (a *PGXTxAdapter) ExecContext(ctx context.Context, query string, args ...an
 	return &PgxResult{tag: tag}, nil
 }
 
-func (a *PGXTxAdapter) QueryContext(ctx context.Context, query string, args ...any) (Rows, error) {
+func (a PGXTxAdapter) QueryContext(ctx context.Context, query string, args ...any) (Rows, error) {
 	rows, err := a.tx.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func (a *PGXTxAdapter) QueryContext(ctx context.Context, query string, args ...a
 	return &PgxRows{rows: rows}, nil
 }
 
-func (a *PGXTxAdapter) QueryRowContext(ctx context.Context, query string, args ...any) Row {
+func (a PGXTxAdapter) QueryRowContext(ctx context.Context, query string, args ...any) Row {
 	return a.tx.QueryRow(ctx, query, args...)
 }
 

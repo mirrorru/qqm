@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/executor"
 	"github.com/mirrorru/qqm/test/fixtures"
 )
 
@@ -57,17 +56,17 @@ type mockExecutor struct {
 	rows  *mockRows
 }
 
-func (m *mockExecutor) ExecContext(_ context.Context, _ string, _ ...any) (executor.Result, error) {
+func (m *mockExecutor) ExecContext(_ context.Context, _ string, _ ...any) (Result, error) {
 	return mockResult{}, nil
 }
 
-func (m *mockExecutor) QueryContext(_ context.Context, query string, args ...any) (executor.Rows, error) {
+func (m *mockExecutor) QueryContext(_ context.Context, query string, args ...any) (Rows, error) {
 	m.query = query
 	m.args = args
 	return m.rows, nil
 }
 
-func (m *mockExecutor) QueryRowContext(_ context.Context, _ string, _ ...any) executor.Row {
+func (m *mockExecutor) QueryRowContext(_ context.Context, _ string, _ ...any) Row {
 	return m.rows
 }
 
