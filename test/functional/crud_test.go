@@ -7,11 +7,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/mirrorru/qqm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/table"
 	"github.com/mirrorru/qqm/test/fixtures"
 )
 
@@ -23,7 +23,7 @@ func TestFunctional_CRUD_Rooms_PostgreSQL(t *testing.T) {
 	_, err := ex.ExecContext(ctx, `DELETE FROM rooms`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[fixtures.Rooms](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.Rooms](dialect.PostgreSQLDialect{})
 
 	now := int64(1700000000)
 	room := &fixtures.Rooms{
@@ -71,7 +71,7 @@ func TestFunctional_CRUD_RoomMapping_PostgreSQL(t *testing.T) {
 	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	tbl := table.NewTable[fixtures.RoomMapping](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.RoomMapping](dialect.PostgreSQLDialect{})
 
 	now := int64(1700000000)
 	mapping := &fixtures.RoomMapping{
@@ -116,7 +116,7 @@ func TestFunctional_ListWithFilters_PostgreSQL(t *testing.T) {
 	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	tbl := table.NewTable[fixtures.UserWithAge](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.UserWithAge](dialect.PostgreSQLDialect{})
 
 	users := []*fixtures.UserWithAge{
 		{Name: "Alice", Email: "alice@test.com", Age: 25},
@@ -136,8 +136,8 @@ func TestFunctional_ListWithFilters_PostgreSQL(t *testing.T) {
 	})
 
 	t.Run("List with Eq filter", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Name", table.And, table.Eq("Alice")),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Name", qqm.And, qqm.Eq("Alice")),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 1)
@@ -145,41 +145,41 @@ func TestFunctional_ListWithFilters_PostgreSQL(t *testing.T) {
 	})
 
 	t.Run("List with Gt filter", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Age", table.And, table.Gt(30)),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Age", qqm.And, qqm.Gt(30)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 2)
 	})
 
 	t.Run("List with Lt filter", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Age", table.And, table.Lt(30)),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Age", qqm.And, qqm.Lt(30)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 1)
 	})
 
 	t.Run("List with Between filter", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Age", table.And, table.Between(30, 40)),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Age", qqm.And, qqm.Between(30, 40)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 3)
 	})
 
 	t.Run("List with In filter", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Age", table.And, table.In(25, 35)),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Age", qqm.And, qqm.In(25, 35)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 2)
 	})
 
 	t.Run("List with multiple fields AND", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Name", table.And, table.Eq("Bob")),
-			table.Field("Age", table.And, table.Eq(30)),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Name", qqm.And, qqm.Eq("Bob")),
+			qqm.Field("Age", qqm.And, qqm.Eq(30)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 1)
@@ -187,9 +187,9 @@ func TestFunctional_ListWithFilters_PostgreSQL(t *testing.T) {
 	})
 
 	t.Run("List with OR between fields", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.OrFilter(
-			table.Field("Name", table.And, table.Eq("Alice")),
-			table.Field("Name", table.And, table.Eq("Charlie")),
+		result, err := tbl.List(ctx, ex, qqm.OrFilter(
+			qqm.Field("Name", qqm.And, qqm.Eq("Alice")),
+			qqm.Field("Name", qqm.And, qqm.Eq("Charlie")),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 2)
@@ -201,7 +201,7 @@ func TestFunctional_CRUD_FullRoomMapping_PostgreSQL(t *testing.T) {
 	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	tbl := table.NewTable[fixtures.FullRoomMapping](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.FullRoomMapping](dialect.PostgreSQLDialect{})
 
 	now := int64(1700000000)
 	fullMapping := &fixtures.FullRoomMapping{

@@ -7,12 +7,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/mirrorru/qqm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/executor"
-	"github.com/mirrorru/qqm/table"
 	"github.com/mirrorru/qqm/test/fixtures"
 )
 
@@ -24,7 +24,7 @@ func TestFunctional_PGX_CRUD_Rooms(t *testing.T) {
 	_, err := tx.Exec(ctx, `DELETE FROM rooms`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[fixtures.Rooms](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.Rooms](dialect.PostgreSQLDialect{})
 
 	now := int64(1700000000)
 	room := &fixtures.Rooms{
@@ -68,7 +68,7 @@ func TestFunctional_PGX_ListWithFilters(t *testing.T) {
 	_, ex := beginTxPGX(t)
 	ctx := context.Background()
 
-	tbl := table.NewTable[fixtures.UserWithAge](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.UserWithAge](dialect.PostgreSQLDialect{})
 
 	users := []*fixtures.UserWithAge{
 		{Name: "Alice", Email: "alice@test.com", Age: 25},
@@ -85,21 +85,21 @@ func TestFunctional_PGX_ListWithFilters(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, result, 4)
 
-	result, err = tbl.List(ctx, ex, table.AndFilter(
-		table.Field("Name", table.And, table.Eq("Alice")),
+	result, err = tbl.List(ctx, ex, qqm.AndFilter(
+		qqm.Field("Name", qqm.And, qqm.Eq("Alice")),
 	))
 	require.NoError(t, err)
 	assert.Len(t, result, 1)
 	assert.Equal(t, "Alice", result[0].Name)
 
-	result, err = tbl.List(ctx, ex, table.AndFilter(
-		table.Field("Age", table.And, table.Gt(30)),
+	result, err = tbl.List(ctx, ex, qqm.AndFilter(
+		qqm.Field("Age", qqm.And, qqm.Gt(30)),
 	))
 	require.NoError(t, err)
 	assert.Len(t, result, 2)
 
-	result, err = tbl.List(ctx, ex, table.AndFilter(
-		table.Field("Age", table.And, table.Between(30, 40)),
+	result, err = tbl.List(ctx, ex, qqm.AndFilter(
+		qqm.Field("Age", qqm.And, qqm.Between(30, 40)),
 	))
 	require.NoError(t, err)
 	assert.Len(t, result, 3)
@@ -110,7 +110,7 @@ func TestFunctional_PGX_CRUD_RoomMapping(t *testing.T) {
 	_, ex := beginTxPGX(t)
 	ctx := context.Background()
 
-	tbl := table.NewTable[fixtures.RoomMapping](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.RoomMapping](dialect.PostgreSQLDialect{})
 
 	now := int64(1700000000)
 	mapping := &fixtures.RoomMapping{
@@ -153,7 +153,7 @@ func TestFunctional_PGX_CRUD_WithTx(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 
-	tbl := table.NewTable[fixtures.Rooms](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.Rooms](dialect.PostgreSQLDialect{})
 
 	t.Run("commit transaction via pgx", func(t *testing.T) {
 		conn := openTestPGX(t)

@@ -8,16 +8,16 @@ qqm — ORM-подобная Go-библиотека для типизирова
 ```
 Пользовательский код
        ↓
-   qqm.go (public API)
+    qqm.go (public API)
        ↓
-   table.Table[ROW] / table.Query[QROW] (CRUD + JOIN)
+    Table[ROW] / Query[QROW] (CRUD + JOIN + DDL)
        ↓
-   meta.RowMeta (метаданные структуры)
-   dialect.DialectProvider (диалект БД)
+    meta.RowMeta (метаданные структуры)
+    dialect.DialectProvider (диалект БД)
        ↓
-   executor.Executor (абстракция выполнения SQL)
+    executor.Executor (абстракция выполнения SQL)
        ↓
-   database/sql  или  pgx
+    database/sql  или  pgx
 ```
 
 ## Ключевые концепции
@@ -26,16 +26,16 @@ qqm — ORM-подобная Go-библиотека для типизирова
 
 Единая точка входа:
 
-- `qqm.NewTable[ROW](dialect)` — создание типизированной таблицы
-- `qqm.NewQuery[QROW](dialect)` — создание multi-table запроса с JOIN
-- `qqm.SQLiteDialect`, `qqm.PostgreSQLDialect` — предопределённые диалекты
-- `qqm.And`, `qqm.Or` — операторы комбинирования фильтров
-- `qqm.Field()`, `qqm.Eq()`, `qqm.Gt()`, ... — конструкторы фильтров
-- `qqm.AndFilter()`, `qqm.OrFilter()` — комбинирование фильтров
+- `NewTable[ROW](dialect)` — создание типизированной таблицы
+- `NewQuery[QROW](dialect)` — создание multi-table запроса с JOIN
+- `SQLiteDialect`, `PostgreSQLDialect` — предопределённые диалекты
+- `And`, `Or` — операторы комбинирования фильтров
+- `Field()`, `Eq()`, `Gt()`, ... — конструкторы фильтров
+- `AndFilter()`, `OrFilter()` — комбинирование фильтров
 
-Все типы и функции — алиасы на реализацию в пакете `table/`.
+Все типы и функции — в корневом пакете `qqm`.
 
-### 2. Table[ROW] (table/table.go)
+### 2. Table[ROW] (table.go)
 
 Generic-структура, параметризованная типом строки ROW.
 
@@ -60,7 +60,7 @@ type Table[ROW any] struct {
 - `resetForRow` — обновляет указатели в `dest` для текущей строки за O(1) на поле
 - Insert, GetByKey, List используют `scanHelper` вместо `Meta().ScanDest()`
 
-### 3. Query[QROW] (table/multi_query.go)
+### 3. Query[QROW] (multi_query.go)
 
 Generic-структура для SELECT-запросов по нескольким таблицам с JOIN.
 
@@ -116,17 +116,22 @@ type Query[QROW any] struct {
 | `prefix=...` на embedded struct | Колонки с префиксом |
 | `prefix=...` на именованной struct | Колонки с префиксом (новая возможность) |
 
-### 5. Генерация SQL (table/query.go)
+### 5. Генерация SQL (query.go)
 
-SQL-запросы генерируются один раз и кешируются в `TableInternals`:
+SQL-запросы генерируются один раз и кешируются в `tableInternals`:
 
 - `InsertSQL()` — INSERT INTO ... VALUES (...) RETURNING ...
 - `UpdateSQL()` — UPDATE ... SET ... WHERE pk = ?
 - `SelectSQL()` — SELECT ... FROM ... WHERE pk = ?
 - `DeleteSQL()` — DELETE FROM ... WHERE pk = ?
-- `ListSQL(filter)` — SELECT ... FROM ... WHERE conditions
+- `ListSQL()` — SELECT ... FROM ... [ORDER BY ...]
+- `CreateTableSQL()` — CREATE TABLE ... (col TYPE ... PRIMARY KEY ... REFERENCES ... DEFAULT ...)
 
 Плейсхолдеры зависят от диалекта: `?` для SQLite, `$N` для PostgreSQL.
+
+ORDER BY формируется из тегов `sort=<pos>[,dir]`: собираются все поля с `sort=`, сортируются по позиции, генерируется `ORDER BY col1 ASC, col2 DESC`.
+
+CREATE TABLE учитывает: `pk` → PRIMARY KEY, `default=...` → DEFAULT, `ref=table.col` → REFERENCES.
 
 ### 6. Диалекты (dialect/)
 
@@ -166,7 +171,7 @@ type Executor interface {
 Адаптеры pgx добавлены для поддержки нативного PostgreSQL-драйвера.
 Поля адаптеров сделаны приватными, создание — только через конструкторы.
 
-### 8. Фильтрация (table/filter.go)
+### 8. Фильтрация (filter.go)
 
 Для single-table запросов (`Table.List`) — `whereBuilder` с простыми именами полей.
 Для multi-table запросов (`Query.List`) — `multiWhereBuilder` с квалифицированными именами (`"Order.Amount"`).
@@ -185,7 +190,7 @@ Condition    = ConditionOp + value
 
 ### 9. Тестирование
 
-- **Unit-тесты** — в каждом пакете (meta, dialect, table)
+- **Unit-тесты** — в корневом пакете (`qqm`) и `meta/`
 - **Smoke** — `test/smoke/` (build tag: smoke), быстрая проверка на SQLite
 - **Functional** — `test/functional/` (build tag: functional), полные сценарии на PostgreSQL
 - **pgx functional** — `test/functional/pgx_crud_test.go` (build tag: functional), тесты через pgx

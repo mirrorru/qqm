@@ -3,6 +3,18 @@
 ```
 qqm/
 ├── qqm.go                 # Public API: NewTable, Dialects, filter-хелперы
+├── table.go               # Table[ROW] — CRUD-методы + внутренности
+├── filter.go              # Фильтры: Filter, FieldFilter, Condition, хелперы
+├── filter_test.go
+├── query.go               # queryBuilder — генерация SQL для одной таблицы
+├── query_meta.go          # queryMeta — метаданные multi-table запроса
+├── multi_query.go         # Query[QROW] — SELECT с JOIN
+├── multi_query_test.go
+├── sql_gen_test.go
+├── example_simple_key_test.go
+├── example_composite_key_test.go
+├── bench_test.go
+├── bench_list_vs_raw_test.go
 │
 ├── dialect/               # Диалекты БД
 │   ├── dialect.go         #   DialectProvider — интерфейс диалекта
@@ -24,29 +36,20 @@ qqm/
 │   ├── cache_test.go
 │   └── casing.go          #   ToSnakeCase для имён колонок
 │
-├── table/                 # Типизированная таблица и multi-table запросы
-│   ├── table.go           #   Table[ROW] — CRUD-методы + внутренности
-│   ├── filter.go          #   Фильтры: Filter, FieldFilter, Condition, хелперы
-│   ├── filter_test.go
-│   ├── query.go           #   queryBuilder — генерация SQL для одной таблицы
-│   ├── query_meta.go      #   queryMeta — метаданные multi-table запроса
-│   ├── multi_query.go     #   Query[QROW] — SELECT с JOIN
-│   ├── multi_query_test.go
-│   ├── sql_gen_test.go
-│   ├── example_simple_key_test.go
-│   └── example_composite_key_test.go
-│
 ├── test/                  # Интеграционные тесты (build tags)
 │   ├── fixtures/          #   Фикстуры: структуры для тестов
 │   │   └── fixtures.go
 │   ├── smoke/             #   Smoke-тесты (build tag: smoke)
 │   │   ├── crud_test.go
-│   │   └── multi_query_test.go
+│   │   ├── multi_query_test.go
+│   │   ├── race_test.go
+│   │   └── sort_test.go
 │   └── functional/        #   Functional-тесты (build tag: functional)
 │       ├── crud_test.go
 │       ├── anonymous_struct_test.go
 │       ├── some_table_test.go
 │       ├── multi_query_test.go
+│       ├── sort_test.go
 │       └── pgx_crud_test.go
 │
 ├── README.md              # Документация

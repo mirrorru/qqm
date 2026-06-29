@@ -33,6 +33,8 @@ type RowMeta struct {
 	insertColumns []string
 	// updateColumns — кэшированные колонки для UPDATE
 	updateColumns []string
+	// SortFields — поля для ORDER BY (отсортированы по SortPosition)
+	SortFields []*FieldMeta
 }
 
 // Updated at 2026-06-28
@@ -56,6 +58,8 @@ func BuildRowMeta(t reflect.Type, tableName string) *RowMeta {
 
 	pkCounter := 1
 	rm.walkFields(t, nil, "", &pkCounter)
+
+	rm.sortSortFields()
 
 	rm.validateUniqueColumns()
 
@@ -127,17 +131,20 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 			}
 
 			fm := &FieldMeta{
-				Name:       sf.Name,
-				Column:     col,
-				Index:      idx,
-				GoType:     sf.Type,
-				IsPK:       opts.IsPK,
-				PkOrder:    pkOrder,
-				IsReadonly: opts.Readonly,
-				IsAuto:     opts.Auto,
-				RefTable:   opts.RefTable,
-				RefColumn:  opts.RefCol,
-				IsOmit:     opts.Omit,
+				Name:          sf.Name,
+				Column:        col,
+				Index:         idx,
+				GoType:        sf.Type,
+				IsPK:          opts.IsPK,
+				PkOrder:       pkOrder,
+				IsReadonly:    opts.Readonly,
+				IsAuto:        opts.Auto,
+				RefTable:      opts.RefTable,
+				RefColumn:     opts.RefCol,
+				IsOmit:        opts.Omit,
+				SortPosition:  opts.Sort,
+				SortDirection: opts.SortDir,
+				CreateClause:  opts.Create,
 			}
 			rm.Fields = append(rm.Fields, fm)
 			if fm.IsPK {
@@ -145,6 +152,9 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 			}
 			if !fm.IsOmit {
 				rm.Columns = append(rm.Columns, fm.Column)
+			}
+			if fm.SortPosition > 0 {
+				rm.SortFields = append(rm.SortFields, fm)
 			}
 			continue
 		}
@@ -180,17 +190,20 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 		}
 
 		fm := &FieldMeta{
-			Name:       sf.Name,
-			Column:     col,
-			Index:      idx,
-			GoType:     sf.Type,
-			IsPK:       opts.IsPK,
-			PkOrder:    pkOrder,
-			IsReadonly: opts.Readonly,
-			IsAuto:     opts.Auto,
-			RefTable:   opts.RefTable,
-			RefColumn:  opts.RefCol,
-			IsOmit:     opts.Omit,
+			Name:          sf.Name,
+			Column:        col,
+			Index:         idx,
+			GoType:        sf.Type,
+			IsPK:          opts.IsPK,
+			PkOrder:       pkOrder,
+			IsReadonly:    opts.Readonly,
+			IsAuto:        opts.Auto,
+			RefTable:      opts.RefTable,
+			RefColumn:     opts.RefCol,
+			IsOmit:        opts.Omit,
+			SortPosition:  opts.Sort,
+			SortDirection: opts.SortDir,
+			CreateClause:  opts.Create,
 		}
 
 		rm.Fields = append(rm.Fields, fm)
@@ -199,6 +212,25 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 		}
 		if !fm.IsOmit {
 			rm.Columns = append(rm.Columns, fm.Column)
+		}
+		if fm.SortPosition > 0 {
+			rm.SortFields = append(rm.SortFields, fm)
+		}
+	}
+}
+
+// Created at 2026-06-29
+// sortSortFields сортирует SortFields по SortPosition.
+func (rm *RowMeta) sortSortFields() {
+	if len(rm.SortFields) < 2 {
+		return
+	}
+	// insertion sort — SortFields обычно небольшой
+	for i := 1; i < len(rm.SortFields); i++ {
+		j := i
+		for j > 0 && rm.SortFields[j-1].SortPosition > rm.SortFields[j].SortPosition {
+			rm.SortFields[j-1], rm.SortFields[j] = rm.SortFields[j], rm.SortFields[j-1]
+			j--
 		}
 	}
 }

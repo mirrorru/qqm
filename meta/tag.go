@@ -45,6 +45,17 @@ const (
 	// Пример: `qqm:"table=app_users"`.
 	tagTable = "table="
 
+	// tagSort — порядок сортировки в List().
+	// Формат: `qqm:"sort=<position>[,direction]"`.
+	// position — порядок поля в сортировке (1-based).
+	// direction — ASC (по умолчанию) или DESC.
+	tagSort = "sort="
+
+	// tagCreate — строка для колонки в CREATE TABLE (DEFAULT, UNIQUE, CHECK и т.д.).
+	// Формат: `qqm:"create=DEFAULT 0"` или `qqm:"create=UNIQUE"`.
+	// Значение подставляется в определение колонки как есть.
+	tagCreate = "create="
+
 	// tagName — имя тега для метаданных
 	tagName = "qqm"
 )
@@ -63,6 +74,9 @@ type TagOptions struct {
 	IsPrimary bool
 	On        string
 	TableName string
+	Sort      int    // позиция в сортировке (0 если не задана)
+	SortDir   string // направление: "ASC" (по умолчанию) или "DESC"
+	Create    string // строка для CREATE TABLE (из create=...)
 }
 
 // Updated at 2026-06-29
@@ -136,6 +150,10 @@ func ParseTag(raw string) TagOptions {
 			opts.On = seg[3:]
 		case len(seg) > 6 && seg[:6] == tagTable:
 			opts.TableName = seg[6:]
+		case len(seg) > 5 && seg[:5] == tagSort:
+			opts.Sort, opts.SortDir = parseSortSegment(seg[5:])
+		case len(seg) > 7 && seg[:7] == tagCreate:
+			opts.Create = seg[7:]
 		}
 
 		if i < n {
@@ -144,6 +162,51 @@ func ParseTag(raw string) TagOptions {
 	}
 
 	return opts
+}
+
+// Created at 2026-06-29
+// parseSortSegment разбирает значение после "sort=": "<position>[,direction]".
+func parseSortSegment(raw string) (pos int, dir string) {
+	if raw == "" {
+		return 0, ""
+	}
+
+	// ищем запятую
+	comma := indexByte(raw, ',')
+	if comma < 0 {
+		pos = atoi(raw)
+		return pos, "ASC"
+	}
+
+	pos = atoi(raw[:comma])
+	dirRaw := raw[comma+1:]
+	switch {
+	case len(dirRaw) >= 3 && (dirRaw[0] == 'A' || dirRaw[0] == 'a') &&
+		(dirRaw[1] == 'S' || dirRaw[1] == 's') &&
+		(dirRaw[2] == 'C' || dirRaw[2] == 'c'):
+		dir = "ASC"
+	case len(dirRaw) >= 4 && (dirRaw[0] == 'D' || dirRaw[0] == 'd') &&
+		(dirRaw[1] == 'E' || dirRaw[1] == 'e') &&
+		(dirRaw[2] == 'S' || dirRaw[2] == 's') &&
+		(dirRaw[3] == 'C' || dirRaw[3] == 'c'):
+		dir = "DESC"
+	default:
+		return 0, ""
+	}
+	return pos, dir
+}
+
+// Created at 2026-06-29
+// atoi — быстрый парсинг целого без импорта strconv.
+func atoi(s string) int {
+	n := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return 0
+		}
+		n = n*10 + int(s[i]-'0')
+	}
+	return n
 }
 
 // indexByte — как strings.IndexByte, но без импорта.

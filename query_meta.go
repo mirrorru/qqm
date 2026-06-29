@@ -1,4 +1,4 @@
-package table
+package qqm
 
 import (
 	"fmt"
@@ -258,6 +258,10 @@ func buildQueryListSQL(d dialect.DialectProvider, qm *queryMeta) string {
 		}
 		sql += fmt.Sprintf(" %s JOIN %s AS %s ON %s",
 			joinType, d.QuoteIdent(entry.TableName), alias, entry.OnClause)
+	}
+
+	if len(qm.entries[0].RowMeta.SortFields) > 0 {
+		sql += buildOrderByClause(d, qm.entries[0].RowMeta, "t1")
 	}
 
 	return sql

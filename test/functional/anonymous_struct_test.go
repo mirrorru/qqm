@@ -6,17 +6,17 @@ package functional
 import (
 	"testing"
 
+	"github.com/mirrorru/qqm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/table"
 	"github.com/mirrorru/qqm/test/fixtures"
 )
 
 func TestFunctional_AnonymousStruct_TagParsing(t *testing.T) {
 	t.Parallel()
-	tbl := table.NewTable[fixtures.RowWithEmbeddedPK](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.RowWithEmbeddedPK](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
 
 	assert.Equal(t, "row_with_embedded_pk", m.TableName)
@@ -33,7 +33,7 @@ func TestFunctional_AnonymousStruct_TagParsing(t *testing.T) {
 
 func TestFunctional_AnonymousStruct_DeepNesting(t *testing.T) {
 	t.Parallel()
-	tbl := table.NewTable[fixtures.RowWithDeepEmbed](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.RowWithDeepEmbed](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
 
 	assert.Contains(t, m.Columns, "nested_deep_name")
@@ -44,7 +44,7 @@ func TestFunctional_AnonymousStruct_DeepNesting(t *testing.T) {
 
 func TestFunctional_AnonymousStruct_AutoReadonly(t *testing.T) {
 	t.Parallel()
-	tbl := table.NewTable[fixtures.RowWithAutoEmbed](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.RowWithAutoEmbed](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
 
 	insertCols := m.InsertColumns()
@@ -62,7 +62,7 @@ func TestFunctional_AnonymousStruct_AutoReadonly(t *testing.T) {
 
 func TestFunctional_AnonymousStruct_PKAuto(t *testing.T) {
 	t.Parallel()
-	tbl := table.NewTable[fixtures.RowWithPKAuto](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.RowWithPKAuto](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
 
 	require.Len(t, m.PKFields, 1)
@@ -77,7 +77,7 @@ func TestFunctional_AnonymousStruct_PKAuto(t *testing.T) {
 
 func TestFunctional_NamedStructPrefix_TagParsing(t *testing.T) {
 	t.Parallel()
-	tbl := table.NewTable[fixtures.PersonWithAddress](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.PersonWithAddress](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
 
 	assert.Equal(t, "person_with_address", m.TableName)

@@ -1,5 +1,5 @@
 // Created at 2026-06-28
-package table
+package qqm
 
 import (
 	"testing"
@@ -183,4 +183,121 @@ func TestTable_NamedStructPrefix_SQLite(t *testing.T) {
 
 	selectSQL := tbl.Internals().SelectSQL()
 	assert.Contains(t, selectSQL, `home_city, home_street, home_zip, work_city, work_street, work_zip`)
+}
+
+// Created at 2026-06-29
+func TestTable_ListSQL_WithSort(t *testing.T) {
+	tbl := NewTable[fixtures.UserWithSort](dialect.SQLiteDialect{})
+
+	listSQL := tbl.Internals().ListSQL()
+	assert.Contains(t, listSQL, `SELECT id, name, email, age FROM users`)
+	assert.Contains(t, listSQL, `ORDER BY name ASC, email DESC`)
+}
+
+func TestTable_ListSQL_WithSort_MultiplePositions(t *testing.T) {
+	tbl := NewTable[fixtures.UserWithSortMulti](dialect.SQLiteDialect{})
+
+	listSQL := tbl.Internals().ListSQL()
+	assert.Contains(t, listSQL, `SELECT id, name, email, age FROM user_with_sort_multi`)
+	assert.Contains(t, listSQL, `ORDER BY email DESC, name ASC, age ASC`)
+}
+
+func TestTable_ListSQL_NoSort(t *testing.T) {
+	tbl := NewTable[fixtures.User](dialect.SQLiteDialect{})
+
+	listSQL := tbl.Internals().ListSQL()
+	assert.Contains(t, listSQL, `SELECT id, name, email FROM users`)
+	assert.NotContains(t, listSQL, `ORDER BY`)
+}
+
+func TestTable_ListSQL_WithSort_PostgreSQL(t *testing.T) {
+	tbl := NewTable[fixtures.UserWithSort](dialect.PostgreSQLDialect{})
+
+	listSQL := tbl.Internals().ListSQL()
+	assert.Contains(t, listSQL, `ORDER BY name ASC, email DESC`)
+}
+
+func TestTable_ListSQL_WithSort_CompositeKey(t *testing.T) {
+	type Row struct {
+		OrgID  int64  `qqm:"pk"`
+		UserID int64  `qqm:"pk"`
+		Name   string `qqm:"sort=1,desc"`
+		Value  int    `qqm:"sort=2"`
+	}
+
+	tbl := NewTable[Row](dialect.SQLiteDialect{})
+
+	listSQL := tbl.Internals().ListSQL()
+	assert.Contains(t, listSQL, `SELECT org_id, user_id, name, value FROM row`)
+	assert.Contains(t, listSQL, `ORDER BY name DESC, value ASC`)
+}
+
+func TestTable_QueryListSQL_WithSort(t *testing.T) {
+	type QRow struct {
+		User  fixtures.UserWithSort
+		Order fixtures.OrderWithSort
+	}
+
+	q, err := NewQuery[QRow](dialect.SQLiteDialect{})
+	require.NoError(t, err)
+
+	listSQL := q.qmeta.listSQL
+	assert.Contains(t, listSQL, `ORDER BY t1.name ASC, t1.email DESC`)
+}
+
+// Created at 2026-06-29
+
+func TestTable_CreateTableSQL_Basic(t *testing.T) {
+	tbl := NewTable[fixtures.User](dialect.SQLiteDialect{})
+
+	ddl := tbl.Internals().CreateTableSQL()
+	assert.Contains(t, ddl, `CREATE TABLE users (`)
+	assert.Contains(t, ddl, `id INTEGER PRIMARY KEY AUTOINCREMENT`)
+	assert.Contains(t, ddl, `name TEXT NOT NULL`)
+	assert.Contains(t, ddl, `email TEXT NOT NULL`)
+}
+
+func TestTable_CreateTableSQL_WithCreateClause(t *testing.T) {
+	tbl := NewTable[fixtures.RowWithCreate](dialect.SQLiteDialect{})
+
+	ddl := tbl.Internals().CreateTableSQL()
+	assert.Contains(t, ddl, `CREATE TABLE`)
+	assert.Contains(t, ddl, `name TEXT NOT NULL DEFAULT 'unknown'`)
+	assert.Contains(t, ddl, `status TEXT NOT NULL DEFAULT 'active'`)
+	assert.Contains(t, ddl, `count INTEGER NOT NULL DEFAULT 0`)
+}
+
+func TestTable_CreateTableSQL_WithRef(t *testing.T) {
+	tbl := NewTable[fixtures.Order](dialect.SQLiteDialect{})
+
+	ddl := tbl.Internals().CreateTableSQL()
+	assert.Contains(t, ddl, `CREATE TABLE orders (`)
+	assert.Contains(t, ddl, `user_id BIGINT NOT NULL REFERENCES users(id)`)
+	assert.Contains(t, ddl, `amount DOUBLE PRECISION NOT NULL`)
+}
+
+func TestTable_CreateTableSQL_CompositeKey(t *testing.T) {
+	tbl := NewTable[fixtures.OrgUser](dialect.SQLiteDialect{})
+
+	ddl := tbl.Internals().CreateTableSQL()
+	assert.Contains(t, ddl, `CREATE TABLE org_users (`)
+	assert.Contains(t, ddl, `PRIMARY KEY (org_id, user_id)`)
+}
+
+func TestTable_CreateTableSQL_PostgreSQL(t *testing.T) {
+	tbl := NewTable[fixtures.RowWithCreate](dialect.PostgreSQLDialect{})
+
+	ddl := tbl.Internals().CreateTableSQL()
+	assert.Contains(t, ddl, `DEFAULT 'unknown'`)
+	assert.Contains(t, ddl, `DEFAULT 'active'`)
+	assert.Contains(t, ddl, `DEFAULT 0`)
+}
+
+func TestTable_CreateTableSQL_SomeTable(t *testing.T) {
+	tbl := NewTable[fixtures.SomeTable](dialect.SQLiteDialect{})
+
+	ddl := tbl.Internals().CreateTableSQL()
+	assert.Contains(t, ddl, `CREATE TABLE some_table (`)
+	assert.Contains(t, ddl, `field_rw TEXT NOT NULL`)
+	assert.Contains(t, ddl, `field_ro TIMESTAMPTZ NOT NULL`)
 }

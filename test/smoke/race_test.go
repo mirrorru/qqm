@@ -12,11 +12,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/mirrorru/qqm"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/executor"
-	"github.com/mirrorru/qqm/table"
 	"github.com/mirrorru/qqm/test/fixtures"
 	_ "modernc.org/sqlite"
 )
@@ -32,7 +32,7 @@ func TestSmoke_DataRace_ConcurrentCRUDAndList(t *testing.T) {
 
 	ctx := context.Background()
 	ex := executor.NewDBAdapter(db)
-	tbl := table.NewTable[fixtures.Rooms](dialect.SQLiteDialect{})
+	tbl := qqm.NewTable[fixtures.Rooms](dialect.SQLiteDialect{})
 
 	_, err = db.Exec(`
 		CREATE TABLE rooms (
@@ -92,8 +92,8 @@ func TestSmoke_DataRace_ConcurrentCRUDAndList(t *testing.T) {
 				case 3:
 					_, _ = tbl.List(ctx, ex)
 				case 4:
-					_, _ = tbl.List(ctx, ex, table.AndFilter(
-						table.Field("Square", table.And, table.Gt(float64(workerID*5))),
+					_, _ = tbl.List(ctx, ex, qqm.AndFilter(
+						qqm.Field("Square", qqm.And, qqm.Gt(float64(workerID*5))),
 					))
 				}
 			}
