@@ -12,7 +12,7 @@ import (
 )
 
 func TestTable_SQLite_SimpleKeySQL(t *testing.T) {
-	tbl := NewTable[*fixtures.User](dialect.SQLiteDialect{})
+	tbl := NewTable[fixtures.User](dialect.SQLiteDialect{})
 
 	assert.Equal(t, "users", tbl.Internals().Meta().TableName)
 	assert.Contains(t, tbl.Internals().Meta().Columns, "name")
@@ -45,7 +45,7 @@ func TestTable_SQLite_SimpleKeySQL(t *testing.T) {
 }
 
 func TestTable_SQLite_QueryCaching(t *testing.T) {
-	tbl := NewTable[*fixtures.User](dialect.SQLiteDialect{})
+	tbl := NewTable[fixtures.User](dialect.SQLiteDialect{})
 
 	sql1 := tbl.Internals().InsertSQL()
 	sql2 := tbl.Internals().InsertSQL()
@@ -54,7 +54,7 @@ func TestTable_SQLite_QueryCaching(t *testing.T) {
 }
 
 func TestTable_SQLite_CompositeKeySQL(t *testing.T) {
-	tbl := NewTable[*fixtures.OrgUser](dialect.SQLiteDialect{})
+	tbl := NewTable[fixtures.OrgUser](dialect.SQLiteDialect{})
 
 	assert.Equal(t, "org_users", tbl.Internals().Meta().TableName)
 	require.Len(t, tbl.Internals().Meta().PKFields, 2)
@@ -81,7 +81,7 @@ func TestTable_SQLite_CompositeKeySQL(t *testing.T) {
 }
 
 func TestTable_SQLite_UserWithAgeSQL(t *testing.T) {
-	tbl := NewTable[*fixtures.UserWithAge](dialect.SQLiteDialect{})
+	tbl := NewTable[fixtures.UserWithAge](dialect.SQLiteDialect{})
 
 	insertSQL := tbl.Internals().InsertSQL()
 	assert.Contains(t, insertSQL, `INSERT INTO user_with_age`)
@@ -107,7 +107,7 @@ func TestTable_SQLite_UserWithAgeSQL(t *testing.T) {
 }
 
 func TestTable_PostgreSQL_SimpleKeySQL(t *testing.T) {
-	tbl := NewTable[*fixtures.UserWithAge](dialect.PostgreSQLDialect{})
+	tbl := NewTable[fixtures.UserWithAge](dialect.PostgreSQLDialect{})
 
 	insertSQL := tbl.Internals().InsertSQL()
 	assert.Contains(t, insertSQL, "$1")
@@ -119,7 +119,7 @@ func TestTable_PostgreSQL_SimpleKeySQL(t *testing.T) {
 }
 
 func TestTable_PostgreSQL_AnonymousStructSQL(t *testing.T) {
-	tbl := NewTable[*fixtures.RowWithEmbeddedPK](dialect.PostgreSQLDialect{})
+	tbl := NewTable[fixtures.RowWithEmbeddedPK](dialect.PostgreSQLDialect{})
 
 	insertSQL := tbl.Internals().InsertSQL()
 	assert.Contains(t, insertSQL, `id`)
@@ -138,16 +138,16 @@ func TestTable_PostgreSQL_AnonymousStructSQL(t *testing.T) {
 }
 
 func TestTable_PostgreSQL_SomeTableSQL(t *testing.T) {
-	tbl := NewTable[*fixtures.SomeTable](dialect.PostgreSQLDialect{})
+	tbl := NewTable[fixtures.SomeTable](dialect.PostgreSQLDialect{})
 
 	insertSQL := tbl.Internals().InsertSQL()
 	assert.Contains(t, insertSQL, `INSERT INTO some_table`)
-	assert.Contains(t, insertSQL, `some_id`)
 	assert.Contains(t, insertSQL, `field_rw`)
-	assert.NotRegexp(t, `field_ro.*VALUES`, insertSQL, "auto field should not be in INSERT columns")
-	assert.Contains(t, insertSQL, "$1")
-	assert.Contains(t, insertSQL, "$2")
+	assert.Contains(t, insertSQL, `$1`)
 	assert.Contains(t, insertSQL, "RETURNING")
+	assert.NotContains(t, insertSQL, `(some_id`, "auto PK should not be in INSERT columns list")
+	assert.NotContains(t, insertSQL, `$2`, "auto PK should not have a placeholder")
+	assert.NotRegexp(t, `field_ro.*VALUES`, insertSQL, "auto field should not be in INSERT columns")
 
 	updateSQL := tbl.Internals().UpdateSQL()
 	assert.Contains(t, updateSQL, `UPDATE some_table`)
@@ -165,7 +165,7 @@ func TestTable_PostgreSQL_SomeTableSQL(t *testing.T) {
 }
 
 func TestTable_NamedStructPrefix_SQLite(t *testing.T) {
-	tbl := NewTable[*fixtures.PersonWithAddress](dialect.SQLiteDialect{})
+	tbl := NewTable[fixtures.PersonWithAddress](dialect.SQLiteDialect{})
 
 	meta := tbl.Internals().Meta()
 	assert.Contains(t, meta.Columns, "home_city")

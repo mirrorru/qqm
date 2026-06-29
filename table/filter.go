@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/meta"
 )
 
@@ -121,20 +122,29 @@ func filterOpJoin(op FilterOp) string {
 }
 
 type whereBuilder struct {
-	dialect interface {
-		QuoteIdent(string) string
-		Placeholder(int) string
+	dialect     dialect.DialectProvider
+	fields      []*meta.FieldMeta
+	fieldByName map[string]*meta.FieldMeta
+}
+
+func newWhereBuilder(d dialect.DialectProvider, fields []*meta.FieldMeta) *whereBuilder {
+	m := make(map[string]*meta.FieldMeta, len(fields))
+	for _, f := range fields {
+		m[f.Name] = f
 	}
-	fields []*meta.FieldMeta
+	return &whereBuilder{
+		dialect:     d,
+		fields:      fields,
+		fieldByName: m,
+	}
 }
 
 func (wb *whereBuilder) findField(fieldName string) (*meta.FieldMeta, error) {
-	for _, f := range wb.fields {
-		if f.Name == fieldName {
-			return f, nil
-		}
+	fm, ok := wb.fieldByName[fieldName]
+	if !ok {
+		return nil, fmt.Errorf("qqm: unknown field %q in filter", fieldName)
 	}
-	return nil, fmt.Errorf("qqm: unknown field %q in filter", fieldName)
+	return fm, nil
 }
 
 func (wb *whereBuilder) buildConditionSQL(column string, cond Condition, argIdx *int) (string, []any, error) {
@@ -250,11 +260,8 @@ func (wb *whereBuilder) buildWhereClause(filters []Filter) (string, []any, error
 
 // multiWhereBuilder — построитель WHERE для multi-табличных запросов с квалифицированными именами.
 type multiWhereBuilder struct {
-	dialect interface {
-		QuoteIdent(string) string
-		Placeholder(int) string
-	}
-	qmeta *queryMeta
+	dialect dialect.DialectProvider
+	qmeta   *queryMeta
 }
 
 // findQualifiedField разбирает квалифицированное имя "Order.Amount" на entry и FieldMeta.
@@ -274,8 +281,7 @@ func (wb *multiWhereBuilder) findQualifiedField(fieldName string) (string, *meta
 
 	for _, fm := range entry.RowMeta.Fields {
 		if fm.Name == fieldPart {
-			alias := fmt.Sprintf("t%d", indexOfEntry(wb.qmeta.entries, entry)+1)
-			return alias, fm, nil
+			return entry.Alias, fm, nil
 		}
 	}
 
@@ -288,15 +294,6 @@ func listEntryNames(entries []queryTableEntry) string {
 		names[i] = e.FieldName
 	}
 	return strings.Join(names, ", ")
-}
-
-func indexOfEntry(entries []queryTableEntry, entry *queryTableEntry) int {
-	for i := range entries {
-		if &entries[i] == entry {
-			return i
-		}
-	}
-	return -1
 }
 
 func (wb *multiWhereBuilder) buildConditionSQL(alias, column string, cond Condition, argIdx *int) (string, []any, error) {

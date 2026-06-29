@@ -9,14 +9,13 @@ import (
 	"github.com/mirrorru/qqm/meta"
 )
 
-// Query — типизированный запрос для SELECT с JOIN по нескольким таблицам.
 type Query[QROW any] struct {
-	dialect  dialect.DialectProvider
-	qmeta    *queryMeta
-	qrowType reflect.Type
+	dialect      dialect.DialectProvider
+	qmeta        *queryMeta
+	qrowType     reflect.Type
+	scanTemplate *scanContext
 }
 
-// NewQuery создаёт новый Query для QROW.
 func NewQuery[QROW any](d dialect.DialectProvider) (*Query[QROW], error) {
 	var zero QROW
 	rt := reflect.TypeOf(zero)
@@ -32,14 +31,14 @@ func NewQuery[QROW any](d dialect.DialectProvider) (*Query[QROW], error) {
 	qmeta.listSQL = buildQueryListSQL(d, qmeta)
 
 	return &Query[QROW]{
-		dialect:  d,
-		qmeta:    qmeta,
-		qrowType: rt,
+		dialect:      d,
+		qmeta:        qmeta,
+		qrowType:     rt,
+		scanTemplate: buildScanTemplate(qmeta),
 	}, nil
 }
 
-// List выполняет SELECT с JOIN и опциональными фильтрами.
-func (q *Query[QROW]) List(ctx context.Context, ex executor.Executor, filters ...Filter) ([]QROW, error) {
+func (q *Query[QROW]) List(ctx context.Context, ex executor.Executor, filters ...Filter) ([]*QROW, error) {
 	query := q.qmeta.listSQL
 
 	var args []any
@@ -50,8 +49,7 @@ func (q *Query[QROW]) List(ctx context.Context, ex executor.Executor, filters ..
 		}
 		whereSQL, whereArgs, err := wb.buildWhereClause(filters)
 		if err != nil {
-			var zero []QROW
-			return zero, err
+			return nil, err
 		}
 		query += whereSQL
 		args = whereArgs
@@ -63,40 +61,43 @@ func (q *Query[QROW]) List(ctx context.Context, ex executor.Executor, filters ..
 	}
 	defer func() { _ = rows.Close() }()
 
-	var result []QROW
+	var result []*QROW
+	buf := new(QROW)
+	qrowVal := reflect.ValueOf(buf).Elem()
+	q.scanTemplate.resetForRow(qrowVal)
+	dest := q.scanTemplate.dest
 	for rows.Next() {
-		qrow := reflect.New(q.qrowType).Elem()
 
-		sc := newScanContext(q.qmeta, qrow)
-		if err := rows.Scan(sc.dest...); err != nil {
+		if err := rows.Scan(dest...); err != nil {
 			return nil, err
 		}
 
-		sc.apply(q.qmeta, qrow)
+		q.scanTemplate.apply(q.qmeta, qrowVal)
 
-		result = append(result, qrow.Interface().(QROW))
+		row := new(QROW)
+		*row = *buf
+		result = append(result, row)
 	}
 
 	return result, nil
 }
 
-// scanContext хранит flat scan destination и временные значения для pointer-полей.
 type scanContext struct {
 	dest    []any
 	entries []entryScanCtx
 }
 
-// entryScanCtx — контекст сканирования для одной таблицы.
 type entryScanCtx struct {
-	isPointer  bool
-	fieldStart int
-	pkFieldIdx []int // индексы PK-полей в entry.RowMeta.Fields
-	tempAny    []any // для pointer: временные any-переменные (указатели на них в dest)
-	rowMeta    *meta.RowMeta
+	isPointer    bool
+	fieldStart   int
+	pkFieldIdx   []int
+	tempAny      []any
+	rowMeta      *meta.RowMeta
+	fieldIndexes [][]int
+	applyFields  []*meta.FieldMeta
 }
 
-// newScanContext создаёт scanContext для QROW.
-func newScanContext(qm *queryMeta, qrow reflect.Value) *scanContext {
+func buildScanTemplate(qm *queryMeta) *scanContext {
 	sc := &scanContext{}
 
 	for _, entry := range qm.entries {
@@ -114,26 +115,28 @@ func newScanContext(qm *queryMeta, qrow reflect.Value) *scanContext {
 				combinedIdx := make([]int, 0, len(fm.Index)+1)
 				combinedIdx = append(combinedIdx, entry.FieldIndex)
 				combinedIdx = append(combinedIdx, fm.Index...)
-				fv := qrow.FieldByIndex(combinedIdx)
-				sc.dest = append(sc.dest, fv.Addr().Interface())
+				ec.fieldIndexes = append(ec.fieldIndexes, combinedIdx)
+
+				sc.dest = append(sc.dest, nil)
 				if fm.IsPK {
 					ec.pkFieldIdx = append(ec.pkFieldIdx, len(sc.dest)-1-ec.fieldStart)
 				}
 			}
 		} else {
 			nonOmitCount := countNonOmitFields(entry.RowMeta)
-			tempSlice := make([]any, nonOmitCount)
-			ec.tempAny = tempSlice
-			tempIdx := 0
+			ec.tempAny = make([]any, nonOmitCount)
+			for i := 0; i < nonOmitCount; i++ {
+				sc.dest = append(sc.dest, &ec.tempAny[i])
+			}
+
 			for _, fm := range entry.RowMeta.Fields {
 				if fm.IsOmit {
 					continue
 				}
-				sc.dest = append(sc.dest, &tempSlice[tempIdx])
+				ec.applyFields = append(ec.applyFields, fm)
 				if fm.IsPK {
-					ec.pkFieldIdx = append(ec.pkFieldIdx, tempIdx)
+					ec.pkFieldIdx = append(ec.pkFieldIdx, len(ec.applyFields)-1)
 				}
-				tempIdx++
 			}
 		}
 
@@ -143,7 +146,22 @@ func newScanContext(qm *queryMeta, qrow reflect.Value) *scanContext {
 	return sc
 }
 
-// apply обрабатывает результаты сканирования и устанавливает значения в QROW.
+func (sc *scanContext) resetForRow(qrow reflect.Value) {
+	for ei := range sc.entries {
+		ec := &sc.entries[ei]
+		if ec.isPointer {
+			for i := range ec.tempAny {
+				ec.tempAny[i] = nil
+			}
+		} else {
+			for fi := range ec.fieldIndexes {
+				fv := qrow.FieldByIndex(ec.fieldIndexes[fi])
+				sc.dest[ec.fieldStart+fi] = fv.Addr().Interface()
+			}
+		}
+	}
+}
+
 func (sc *scanContext) apply(qm *queryMeta, qrow reflect.Value) {
 	for ei, entry := range qm.entries {
 		ec := sc.entries[ei]
@@ -164,17 +182,12 @@ func (sc *scanContext) apply(qm *queryMeta, qrow reflect.Value) {
 			ptrField.Set(reflect.Zero(ptrField.Type()))
 		} else {
 			allocated := reflect.New(entry.RowType).Elem()
-			tempIdx := 0
-			for _, fm := range entry.RowMeta.Fields {
-				if fm.IsOmit {
-					continue
-				}
+			for fi, fm := range ec.applyFields {
 				dst := allocated.FieldByIndex(fm.Index)
-				srcVal := reflect.ValueOf(ec.tempAny[tempIdx])
+				srcVal := reflect.ValueOf(ec.tempAny[fi])
 				if srcVal.IsValid() && srcVal.Type().AssignableTo(dst.Type()) {
 					dst.Set(srcVal)
 				}
-				tempIdx++
 			}
 			ptrField := qrow.Field(entry.FieldIndex)
 			ptrField.Set(allocated.Addr())
@@ -182,7 +195,6 @@ func (sc *scanContext) apply(qm *queryMeta, qrow reflect.Value) {
 	}
 }
 
-// countNonOmitFields подсчитывает количество не-omit полей в RowMeta.
 func countNonOmitFields(rm *meta.RowMeta) int {
 	count := 0
 	for _, fm := range rm.Fields {

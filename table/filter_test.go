@@ -144,7 +144,7 @@ func TestFilter_Helpers(t *testing.T) {
 }
 
 func TestFilter_BuildWhereClause_SQLite(t *testing.T) {
-	tbl := NewTable[*fixtures.UserWithAge](dialect.SQLiteDialect{})
+	tbl := NewTable[fixtures.UserWithAge](dialect.SQLiteDialect{})
 
 	t.Run("single field single condition", func(t *testing.T) {
 		sql, args, err := tbl.buildFilterWhereClause([]Filter{
@@ -245,7 +245,7 @@ func TestFilter_BuildWhereClause_SQLite(t *testing.T) {
 }
 
 func TestFilter_BuildWhereClause_PostgreSQL(t *testing.T) {
-	tbl := NewTable[*fixtures.UserWithAge](dialect.PostgreSQLDialect{})
+	tbl := NewTable[fixtures.UserWithAge](dialect.PostgreSQLDialect{})
 
 	t.Run("single field single condition", func(t *testing.T) {
 		sql, args, err := tbl.buildFilterWhereClause([]Filter{
@@ -297,7 +297,7 @@ func TestFilter_BuildWhereClause_PostgreSQL(t *testing.T) {
 }
 
 func TestFilter_ValidationErrors(t *testing.T) {
-	tbl := NewTable[*fixtures.UserWithAge](dialect.SQLiteDialect{})
+	tbl := NewTable[fixtures.UserWithAge](dialect.SQLiteDialect{})
 
 	t.Run("unknown field name", func(t *testing.T) {
 		_, _, err := tbl.buildFilterWhereClause([]Filter{
@@ -325,7 +325,7 @@ func TestFilter_ValidationErrors(t *testing.T) {
 }
 
 func TestFilter_CompositeKey(t *testing.T) {
-	tbl := NewTable[*fixtures.OrgUser](dialect.SQLiteDialect{})
+	tbl := NewTable[fixtures.OrgUser](dialect.SQLiteDialect{})
 
 	t.Run("filter on composite key table", func(t *testing.T) {
 		sql, args, err := tbl.buildFilterWhereClause([]Filter{
@@ -347,7 +347,7 @@ func TestFilter_CompositeKey(t *testing.T) {
 }
 
 func TestFilter_OrFilterOp(t *testing.T) {
-	tbl := NewTable[*fixtures.UserWithAge](dialect.SQLiteDialect{})
+	tbl := NewTable[fixtures.UserWithAge](dialect.SQLiteDialect{})
 
 	t.Run("OR between fields", func(t *testing.T) {
 		sql, args, err := tbl.buildFilterWhereClause([]Filter{
@@ -362,7 +362,7 @@ func TestFilter_OrFilterOp(t *testing.T) {
 	})
 
 	t.Run("OR between fields with PostgreSQL", func(t *testing.T) {
-		tbl2 := NewTable[*fixtures.UserWithAge](dialect.PostgreSQLDialect{})
+		tbl2 := NewTable[fixtures.UserWithAge](dialect.PostgreSQLDialect{})
 		sql, args, err := tbl2.buildFilterWhereClause([]Filter{
 			OrFilter(
 				Field("Name", And, Eq("Alice")),
@@ -376,7 +376,7 @@ func TestFilter_OrFilterOp(t *testing.T) {
 }
 
 func TestFilter_ListWithMockExecutor(t *testing.T) {
-	tbl := NewTable[*fixtures.UserWithAge](dialect.SQLiteDialect{})
+	tbl := NewTable[fixtures.UserWithAge](dialect.SQLiteDialect{})
 	ctx := context.Background()
 
 	t.Run("List without filters passes original SQL", func(t *testing.T) {

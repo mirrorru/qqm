@@ -1,4 +1,4 @@
-// Created at 2026-06-28
+// Updated at 2026-06-29
 package meta
 
 import (
@@ -6,33 +6,49 @@ import (
 	"sync"
 )
 
-// metaCache — thread-safe кэш метаданных на базе sync.Map.
-var metaCache sync.Map
+// cacheKey — ключ кэша, включающий тип и имя таблицы.
+type cacheKey struct {
+	t reflect.Type
+	n string
+}
 
-// Created at 2026-06-28
+// metaCache — thread-safe кэш метаданных.
+var (
+	metaMu  sync.RWMutex
+	metaMap = make(map[cacheKey]*RowMeta)
+)
+
+// Updated at 2026-06-29
 // GetOrBuildRowMeta возвращает кэшированную RowMeta или строит новую.
-// LoadOrStore гарантирует, что для одного типа построится только один RowMeta.
 func GetOrBuildRowMeta(t reflect.Type, tableName string) *RowMeta {
-	// разыменовываем указатель для ключа кэша
-	key := t
-	for key.Kind() == reflect.Pointer {
-		key = key.Elem()
+	key := cacheKey{t: t, n: tableName}
+	for key.t.Kind() == reflect.Pointer {
+		key.t = key.t.Elem()
 	}
 
-	if cached, ok := metaCache.Load(key); ok {
-		return cached.(*RowMeta)
+	metaMu.RLock()
+	cached, ok := metaMap[key]
+	metaMu.RUnlock()
+	if ok {
+		return cached
 	}
 
 	rm := BuildRowMeta(t, tableName)
-	actual, _ := metaCache.LoadOrStore(key, rm)
-	return actual.(*RowMeta)
+
+	metaMu.Lock()
+	if cached, ok := metaMap[key]; ok {
+		metaMu.Unlock()
+		return cached
+	}
+	metaMap[key] = rm
+	metaMu.Unlock()
+	return rm
 }
 
-// Created at 2026-06-28
+// Updated at 2026-06-29
 // ClearCache очищает кэш (для тестов).
 func ClearCache() {
-	metaCache.Range(func(k, v any) bool {
-		metaCache.Delete(k)
-		return true
-	})
+	metaMu.Lock()
+	metaMap = make(map[cacheKey]*RowMeta)
+	metaMu.Unlock()
 }

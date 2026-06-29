@@ -15,7 +15,8 @@ import (
 )
 
 func TestFunctional_AnonymousStruct_TagParsing(t *testing.T) {
-	tbl := table.NewTable[*fixtures.RowWithEmbeddedPK](dialect.PostgreSQLDialect{})
+	t.Parallel()
+	tbl := table.NewTable[fixtures.RowWithEmbeddedPK](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
 
 	assert.Equal(t, "row_with_embedded_pk", m.TableName)
@@ -31,7 +32,8 @@ func TestFunctional_AnonymousStruct_TagParsing(t *testing.T) {
 }
 
 func TestFunctional_AnonymousStruct_DeepNesting(t *testing.T) {
-	tbl := table.NewTable[*fixtures.RowWithDeepEmbed](dialect.PostgreSQLDialect{})
+	t.Parallel()
+	tbl := table.NewTable[fixtures.RowWithDeepEmbed](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
 
 	assert.Contains(t, m.Columns, "nested_deep_name")
@@ -41,7 +43,8 @@ func TestFunctional_AnonymousStruct_DeepNesting(t *testing.T) {
 }
 
 func TestFunctional_AnonymousStruct_AutoReadonly(t *testing.T) {
-	tbl := table.NewTable[*fixtures.RowWithAutoEmbed](dialect.PostgreSQLDialect{})
+	t.Parallel()
+	tbl := table.NewTable[fixtures.RowWithAutoEmbed](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
 
 	insertCols := m.InsertColumns()
@@ -58,7 +61,8 @@ func TestFunctional_AnonymousStruct_AutoReadonly(t *testing.T) {
 }
 
 func TestFunctional_AnonymousStruct_PKAuto(t *testing.T) {
-	tbl := table.NewTable[*fixtures.RowWithPKAuto](dialect.PostgreSQLDialect{})
+	t.Parallel()
+	tbl := table.NewTable[fixtures.RowWithPKAuto](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
 
 	require.Len(t, m.PKFields, 1)
@@ -72,7 +76,8 @@ func TestFunctional_AnonymousStruct_PKAuto(t *testing.T) {
 }
 
 func TestFunctional_NamedStructPrefix_TagParsing(t *testing.T) {
-	tbl := table.NewTable[*fixtures.PersonWithAddress](dialect.PostgreSQLDialect{})
+	t.Parallel()
+	tbl := table.NewTable[fixtures.PersonWithAddress](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
 
 	assert.Equal(t, "person_with_address", m.TableName)

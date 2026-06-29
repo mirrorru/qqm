@@ -19,6 +19,7 @@ import (
 )
 
 func TestSmoke_CRUD_Rooms(t *testing.T) {
+	t.Parallel()
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
@@ -36,7 +37,7 @@ func TestSmoke_CRUD_Rooms(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[*fixtures.Rooms](dialect.SQLiteDialect{})
+	tbl := table.NewTable[fixtures.Rooms](dialect.SQLiteDialect{})
 
 	now := int64(1700000000)
 	room := &fixtures.Rooms{
@@ -51,7 +52,7 @@ func TestSmoke_CRUD_Rooms(t *testing.T) {
 	assert.Equal(t, room.Square, inserted.Square)
 	assert.NotZero(t, inserted.ID, "auto-generated ID should not be zero")
 
-	fetched, err := tbl.GetByKey(ctx, ex, inserted.ID)
+	fetched, err := tbl.GetByPK(ctx, ex, inserted.ID)
 	require.NoError(t, err)
 	assert.Equal(t, inserted.ID, fetched.ID)
 	assert.Equal(t, room.Name, fetched.Name)
@@ -62,7 +63,7 @@ func TestSmoke_CRUD_Rooms(t *testing.T) {
 	err = tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
 
-	updated, err := tbl.GetByKey(ctx, ex, inserted.ID)
+	updated, err := tbl.GetByPK(ctx, ex, inserted.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Conference Room B", updated.Name)
 	assert.Equal(t, 60.0, updated.Square)
@@ -75,11 +76,12 @@ func TestSmoke_CRUD_Rooms(t *testing.T) {
 	err = tbl.Delete(ctx, ex, inserted.ID)
 	require.NoError(t, err)
 
-	_, err = tbl.GetByKey(ctx, ex, inserted.ID)
+	_, err = tbl.GetByPK(ctx, ex, inserted.ID)
 	assert.Error(t, err)
 }
 
 func TestSmoke_CRUD_RoomMapping(t *testing.T) {
+	t.Parallel()
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
@@ -99,7 +101,7 @@ func TestSmoke_CRUD_RoomMapping(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[*fixtures.RoomMapping](dialect.SQLiteDialect{})
+	tbl := table.NewTable[fixtures.RoomMapping](dialect.SQLiteDialect{})
 
 	now := int64(1700000000)
 	mapping := &fixtures.RoomMapping{
@@ -115,7 +117,7 @@ func TestSmoke_CRUD_RoomMapping(t *testing.T) {
 	assert.Equal(t, mapping.MappingRoomID.ID, inserted.MappingRoomID.ID)
 	assert.Equal(t, mapping.TeacherKey.Key, inserted.TeacherKey.Key)
 
-	fetched, err := tbl.GetByKey(ctx, ex, int64(100), int64(200))
+	fetched, err := tbl.GetByPK(ctx, ex, int64(100), int64(200))
 	require.NoError(t, err)
 	assert.Equal(t, mapping.MappingRoomID.ID, fetched.MappingRoomID.ID)
 	assert.Equal(t, mapping.TeacherKey.Key, fetched.TeacherKey.Key)
@@ -124,7 +126,7 @@ func TestSmoke_CRUD_RoomMapping(t *testing.T) {
 	err = tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
 
-	updated, err := tbl.GetByKey(ctx, ex, int64(100), int64(200))
+	updated, err := tbl.GetByPK(ctx, ex, int64(100), int64(200))
 	require.NoError(t, err)
 	assert.Equal(t, now+10800, updated.To)
 
@@ -135,11 +137,12 @@ func TestSmoke_CRUD_RoomMapping(t *testing.T) {
 	err = tbl.Delete(ctx, ex, int64(100), int64(200))
 	require.NoError(t, err)
 
-	_, err = tbl.GetByKey(ctx, ex, int64(100), int64(200))
+	_, err = tbl.GetByPK(ctx, ex, int64(100), int64(200))
 	assert.Error(t, err)
 }
 
 func TestSmoke_ListWithFilters(t *testing.T) {
+	t.Parallel()
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
@@ -156,7 +159,7 @@ func TestSmoke_ListWithFilters(t *testing.T) {
 
 	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
-	tbl := table.NewTable[*fixtures.UserWithAge](dialect.SQLiteDialect{})
+	tbl := table.NewTable[fixtures.UserWithAge](dialect.SQLiteDialect{})
 
 	users := []*fixtures.UserWithAge{
 		{ID: 1, Name: "Alice", Email: "alice@test.com", Age: 25},
@@ -261,6 +264,7 @@ func TestSmoke_ListWithFilters(t *testing.T) {
 }
 
 func TestSmoke_CRUD_FullRoomMapping(t *testing.T) {
+	t.Parallel()
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
@@ -281,7 +285,7 @@ func TestSmoke_CRUD_FullRoomMapping(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[*fixtures.FullRoomMapping](dialect.SQLiteDialect{})
+	tbl := table.NewTable[fixtures.FullRoomMapping](dialect.SQLiteDialect{})
 
 	now := int64(1700000000)
 	fullMapping := &fixtures.FullRoomMapping{
@@ -300,7 +304,7 @@ func TestSmoke_CRUD_FullRoomMapping(t *testing.T) {
 	assert.Equal(t, fullMapping.MappingRoomID.ID, inserted.MappingRoomID.ID)
 	assert.Equal(t, fullMapping.Author, inserted.Author)
 
-	fetched, err := tbl.GetByKey(ctx, ex, int64(300), int64(400))
+	fetched, err := tbl.GetByPK(ctx, ex, int64(300), int64(400))
 	require.NoError(t, err)
 	assert.Equal(t, fullMapping.MappingRoomID.ID, fetched.MappingRoomID.ID)
 	assert.Equal(t, fullMapping.Author, fetched.Author)
@@ -309,7 +313,7 @@ func TestSmoke_CRUD_FullRoomMapping(t *testing.T) {
 	err = tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
 
-	updated, err := tbl.GetByKey(ctx, ex, int64(300), int64(400))
+	updated, err := tbl.GetByPK(ctx, ex, int64(300), int64(400))
 	require.NoError(t, err)
 	assert.Equal(t, "Jane Smith", updated.Author)
 
@@ -320,11 +324,12 @@ func TestSmoke_CRUD_FullRoomMapping(t *testing.T) {
 	err = tbl.Delete(ctx, ex, int64(300), int64(400))
 	require.NoError(t, err)
 
-	_, err = tbl.GetByKey(ctx, ex, int64(300), int64(400))
+	_, err = tbl.GetByPK(ctx, ex, int64(300), int64(400))
 	assert.Error(t, err)
 }
 
 func TestSmoke_CRUD_WithTx(t *testing.T) {
+	t.Parallel()
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
@@ -340,7 +345,7 @@ func TestSmoke_CRUD_WithTx(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	tbl := table.NewTable[*fixtures.Rooms](dialect.SQLiteDialect{})
+	tbl := table.NewTable[fixtures.Rooms](dialect.SQLiteDialect{})
 
 	t.Run("commit transaction", func(t *testing.T) {
 		tx, err := db.BeginTx(ctx, nil)
@@ -358,7 +363,7 @@ func TestSmoke_CRUD_WithTx(t *testing.T) {
 		err = tx.Commit()
 		require.NoError(t, err)
 
-		fetched, err := tbl.GetByKey(ctx, executor.NewDBAdapter(db), inserted.ID)
+		fetched, err := tbl.GetByPK(ctx, executor.NewDBAdapter(db), inserted.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "Tx Room", fetched.Name)
 	})
@@ -379,7 +384,7 @@ func TestSmoke_CRUD_WithTx(t *testing.T) {
 		err = tx.Rollback()
 		require.NoError(t, err)
 
-		_, err = tbl.GetByKey(ctx, executor.NewDBAdapter(db), inserted.ID)
+		_, err = tbl.GetByPK(ctx, executor.NewDBAdapter(db), inserted.ID)
 		assert.Error(t, err, "should not find rolled-back row")
 	})
 
@@ -395,7 +400,7 @@ func TestSmoke_CRUD_WithTx(t *testing.T) {
 		require.NoError(t, err)
 
 		txEx := executor.NewTxAdapter(tx)
-		fetched, err := tbl.GetByKey(ctx, txEx, inserted.ID)
+		fetched, err := tbl.GetByPK(ctx, txEx, inserted.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "Tx GetByKey", fetched.Name)
 

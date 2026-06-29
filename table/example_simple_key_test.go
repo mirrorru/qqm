@@ -18,7 +18,7 @@ type User struct {
 
 // Example_simpleKey demonstrates usage with a simple key
 func Example_simpleKey() {
-	userTable := table.NewTable[*User](dialect.SQLiteDialect{})
+	userTable := table.NewTable[User](dialect.SQLiteDialect{})
 
 	fmt.Println("INSERT:", userTable.Internals().InsertSQL())
 	fmt.Println("UPDATE:", userTable.Internals().UpdateSQL())

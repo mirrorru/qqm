@@ -19,6 +19,7 @@ type queryTableEntry struct {
 	JoinType   string        // INNER, LEFT, RIGHT, FULL
 	TableName  string        // итоговое имя таблицы (с учётом override)
 	OnClause   string        // условие JOIN (auto или explicit)
+	Alias      string        // алиас таблицы (t1, t2, ...)
 }
 
 // qualifiedColumn — колонка с алиасом таблицы для SELECT.
@@ -29,9 +30,10 @@ type qualifiedColumn struct {
 
 // queryMeta — кэшируемые метаданные Query.
 type queryMeta struct {
-	entries []queryTableEntry // первая = primary
-	listSQL string            // полный SELECT ... FROM ... JOIN ...
-	columns []qualifiedColumn // все колонки в порядке SELECT
+	entries     []queryTableEntry // первая = primary
+	listSQL     string            // полный SELECT ... FROM ... JOIN ...
+	columns     []qualifiedColumn // все колонки в порядке SELECT
+	entryByName map[string]*queryTableEntry
 }
 
 // resolveQueryFieldTableName определяет имя таблицы для поля QROW.
@@ -158,7 +160,18 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 		entries: entries,
 	}
 
+	// назначаем алиасы таблиц
+	for i := range qm.entries {
+		qm.entries[i].Alias = fmt.Sprintf("t%d", i+1)
+	}
+
 	qm.columns = buildQualifiedColumns(qm)
+
+	m := make(map[string]*queryTableEntry, len(entries))
+	for i := range entries {
+		m[entries[i].FieldName] = &entries[i]
+	}
+	qm.entryByName = m
 
 	return qm, nil
 }
@@ -270,10 +283,5 @@ func buildQualifiedColumns(qm *queryMeta) []qualifiedColumn {
 
 // findEntryByFieldName находит entry по имени поля в QROW.
 func (qm *queryMeta) findEntryByFieldName(name string) *queryTableEntry {
-	for i, e := range qm.entries {
-		if e.FieldName == name {
-			return &qm.entries[i]
-		}
-	}
-	return nil
+	return qm.entryByName[name]
 }

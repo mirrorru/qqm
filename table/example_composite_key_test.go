@@ -20,7 +20,7 @@ func (o *OrgUser) SQLName() string { return "org_users" }
 
 // Example_compositeKey demonstrates usage with a composite key
 func Example_compositeKey() {
-	orgUserTable := table.NewTable[*OrgUser](dialect.SQLiteDialect{})
+	orgUserTable := table.NewTable[OrgUser](dialect.SQLiteDialect{})
 
 	fmt.Println("INSERT:", orgUserTable.Internals().InsertSQL())
 	fmt.Println("UPDATE:", orgUserTable.Internals().UpdateSQL())

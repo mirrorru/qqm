@@ -19,6 +19,7 @@ import (
 )
 
 func TestSmoke_MultiQuery_INNER_JOIN(t *testing.T) {
+	t.Parallel()
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
@@ -40,8 +41,8 @@ func TestSmoke_MultiQuery_INNER_JOIN(t *testing.T) {
 	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
-	userTbl := table.NewTable[*fixtures.User](dialect.SQLiteDialect{})
-	orderTbl := table.NewTable[*fixtures.Order](dialect.SQLiteDialect{})
+	userTbl := table.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := table.NewTable[fixtures.Order](dialect.SQLiteDialect{})
 
 	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
@@ -84,6 +85,7 @@ func TestSmoke_MultiQuery_INNER_JOIN(t *testing.T) {
 }
 
 func TestSmoke_MultiQuery_LEFT_JOIN(t *testing.T) {
+	t.Parallel()
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
@@ -105,8 +107,8 @@ func TestSmoke_MultiQuery_LEFT_JOIN(t *testing.T) {
 	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
-	userTbl := table.NewTable[*fixtures.User](dialect.SQLiteDialect{})
-	orderTbl := table.NewTable[*fixtures.Order](dialect.SQLiteDialect{})
+	userTbl := table.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := table.NewTable[fixtures.Order](dialect.SQLiteDialect{})
 
 	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
@@ -126,7 +128,7 @@ func TestSmoke_MultiQuery_LEFT_JOIN(t *testing.T) {
 	// Map results by user name for order-independent assertions
 	byName := make(map[string]fixtures.UserWithOrderPtr)
 	for _, r := range results {
-		byName[r.User.Name] = r
+		byName[r.User.Name] = *r
 	}
 
 	alice, ok := byName["Alice"]
@@ -140,6 +142,7 @@ func TestSmoke_MultiQuery_LEFT_JOIN(t *testing.T) {
 }
 
 func TestSmoke_MultiQuery_ThreeTableJoin(t *testing.T) {
+	t.Parallel()
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
@@ -167,9 +170,9 @@ func TestSmoke_MultiQuery_ThreeTableJoin(t *testing.T) {
 	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
-	userTbl := table.NewTable[*fixtures.User](dialect.SQLiteDialect{})
-	orderTbl := table.NewTable[*fixtures.Order](dialect.SQLiteDialect{})
-	itemTbl := table.NewTable[*fixtures.OrderItem](dialect.SQLiteDialect{})
+	userTbl := table.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := table.NewTable[fixtures.Order](dialect.SQLiteDialect{})
+	itemTbl := table.NewTable[fixtures.OrderItem](dialect.SQLiteDialect{})
 
 	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)

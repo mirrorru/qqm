@@ -15,7 +15,7 @@
 - **Теги полей** — колонка, первичный ключ, внешний ключ, readonly, auto, omit, join, on, table, primary.
 - **Embedded структуры** — поддержка встраивания с префиксом колонок.
 - **Именованные поля-структуры** — префикс для неанонимных структур (например, несколько адресов).
-- **Составные ключи** —任意ное количество полей в PK.
+- **Составные ключи** —переменное количество полей в PK.
 - **Кеширование SQL** — запросы генерируются один раз при первом обращении.
 - **Без рефлексии в рантайме** — метаданные собираются лениво и кешируются.
 
@@ -47,7 +47,7 @@ type User struct {
 ```go
 import "github.com/mirrorru/qqm"
 
-userTable := qqm.NewTable[*User](qqm.SQLiteDialect)
+userTable := qqm.NewTable[User](qqm.SQLiteDialect)
 
 fmt.Println(userTable.Internals().InsertSQL())
 // INSERT INTO user (id, name, email, age) VALUES (?, ?, ?, ?) RETURNING id, name, email, age
@@ -75,7 +75,7 @@ func Example() {
 
     ex := executor.NewDBAdapter(db)
     ctx := context.Background()
-    tbl := qqm.NewTable[*User](qqm.SQLiteDialect)
+    tbl := qqm.NewTable[User](qqm.SQLiteDialect)
 
     // Create
     u, _ := tbl.Insert(ctx, ex, &User{Name: "Alice", Email: "alice@test.com", Age: 25})
