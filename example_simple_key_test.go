@@ -1,11 +1,11 @@
 // Created at 2026-06-28
-package table_test
+package qqm_test
 
 import (
 	"fmt"
 
+	"github.com/mirrorru/qqm"
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/table"
 )
 
 // User — структура с простым ключом
@@ -18,7 +18,7 @@ type User struct {
 
 // Example_simpleKey demonstrates usage with a simple key
 func Example_simpleKey() {
-	userTable := table.NewTable[User](dialect.SQLiteDialect{})
+	userTable := qqm.NewTable[User](dialect.SQLiteDialect{})
 
 	fmt.Println("INSERT:", userTable.Internals().InsertSQL())
 	fmt.Println("UPDATE:", userTable.Internals().UpdateSQL())

@@ -31,4 +31,6 @@ type FieldMeta struct {
 	SortPosition int
 	// SortDirection — направление сортировки: "ASC" или "DESC"
 	SortDirection string
+	// CreateClause — строка для колонки в CREATE TABLE (из тега create=...)
+	CreateClause string
 }

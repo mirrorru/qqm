@@ -115,3 +115,30 @@ func TestParseTag_Sort_Empty(t *testing.T) {
 	assert.Equal(t, 0, opts.Sort)
 	assert.Equal(t, "", opts.SortDir)
 }
+
+func TestParseTag_Create_Default(t *testing.T) {
+	opts := ParseTag("create=DEFAULT 0")
+	assert.Equal(t, "DEFAULT 0", opts.Create)
+}
+
+func TestParseTag_Create_String(t *testing.T) {
+	opts := ParseTag("create=DEFAULT 'active'")
+	assert.Equal(t, "DEFAULT 'active'", opts.Create)
+}
+
+func TestParseTag_Create_Func(t *testing.T) {
+	opts := ParseTag("create=DEFAULT NOW()")
+	assert.Equal(t, "DEFAULT NOW()", opts.Create)
+}
+
+func TestParseTag_Create_Unique(t *testing.T) {
+	opts := ParseTag("create=UNIQUE")
+	assert.Equal(t, "UNIQUE", opts.Create)
+}
+
+func TestParseTag_Create_Combined(t *testing.T) {
+	opts := ParseTag("col=status;create=DEFAULT 'new';readonly")
+	assert.Equal(t, "status", opts.Col)
+	assert.Equal(t, "DEFAULT 'new'", opts.Create)
+	assert.True(t, opts.Readonly)
+}

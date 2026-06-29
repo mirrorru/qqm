@@ -8,12 +8,12 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/mirrorru/qqm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/executor"
-	"github.com/mirrorru/qqm/table"
 	"github.com/mirrorru/qqm/test/fixtures"
 	_ "modernc.org/sqlite"
 )
@@ -41,8 +41,8 @@ func TestSmoke_MultiQuery_INNER_JOIN(t *testing.T) {
 	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
-	userTbl := table.NewTable[fixtures.User](dialect.SQLiteDialect{})
-	orderTbl := table.NewTable[fixtures.Order](dialect.SQLiteDialect{})
+	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := qqm.NewTable[fixtures.Order](dialect.SQLiteDialect{})
 
 	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
@@ -54,7 +54,7 @@ func TestSmoke_MultiQuery_INNER_JOIN(t *testing.T) {
 	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: 1, Amount: 250.0})
 	require.NoError(t, err)
 
-	q, err := table.NewQuery[fixtures.UserWithOrder](dialect.SQLiteDialect{})
+	q, err := qqm.NewQuery[fixtures.UserWithOrder](dialect.SQLiteDialect{})
 	require.NoError(t, err)
 
 	t.Run("List without filters returns all matching rows", func(t *testing.T) {
@@ -67,16 +67,16 @@ func TestSmoke_MultiQuery_INNER_JOIN(t *testing.T) {
 	})
 
 	t.Run("List with filter on User field", func(t *testing.T) {
-		results, err := q.List(ctx, ex, table.AndFilter(
-			table.Field("User.Name", table.And, table.Eq("Alice")),
+		results, err := q.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("User.Name", qqm.And, qqm.Eq("Alice")),
 		))
 		require.NoError(t, err)
 		assert.Len(t, results, 2)
 	})
 
 	t.Run("List with filter on Order field", func(t *testing.T) {
-		results, err := q.List(ctx, ex, table.AndFilter(
-			table.Field("Order.Amount", table.And, table.Gt(200.0)),
+		results, err := q.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Order.Amount", qqm.And, qqm.Gt(200.0)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, results, 1)
@@ -107,8 +107,8 @@ func TestSmoke_MultiQuery_LEFT_JOIN(t *testing.T) {
 	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
-	userTbl := table.NewTable[fixtures.User](dialect.SQLiteDialect{})
-	orderTbl := table.NewTable[fixtures.Order](dialect.SQLiteDialect{})
+	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := qqm.NewTable[fixtures.Order](dialect.SQLiteDialect{})
 
 	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
@@ -118,7 +118,7 @@ func TestSmoke_MultiQuery_LEFT_JOIN(t *testing.T) {
 	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: 1, Amount: 150.0})
 	require.NoError(t, err)
 
-	q, err := table.NewQuery[fixtures.UserWithOrderPtr](dialect.SQLiteDialect{})
+	q, err := qqm.NewQuery[fixtures.UserWithOrderPtr](dialect.SQLiteDialect{})
 	require.NoError(t, err)
 
 	results, err := q.List(ctx, ex)
@@ -170,9 +170,9 @@ func TestSmoke_MultiQuery_ThreeTableJoin(t *testing.T) {
 	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
 
-	userTbl := table.NewTable[fixtures.User](dialect.SQLiteDialect{})
-	orderTbl := table.NewTable[fixtures.Order](dialect.SQLiteDialect{})
-	itemTbl := table.NewTable[fixtures.OrderItem](dialect.SQLiteDialect{})
+	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := qqm.NewTable[fixtures.Order](dialect.SQLiteDialect{})
+	itemTbl := qqm.NewTable[fixtures.OrderItem](dialect.SQLiteDialect{})
 
 	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestSmoke_MultiQuery_ThreeTableJoin(t *testing.T) {
 	_, err = itemTbl.Insert(ctx, ex, &fixtures.OrderItem{OrderID: insertedOrder.ID, Quantity: 1, Price: 50.0})
 	require.NoError(t, err)
 
-	q, err := table.NewQuery[fixtures.UserOrderItem](dialect.SQLiteDialect{})
+	q, err := qqm.NewQuery[fixtures.UserOrderItem](dialect.SQLiteDialect{})
 	require.NoError(t, err)
 
 	results, err := q.List(ctx, ex)

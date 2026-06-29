@@ -7,11 +7,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/mirrorru/qqm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/table"
 	"github.com/mirrorru/qqm/test/fixtures"
 )
 
@@ -32,7 +32,7 @@ func TestFunctional_List_Sort_PostgreSQL(t *testing.T) {
 	_, err := ex.ExecContext(ctx, `DELETE FROM users`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[sortUserRow](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[sortUserRow](dialect.PostgreSQLDialect{})
 
 	rows := []*sortUserRow{
 		{Name: "Charlie", Email: "c@test"},
@@ -64,7 +64,7 @@ func TestFunctional_List_Sort_MixedDirections(t *testing.T) {
 	_, err := ex.ExecContext(ctx, `DELETE FROM users`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[sortUserRow](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[sortUserRow](dialect.PostgreSQLDialect{})
 
 	rows := []*sortUserRow{
 		{Name: "Charlie", Email: "z@test"},
@@ -99,7 +99,7 @@ func TestFunctional_List_NoSort_PostgreSQL(t *testing.T) {
 	_, err := ex.ExecContext(ctx, `DELETE FROM users`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[fixtures.User](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.User](dialect.PostgreSQLDialect{})
 
 	for _, r := range []*fixtures.User{
 		{Name: "Z", Email: "z@test"},

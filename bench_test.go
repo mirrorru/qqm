@@ -3,7 +3,7 @@
 
 //go:build bench
 
-package table
+package qqm
 
 import (
 	"context"

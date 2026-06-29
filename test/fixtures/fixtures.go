@@ -218,3 +218,13 @@ type OrderWithSort struct {
 }
 
 func (o *OrderWithSort) SQLName() string { return "orders" }
+
+// Created at 2026-06-29
+
+// RowWithCreate — структура с create= для тестов CREATE TABLE
+type RowWithCreate struct {
+	ID     int64  `qqm:"pk;auto"`
+	Name   string `qqm:"create=DEFAULT 'unknown'"`
+	Status string `qqm:"create=DEFAULT 'active'"`
+	Count  int    `qqm:"create=DEFAULT 0"`
+}

@@ -8,12 +8,12 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/mirrorru/qqm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/executor"
-	"github.com/mirrorru/qqm/table"
 	_ "modernc.org/sqlite"
 )
 
@@ -44,7 +44,7 @@ func TestSmoke_List_SortAsc(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[sortRow](dialect.SQLiteDialect{})
+	tbl := qqm.NewTable[sortRow](dialect.SQLiteDialect{})
 
 	rows := []*sortRow{
 		{Name: "Charlie", Value: 300},
@@ -84,7 +84,7 @@ func TestSmoke_List_SortDesc(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[sortRow](dialect.SQLiteDialect{})
+	tbl := qqm.NewTable[sortRow](dialect.SQLiteDialect{})
 
 	rows := []*sortRow{
 		{Name: "Alice", Value: 100},
@@ -132,7 +132,7 @@ func TestSmoke_List_SortNoTags(t *testing.T) {
 		Email string
 	}
 
-	tbl := table.NewTable[userRow](dialect.SQLiteDialect{})
+	tbl := qqm.NewTable[userRow](dialect.SQLiteDialect{})
 
 	for _, r := range []*userRow{
 		{Name: "Z", Email: "z@test"},

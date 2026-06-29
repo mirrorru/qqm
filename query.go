@@ -1,6 +1,7 @@
-package table
+package qqm
 
 import (
+	"reflect"
 	"strings"
 	"sync"
 
@@ -28,20 +29,28 @@ const (
 	sqlOrderBy    = " ORDER BY "
 	sqlAsc        = " ASC"
 	sqlDesc       = " DESC"
+
+	sqlCreateTable   = "CREATE TABLE "
+	sqlNotNull       = " NOT NULL"
+	sqlPrimaryKey    = " PRIMARY KEY"
+	sqlReferences    = " REFERENCES "
+	sqlAutoincrement = " AUTOINCREMENT"
 )
 
 type queryBuilder struct {
-	insertOnce sync.Once
-	updateOnce sync.Once
-	selectOnce sync.Once
-	deleteOnce sync.Once
-	listOnce   sync.Once
+	insertOnce      sync.Once
+	updateOnce      sync.Once
+	selectOnce      sync.Once
+	deleteOnce      sync.Once
+	listOnce        sync.Once
+	createTableOnce sync.Once
 
-	insertSQL string
-	updateSQL string
-	selectSQL string
-	deleteSQL string
-	listSQL   string
+	insertSQL      string
+	updateSQL      string
+	selectSQL      string
+	deleteSQL      string
+	listSQL        string
+	createTableSQL string
 }
 
 func newQueryBuilder() *queryBuilder {
@@ -81,6 +90,14 @@ func (qb *queryBuilder) ListSQL(d dialect.DialectProvider, m *meta.RowMeta) stri
 		qb.listSQL = buildListSQL(d, m)
 	})
 	return qb.listSQL
+}
+
+// Created at 2026-06-29
+func (qb *queryBuilder) CreateTableSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
+	qb.createTableOnce.Do(func() {
+		qb.createTableSQL = buildCreateTableSQL(d, m)
+	})
+	return qb.createTableSQL
 }
 
 func buildInsertSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
@@ -198,4 +215,106 @@ func buildWhereClauses(d dialect.DialectProvider, m *meta.RowMeta, offset int) [
 		whereClauses[i] = d.QuoteIdent(pk.Column) + sqlEquals + d.Placeholder(offset+i+1)
 	}
 	return whereClauses
+}
+
+// Created at 2026-06-29
+// buildCreateTableSQL строит CREATE TABLE с учётом pk, default= и ref=.
+func buildCreateTableSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
+	var b strings.Builder
+	b.WriteString(sqlCreateTable)
+	b.WriteString(d.QuoteIdent(m.TableName))
+	b.WriteString(" (\n")
+
+	var pkCols []string
+	first := true
+
+	for _, fm := range m.Fields {
+		if fm.IsOmit {
+			continue
+		}
+
+		if !first {
+			b.WriteString(",\n")
+		}
+		first = false
+
+		b.WriteString("\t")
+		b.WriteString(d.QuoteIdent(fm.Column))
+		b.WriteString(sqlSpace)
+
+		sqlType := goTypeToSQL(fm.GoType)
+		if fm.IsPK && fm.IsAuto && d.Name() == "sqlite" {
+			sqlType = "INTEGER"
+		}
+		b.WriteString(sqlType)
+
+		if fm.IsPK && fm.IsAuto {
+			b.WriteString(sqlPrimaryKey)
+			if d.Name() == "sqlite" {
+				b.WriteString(sqlAutoincrement)
+			}
+		} else if fm.IsPK {
+			pkCols = append(pkCols, d.QuoteIdent(fm.Column))
+		} else {
+			b.WriteString(sqlNotNull)
+		}
+
+		if fm.CreateClause != "" {
+			b.WriteString(sqlSpace)
+			b.WriteString(fm.CreateClause)
+		}
+
+		if fm.RefTable != "" {
+			b.WriteString(sqlReferences)
+			b.WriteString(d.QuoteIdent(fm.RefTable))
+			refCol := fm.RefColumn
+			if refCol == "" {
+				refCol = "id"
+			}
+			b.WriteString(sqlOpenParen)
+			b.WriteString(d.QuoteIdent(refCol))
+			b.WriteString(sqlCloseParen)
+		}
+	}
+
+	if len(pkCols) > 0 {
+		b.WriteString(",\n\t")
+		b.WriteString(sqlPrimaryKey)
+		b.WriteString(" (")
+		b.WriteString(strings.Join(pkCols, sqlCommaSpace))
+		b.WriteString(")")
+	}
+
+	b.WriteString("\n)")
+	return b.String()
+}
+
+// Created at 2026-06-29
+// goTypeToSQL преобразует Go-тип в SQL-тип для CREATE TABLE.
+func goTypeToSQL(t reflect.Type) string {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+
+	switch t.Kind() {
+	case reflect.Int, reflect.Int32:
+		return "INTEGER"
+	case reflect.Int64:
+		return "BIGINT"
+	case reflect.Float32:
+		return "REAL"
+	case reflect.Float64:
+		return "DOUBLE PRECISION"
+	case reflect.String:
+		return "TEXT"
+	case reflect.Bool:
+		return "BOOLEAN"
+	}
+
+	switch t.String() {
+	case "time.Time":
+		return "TIMESTAMPTZ"
+	}
+
+	return "TEXT"
 }

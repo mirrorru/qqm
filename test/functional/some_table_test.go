@@ -8,17 +8,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mirrorru/qqm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/table"
 	"github.com/mirrorru/qqm/test/fixtures"
 )
 
 func TestFunctional_SomeTable_Meta(t *testing.T) {
 	t.Parallel()
-	tbl := table.NewTable[fixtures.SomeTable](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.SomeTable](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
 
 	assert.Equal(t, "some_table", m.TableName)
@@ -46,7 +46,7 @@ func TestFunctional_SomeTable_CRUD_PostgreSQL(t *testing.T) {
 	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	tbl := table.NewTable[fixtures.SomeTable](dialect.PostgreSQLDialect{})
+	tbl := qqm.NewTable[fixtures.SomeTable](dialect.PostgreSQLDialect{})
 
 	now := time.Now().Truncate(time.Second)
 	row := &fixtures.SomeTable{

@@ -51,6 +51,11 @@ const (
 	// direction — ASC (по умолчанию) или DESC.
 	tagSort = "sort="
 
+	// tagCreate — строка для колонки в CREATE TABLE (DEFAULT, UNIQUE, CHECK и т.д.).
+	// Формат: `qqm:"create=DEFAULT 0"` или `qqm:"create=UNIQUE"`.
+	// Значение подставляется в определение колонки как есть.
+	tagCreate = "create="
+
 	// tagName — имя тега для метаданных
 	tagName = "qqm"
 )
@@ -71,6 +76,7 @@ type TagOptions struct {
 	TableName string
 	Sort      int    // позиция в сортировке (0 если не задана)
 	SortDir   string // направление: "ASC" (по умолчанию) или "DESC"
+	Create    string // строка для CREATE TABLE (из create=...)
 }
 
 // Updated at 2026-06-29
@@ -146,6 +152,8 @@ func ParseTag(raw string) TagOptions {
 			opts.TableName = seg[6:]
 		case len(seg) > 5 && seg[:5] == tagSort:
 			opts.Sort, opts.SortDir = parseSortSegment(seg[5:])
+		case len(seg) > 7 && seg[:7] == tagCreate:
+			opts.Create = seg[7:]
 		}
 
 		if i < n {

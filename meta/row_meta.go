@@ -144,6 +144,7 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 				IsOmit:        opts.Omit,
 				SortPosition:  opts.Sort,
 				SortDirection: opts.SortDir,
+				CreateClause:  opts.Create,
 			}
 			rm.Fields = append(rm.Fields, fm)
 			if fm.IsPK {
@@ -202,6 +203,7 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 			IsOmit:        opts.Omit,
 			SortPosition:  opts.Sort,
 			SortDirection: opts.SortDir,
+			CreateClause:  opts.Create,
 		}
 
 		rm.Fields = append(rm.Fields, fm)

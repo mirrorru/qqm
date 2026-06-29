@@ -8,12 +8,12 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/mirrorru/qqm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/executor"
-	"github.com/mirrorru/qqm/table"
 	"github.com/mirrorru/qqm/test/fixtures"
 	_ "modernc.org/sqlite"
 )
@@ -37,7 +37,7 @@ func TestSmoke_CRUD_Rooms(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[fixtures.Rooms](dialect.SQLiteDialect{})
+	tbl := qqm.NewTable[fixtures.Rooms](dialect.SQLiteDialect{})
 
 	now := int64(1700000000)
 	room := &fixtures.Rooms{
@@ -101,7 +101,7 @@ func TestSmoke_CRUD_RoomMapping(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[fixtures.RoomMapping](dialect.SQLiteDialect{})
+	tbl := qqm.NewTable[fixtures.RoomMapping](dialect.SQLiteDialect{})
 
 	now := int64(1700000000)
 	mapping := &fixtures.RoomMapping{
@@ -159,7 +159,7 @@ func TestSmoke_ListWithFilters(t *testing.T) {
 
 	ex := executor.NewDBAdapter(db)
 	ctx := context.Background()
-	tbl := table.NewTable[fixtures.UserWithAge](dialect.SQLiteDialect{})
+	tbl := qqm.NewTable[fixtures.UserWithAge](dialect.SQLiteDialect{})
 
 	users := []*fixtures.UserWithAge{
 		{ID: 1, Name: "Alice", Email: "alice@test.com", Age: 25},
@@ -179,8 +179,8 @@ func TestSmoke_ListWithFilters(t *testing.T) {
 	})
 
 	t.Run("List with Eq filter", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Name", table.And, table.Eq("Alice")),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Name", qqm.And, qqm.Eq("Alice")),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 1)
@@ -188,49 +188,49 @@ func TestSmoke_ListWithFilters(t *testing.T) {
 	})
 
 	t.Run("List with Gt filter", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Age", table.And, table.Gt(30)),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Age", qqm.And, qqm.Gt(30)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 2)
 	})
 
 	t.Run("List with Lt filter", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Age", table.And, table.Lt(30)),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Age", qqm.And, qqm.Lt(30)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 1)
 	})
 
 	t.Run("List with Between filter", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Age", table.And, table.Between(30, 40)),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Age", qqm.And, qqm.Between(30, 40)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 3)
 	})
 
 	t.Run("List with In filter", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Age", table.And, table.In(25, 35)),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Age", qqm.And, qqm.In(25, 35)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 2)
 	})
 
 	t.Run("List with multiple conditions AND on one field", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Age", table.And, table.Gt(25), table.Lt(40)),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Age", qqm.And, qqm.Gt(25), qqm.Lt(40)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 2)
 	})
 
 	t.Run("List with multiple fields AND", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Name", table.And, table.Eq("Bob")),
-			table.Field("Age", table.And, table.Eq(30)),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Name", qqm.And, qqm.Eq("Bob")),
+			qqm.Field("Age", qqm.And, qqm.Eq(30)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 1)
@@ -238,25 +238,25 @@ func TestSmoke_ListWithFilters(t *testing.T) {
 	})
 
 	t.Run("List with OR between fields", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.OrFilter(
-			table.Field("Name", table.And, table.Eq("Alice")),
-			table.Field("Name", table.And, table.Eq("Charlie")),
+		result, err := tbl.List(ctx, ex, qqm.OrFilter(
+			qqm.Field("Name", qqm.And, qqm.Eq("Alice")),
+			qqm.Field("Name", qqm.And, qqm.Eq("Charlie")),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 2)
 	})
 
 	t.Run("List with multiple conditions OR on one field", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Name", table.Or, table.Eq("Alice"), table.Eq("Diana")),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Name", qqm.Or, qqm.Eq("Alice"), qqm.Eq("Diana")),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 2)
 	})
 
 	t.Run("List with Gte and Lte", func(t *testing.T) {
-		result, err := tbl.List(ctx, ex, table.AndFilter(
-			table.Field("Age", table.And, table.Gte(30), table.Lte(35)),
+		result, err := tbl.List(ctx, ex, qqm.AndFilter(
+			qqm.Field("Age", qqm.And, qqm.Gte(30), qqm.Lte(35)),
 		))
 		require.NoError(t, err)
 		assert.Len(t, result, 2)
@@ -285,7 +285,7 @@ func TestSmoke_CRUD_FullRoomMapping(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[fixtures.FullRoomMapping](dialect.SQLiteDialect{})
+	tbl := qqm.NewTable[fixtures.FullRoomMapping](dialect.SQLiteDialect{})
 
 	now := int64(1700000000)
 	fullMapping := &fixtures.FullRoomMapping{
@@ -345,7 +345,7 @@ func TestSmoke_CRUD_WithTx(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	tbl := table.NewTable[fixtures.Rooms](dialect.SQLiteDialect{})
+	tbl := qqm.NewTable[fixtures.Rooms](dialect.SQLiteDialect{})
 
 	t.Run("commit transaction", func(t *testing.T) {
 		tx, err := db.BeginTx(ctx, nil)
