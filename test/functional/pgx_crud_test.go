@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/executor"
 	"github.com/mirrorru/qqm/test/fixtures"
 )
 
@@ -160,7 +159,7 @@ func TestFunctional_PGX_CRUD_WithTx(t *testing.T) {
 		tx, err := conn.Begin(ctx)
 		require.NoError(t, err)
 
-		ex := executor.NewPGXTxAdapter(tx)
+		ex := qqm.NewPGXTxAdapterVal(tx)
 
 		inserted, err := tbl.Insert(ctx, ex, &fixtures.Rooms{
 			Name:   "PGX Tx Room",
@@ -172,7 +171,7 @@ func TestFunctional_PGX_CRUD_WithTx(t *testing.T) {
 		err = tx.Commit(ctx)
 		require.NoError(t, err)
 
-		fetched, err := tbl.GetByPK(ctx, executor.NewPGXAdapter(conn), inserted.ID)
+		fetched, err := tbl.GetByPK(ctx, qqm.NewPGXAdapterVal(conn), inserted.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "PGX Tx Room", fetched.Name)
 
@@ -184,7 +183,7 @@ func TestFunctional_PGX_CRUD_WithTx(t *testing.T) {
 		tx, err := conn.Begin(ctx)
 		require.NoError(t, err)
 
-		ex := executor.NewPGXTxAdapter(tx)
+		ex := qqm.NewPGXTxAdapterVal(tx)
 
 		inserted, err := tbl.Insert(ctx, ex, &fixtures.Rooms{
 			Name:   "PGX Rollback Room",
@@ -196,7 +195,7 @@ func TestFunctional_PGX_CRUD_WithTx(t *testing.T) {
 		err = tx.Rollback(ctx)
 		require.NoError(t, err)
 
-		_, err = tbl.GetByPK(ctx, executor.NewPGXAdapter(conn), inserted.ID)
+		_, err = tbl.GetByPK(ctx, qqm.NewPGXAdapterVal(conn), inserted.ID)
 		assert.Error(t, err, "should not find rolled-back row")
 
 		_ = conn.Close(ctx)
@@ -204,7 +203,7 @@ func TestFunctional_PGX_CRUD_WithTx(t *testing.T) {
 
 	t.Run("GetByKey within pgx transaction", func(t *testing.T) {
 		conn := openTestPGX(t)
-		ex := executor.NewPGXAdapter(conn)
+		ex := qqm.NewPGXAdapterVal(conn)
 		inserted, err := tbl.Insert(ctx, ex, &fixtures.Rooms{
 			Name:   "PGX Tx GetByKey",
 			Square: 300.0,
@@ -214,7 +213,7 @@ func TestFunctional_PGX_CRUD_WithTx(t *testing.T) {
 		tx, err := conn.Begin(ctx)
 		require.NoError(t, err)
 
-		txEx := executor.NewPGXTxAdapter(tx)
+		txEx := qqm.NewPGXTxAdapterVal(tx)
 		fetched, err := tbl.GetByPK(ctx, txEx, inserted.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "PGX Tx GetByKey", fetched.Name)

@@ -15,7 +15,7 @@ qqm — ORM-подобная Go-библиотека для типизирова
     meta.RowMeta (метаданные структуры)
     dialect.DialectProvider (диалект БД)
        ↓
-    executor.Executor (абстракция выполнения SQL)
+    Executor (абстракция выполнения SQL)
        ↓
     database/sql  или  pgx
 ```
@@ -148,9 +148,9 @@ type DialectProvider interface {
 - `SQLiteDialect` — `?`, RETURNING поддерживается
 - `PostgreSQLDialect` — `$1, $2, ...`, RETURNING поддерживается
 
-### 7. Executor (executor/)
+### 7. Executor
 
-Абстракция выполнения SQL-запросов.
+Абстракция выполнения SQL-запросов. Файлы в корневом пакете `qqm`.
 
 ```go
 type Executor interface {
@@ -163,13 +163,13 @@ type Executor interface {
 **Адаптеры:**
 | Адаптер | Конструктор | Базовый тип |
 |---------|------------|-------------|
-| `DBAdapter` | `NewDBAdapter(db)` | `*sql.DB` |
-| `TxAdapter` | `NewTxAdapter(tx)` | `*sql.Tx` |
-| `PGXAdapter` | `NewPGXAdapter(conn)` | `*pgx.Conn` |
-| `PGXTxAdapter` | `NewPGXTxAdapter(tx)` | `pgx.Tx` |
+| `DBAdapter` | `NewDBAdapterVal(db)` | `*sql.DB` |
+| `TxAdapter` | `NewTxAdapterVal(tx)` | `*sql.Tx` |
+| `PGXAdapter` | `NewPGXAdapterVal(conn)` | `*pgx.Conn` |
+| `PGXTxAdapter` | `NewPGXTxAdapterVal(tx)` | `pgx.Tx` |
 
 Адаптеры pgx добавлены для поддержки нативного PostgreSQL-драйвера.
-Поля адаптеров сделаны приватными, создание — только через конструкторы.
+Адаптеры — value-типы, создаются через конструкторы.
 
 ### 8. Фильтрация (filter.go)
 
@@ -221,7 +221,7 @@ tbl.Insert(ctx, ex, &User{...})
 4. **scanTemplate в Query** — `buildScanTemplate` создаётся один раз в `NewQuery`, `resetForRow` сбрасывает дестинации на каждую строку. Вместо `newScanContext` на строку.
 5. **rowValue** — вспомогательный метод для получения `reflect.Value` из `*ROW`.
 6. **Executor.QueryRowContext + Row** — новый метод/интерфейс для single-row запросов
-7. **DBAdapter/TxAdapter** — поля приватные, конструкторы `NewDBAdapter`/`NewTxAdapter`
+7. **DBAdapter/TxAdapter** — value-типы, конструкторы `NewDBAdapterVal`/`NewTxAdapterVal`
 8. **PGXAdapter/PGXTxAdapter** — поддержка pgx (jackc/pgx)
 9. **Named struct prefix** — префикс работает на именованных (неанонимных) полях-структурах
 10. **Public API (qqm.go)** — единая точка входа с реэкспортами фильтров

@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/executor"
 	"github.com/mirrorru/qqm/meta"
 )
 
@@ -16,11 +15,11 @@ type SQLNamer interface {
 type CRUD[ROW any] interface {
 	Internals() *tableInternals
 
-	Insert(ctx context.Context, ex executor.Executor, src *ROW) (*ROW, error)
-	Update(ctx context.Context, ex executor.Executor, src *ROW) error
-	GetByPK(ctx context.Context, ex executor.Executor, keys ...any) (*ROW, error)
-	Delete(ctx context.Context, ex executor.Executor, keys ...any) error
-	List(ctx context.Context, ex executor.Executor, filters ...Filter) ([]*ROW, error)
+	Insert(ctx context.Context, ex Executor, src *ROW) (*ROW, error)
+	Update(ctx context.Context, ex Executor, src *ROW) error
+	GetByPK(ctx context.Context, ex Executor, keys ...any) (*ROW, error)
+	Delete(ctx context.Context, ex Executor, keys ...any) error
+	List(ctx context.Context, ex Executor, filters ...Filter) ([]*ROW, error)
 }
 
 type tableInternals struct {
@@ -150,7 +149,7 @@ func (i *tableInternals) CreateTableSQL() string {
 	return i.queries.CreateTableSQL(i.dialect, i.meta)
 }
 
-func (t *Table[ROW]) Insert(ctx context.Context, ex executor.Executor, src *ROW) (*ROW, error) {
+func (t *Table[ROW]) Insert(ctx context.Context, ex Executor, src *ROW) (*ROW, error) {
 	args := t.internal.meta.InsertValues(src)
 
 	if t.internal.dialect.SupportsReturning() {
@@ -169,7 +168,7 @@ func (t *Table[ROW]) Insert(ctx context.Context, ex executor.Executor, src *ROW)
 	return nil, err
 }
 
-func (t *Table[ROW]) Update(ctx context.Context, ex executor.Executor, src *ROW) error {
+func (t *Table[ROW]) Update(ctx context.Context, ex Executor, src *ROW) error {
 	updateVals := t.internal.meta.UpdateValues(src)
 	pkVals := t.internal.meta.PKFieldValues(src)
 	args := append(updateVals, pkVals...)
@@ -178,7 +177,7 @@ func (t *Table[ROW]) Update(ctx context.Context, ex executor.Executor, src *ROW)
 	return err
 }
 
-func (t *Table[ROW]) GetByPK(ctx context.Context, ex executor.Executor, keys ...any) (*ROW, error) {
+func (t *Table[ROW]) GetByPK(ctx context.Context, ex Executor, keys ...any) (*ROW, error) {
 	row := ex.QueryRowContext(ctx, t.internal.SelectSQL(), keys...)
 
 	buf := new(ROW)
@@ -191,12 +190,12 @@ func (t *Table[ROW]) GetByPK(ctx context.Context, ex executor.Executor, keys ...
 	return result, nil
 }
 
-func (t *Table[ROW]) Delete(ctx context.Context, ex executor.Executor, keys ...any) error {
+func (t *Table[ROW]) Delete(ctx context.Context, ex Executor, keys ...any) error {
 	_, err := ex.ExecContext(ctx, t.internal.DeleteSQL(), keys...)
 	return err
 }
 
-func (t *Table[ROW]) List(ctx context.Context, ex executor.Executor, filters ...Filter) ([]*ROW, error) {
+func (t *Table[ROW]) List(ctx context.Context, ex Executor, filters ...Filter) ([]*ROW, error) {
 	if len(filters) == 0 {
 		rows, err := ex.QueryContext(ctx, t.internal.ListSQL())
 		if err != nil {

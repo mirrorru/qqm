@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/executor"
 	_ "modernc.org/sqlite"
 )
 
@@ -32,7 +31,7 @@ func TestSmoke_List_SortAsc(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := executor.NewDBAdapter(db)
+	ex := qqm.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	_, err = db.Exec(`
@@ -72,7 +71,7 @@ func TestSmoke_List_SortDesc(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := executor.NewDBAdapter(db)
+	ex := qqm.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	_, err = db.Exec(`
@@ -114,7 +113,7 @@ func TestSmoke_List_SortNoTags(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := executor.NewDBAdapter(db)
+	ex := qqm.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	_, err = db.Exec(`

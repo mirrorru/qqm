@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/executor"
 	"github.com/mirrorru/qqm/test/fixtures"
 	_ "modernc.org/sqlite"
 )
@@ -38,7 +37,7 @@ func TestSmoke_MultiQuery_INNER_JOIN(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	ex := executor.NewDBAdapter(db)
+	ex := qqm.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
@@ -104,7 +103,7 @@ func TestSmoke_MultiQuery_LEFT_JOIN(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	ex := executor.NewDBAdapter(db)
+	ex := qqm.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
@@ -167,7 +166,7 @@ func TestSmoke_MultiQuery_ThreeTableJoin(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	ex := executor.NewDBAdapter(db)
+	ex := qqm.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})

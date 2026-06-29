@@ -15,16 +15,14 @@ qqm/
 ├── example_composite_key_test.go
 ├── bench_test.go
 ├── bench_list_vs_raw_test.go
+├── executor.go               #   Executor, Result, Rows, Row — интерфейсы
+├── sql_adapter.go            #   DBAdapter, TxAdapter — для database/sql
+├── pgx_adapter.go            #   PGXAdapter, PGXTxAdapter — для pgx
 │
 ├── dialect/               # Диалекты БД
 │   ├── dialect.go         #   DialectProvider — интерфейс диалекта
 │   ├── sqlite.go          #   SQLiteDialect
 │   └── postgres.go        #   PostgreSQLDialect
-│
-├── executor/              # Абстракция выполнения SQL
-│   ├── executor.go        #   Executor, Result, Rows, Row — интерфейсы
-│   ├── sql_adapter.go     #   DBAdapter, TxAdapter — для database/sql
-│   └── pgx_adapter.go     #   PGXAdapter, PGXTxAdapter — для pgx
 │
 ├── meta/                  # Метаданные структур
 │   ├── cache.go           #   Кеш метаданных (sync.Map)
