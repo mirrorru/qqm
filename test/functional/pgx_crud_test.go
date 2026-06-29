@@ -7,7 +7,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -17,37 +16,15 @@ import (
 	"github.com/mirrorru/qqm/test/fixtures"
 )
 
-// openTestPGX открывает подключение к тестовой БД PostgreSQL через pgx/v5.
-func openTestPGX(t *testing.T) *pgx.Conn {
-	t.Helper()
-	conn, err := pgx.Connect(context.Background(), pgDSN())
-	require.NoError(t, err, "failed to connect via pgx")
-	t.Cleanup(func() {
-		_ = conn.Close(context.Background())
-	})
-	return conn
-}
-
 func TestFunctional_PGX_CRUD_Rooms(t *testing.T) {
-	conn := openTestPGX(t)
-	ex := executor.NewPGXAdapter(conn)
+	t.Parallel()
+	tx, ex := beginTxPGX(t)
 	ctx := context.Background()
 
-	_, err := conn.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS rooms (
-			id BIGSERIAL PRIMARY KEY,
-			name TEXT NOT NULL,
-			square DOUBLE PRECISION NOT NULL,
-			created_at BIGINT NOT NULL DEFAULT 0
-		)
-	`)
-	require.NoError(t, err)
-	defer func() { _, _ = conn.Exec(ctx, `DROP TABLE IF EXISTS rooms`) }()
-
-	_, err = conn.Exec(ctx, `DELETE FROM rooms`)
+	_, err := tx.Exec(ctx, `DELETE FROM rooms`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[*fixtures.Rooms](dialect.PostgreSQLDialect{})
+	tbl := table.NewTable[fixtures.Rooms](dialect.PostgreSQLDialect{})
 
 	now := int64(1700000000)
 	room := &fixtures.Rooms{
@@ -62,7 +39,7 @@ func TestFunctional_PGX_CRUD_Rooms(t *testing.T) {
 	assert.Equal(t, room.Square, inserted.Square)
 	assert.NotZero(t, inserted.ID)
 
-	fetched, err := tbl.GetByKey(ctx, ex, inserted.ID)
+	fetched, err := tbl.GetByPK(ctx, ex, inserted.ID)
 	require.NoError(t, err)
 	assert.Equal(t, inserted.ID, fetched.ID)
 	assert.Equal(t, "PGX Room", fetched.Name)
@@ -71,7 +48,7 @@ func TestFunctional_PGX_CRUD_Rooms(t *testing.T) {
 	err = tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
 
-	updated, err := tbl.GetByKey(ctx, ex, inserted.ID)
+	updated, err := tbl.GetByPK(ctx, ex, inserted.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "PGX Room Updated", updated.Name)
 
@@ -82,36 +59,22 @@ func TestFunctional_PGX_CRUD_Rooms(t *testing.T) {
 	err = tbl.Delete(ctx, ex, inserted.ID)
 	require.NoError(t, err)
 
-	_, err = tbl.GetByKey(ctx, ex, inserted.ID)
+	_, err = tbl.GetByPK(ctx, ex, inserted.ID)
 	assert.Error(t, err)
 }
 
 func TestFunctional_PGX_ListWithFilters(t *testing.T) {
-	conn := openTestPGX(t)
-	ex := executor.NewPGXAdapter(conn)
+	t.Parallel()
+	_, ex := beginTxPGX(t)
 	ctx := context.Background()
 
-	_, err := conn.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS user_with_age (
-			id BIGINT NOT NULL,
-			name TEXT NOT NULL,
-			email TEXT NOT NULL,
-			age BIGINT NOT NULL
-		)
-	`)
-	require.NoError(t, err)
-	defer func() { _, _ = conn.Exec(ctx, `DROP TABLE IF EXISTS user_with_age`) }()
-
-	_, err = conn.Exec(ctx, `DELETE FROM user_with_age`)
-	require.NoError(t, err)
-
-	tbl := table.NewTable[*fixtures.UserWithAge](dialect.PostgreSQLDialect{})
+	tbl := table.NewTable[fixtures.UserWithAge](dialect.PostgreSQLDialect{})
 
 	users := []*fixtures.UserWithAge{
-		{ID: 1, Name: "Alice", Email: "alice@test.com", Age: 25},
-		{ID: 2, Name: "Bob", Email: "bob@test.com", Age: 30},
-		{ID: 3, Name: "Charlie", Email: "charlie@test.com", Age: 35},
-		{ID: 4, Name: "Diana", Email: "diana@test.com", Age: 40},
+		{Name: "Alice", Email: "alice@test.com", Age: 25},
+		{Name: "Bob", Email: "bob@test.com", Age: 30},
+		{Name: "Charlie", Email: "charlie@test.com", Age: 35},
+		{Name: "Diana", Email: "diana@test.com", Age: 40},
 	}
 	for _, u := range users {
 		_, err := tbl.Insert(ctx, ex, u)
@@ -143,32 +106,16 @@ func TestFunctional_PGX_ListWithFilters(t *testing.T) {
 }
 
 func TestFunctional_PGX_CRUD_RoomMapping(t *testing.T) {
-	conn := openTestPGX(t)
-	ex := executor.NewPGXAdapter(conn)
+	t.Parallel()
+	_, ex := beginTxPGX(t)
 	ctx := context.Background()
 
-	_, err := conn.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS room_mapping (
-			room_id BIGINT NOT NULL,
-			teacher_ID BIGINT NOT NULL,
-			time_from BIGINT NOT NULL,
-			time_to BIGINT NOT NULL,
-			created_at BIGINT NOT NULL DEFAULT 0,
-			PRIMARY KEY (room_id, teacher_ID)
-		)
-	`)
-	require.NoError(t, err)
-	defer func() { _, _ = conn.Exec(ctx, `DROP TABLE IF EXISTS room_mapping`) }()
-
-	_, err = conn.Exec(ctx, `DELETE FROM room_mapping`)
-	require.NoError(t, err)
-
-	tbl := table.NewTable[*fixtures.RoomMapping](dialect.PostgreSQLDialect{})
+	tbl := table.NewTable[fixtures.RoomMapping](dialect.PostgreSQLDialect{})
 
 	now := int64(1700000000)
 	mapping := &fixtures.RoomMapping{
-		MappingRoomID: fixtures.MappingRoomID{ID: 100},
-		TeacherKey:    fixtures.TeacherKey{Key: fixtures.TeacherID(200)},
+		MappingRoomID: fixtures.MappingRoomID{ID: 500},
+		TeacherKey:    fixtures.TeacherKey{Key: fixtures.TeacherID(600)},
 		From:          now,
 		To:            now + 7200,
 		CreatedAt:     now,
@@ -179,7 +126,7 @@ func TestFunctional_PGX_CRUD_RoomMapping(t *testing.T) {
 	assert.Equal(t, mapping.MappingRoomID.ID, inserted.MappingRoomID.ID)
 	assert.Equal(t, mapping.TeacherKey.Key, inserted.TeacherKey.Key)
 
-	fetched, err := tbl.GetByKey(ctx, ex, int64(100), int64(200))
+	fetched, err := tbl.GetByPK(ctx, ex, int64(500), int64(600))
 	require.NoError(t, err)
 	assert.Equal(t, mapping.MappingRoomID.ID, fetched.MappingRoomID.ID)
 
@@ -187,7 +134,7 @@ func TestFunctional_PGX_CRUD_RoomMapping(t *testing.T) {
 	err = tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
 
-	updated, err := tbl.GetByKey(ctx, ex, int64(100), int64(200))
+	updated, err := tbl.GetByPK(ctx, ex, int64(500), int64(600))
 	require.NoError(t, err)
 	assert.Equal(t, now+10800, updated.To)
 
@@ -195,34 +142,21 @@ func TestFunctional_PGX_CRUD_RoomMapping(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, list, 1)
 
-	err = tbl.Delete(ctx, ex, int64(100), int64(200))
+	err = tbl.Delete(ctx, ex, int64(500), int64(600))
 	require.NoError(t, err)
 
-	_, err = tbl.GetByKey(ctx, ex, int64(100), int64(200))
+	_, err = tbl.GetByPK(ctx, ex, int64(500), int64(600))
 	assert.Error(t, err)
 }
 
 func TestFunctional_PGX_CRUD_WithTx(t *testing.T) {
-	conn := openTestPGX(t)
+	t.Parallel()
 	ctx := context.Background()
 
-	_, err := conn.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS rooms (
-			id BIGSERIAL PRIMARY KEY,
-			name TEXT NOT NULL,
-			square DOUBLE PRECISION NOT NULL,
-			created_at BIGINT NOT NULL DEFAULT 0
-		)
-	`)
-	require.NoError(t, err)
-	defer func() { _, _ = conn.Exec(ctx, `DROP TABLE IF EXISTS rooms`) }()
-
-	_, err = conn.Exec(ctx, `DELETE FROM rooms`)
-	require.NoError(t, err)
-
-	tbl := table.NewTable[*fixtures.Rooms](dialect.PostgreSQLDialect{})
+	tbl := table.NewTable[fixtures.Rooms](dialect.PostgreSQLDialect{})
 
 	t.Run("commit transaction via pgx", func(t *testing.T) {
+		conn := openTestPGX(t)
 		tx, err := conn.Begin(ctx)
 		require.NoError(t, err)
 
@@ -238,12 +172,15 @@ func TestFunctional_PGX_CRUD_WithTx(t *testing.T) {
 		err = tx.Commit(ctx)
 		require.NoError(t, err)
 
-		fetched, err := tbl.GetByKey(ctx, executor.NewPGXAdapter(conn), inserted.ID)
+		fetched, err := tbl.GetByPK(ctx, executor.NewPGXAdapter(conn), inserted.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "PGX Tx Room", fetched.Name)
+
+		_ = conn.Close(ctx)
 	})
 
 	t.Run("rollback transaction via pgx", func(t *testing.T) {
+		conn := openTestPGX(t)
 		tx, err := conn.Begin(ctx)
 		require.NoError(t, err)
 
@@ -259,11 +196,14 @@ func TestFunctional_PGX_CRUD_WithTx(t *testing.T) {
 		err = tx.Rollback(ctx)
 		require.NoError(t, err)
 
-		_, err = tbl.GetByKey(ctx, executor.NewPGXAdapter(conn), inserted.ID)
+		_, err = tbl.GetByPK(ctx, executor.NewPGXAdapter(conn), inserted.ID)
 		assert.Error(t, err, "should not find rolled-back row")
+
+		_ = conn.Close(ctx)
 	})
 
 	t.Run("GetByKey within pgx transaction", func(t *testing.T) {
+		conn := openTestPGX(t)
 		ex := executor.NewPGXAdapter(conn)
 		inserted, err := tbl.Insert(ctx, ex, &fixtures.Rooms{
 			Name:   "PGX Tx GetByKey",
@@ -275,11 +215,17 @@ func TestFunctional_PGX_CRUD_WithTx(t *testing.T) {
 		require.NoError(t, err)
 
 		txEx := executor.NewPGXTxAdapter(tx)
-		fetched, err := tbl.GetByKey(ctx, txEx, inserted.ID)
+		fetched, err := tbl.GetByPK(ctx, txEx, inserted.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "PGX Tx GetByKey", fetched.Name)
 
 		err = tx.Commit(ctx)
 		require.NoError(t, err)
+
+		// cleanup: remove committed data so parallel tests don't see it
+		_, err = conn.Exec(ctx, `DELETE FROM rooms WHERE id = $1`, inserted.ID)
+		require.NoError(t, err)
+
+		_ = conn.Close(ctx)
 	})
 }

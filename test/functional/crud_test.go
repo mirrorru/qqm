@@ -11,35 +11,19 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/executor"
 	"github.com/mirrorru/qqm/table"
 	"github.com/mirrorru/qqm/test/fixtures"
 )
 
 func TestFunctional_CRUD_Rooms_PostgreSQL(t *testing.T) {
-	db := openTestPG(t)
-	defer func() { _ = db.Close() }()
-
-	ex := executor.NewDBAdapter(db)
+	t.Parallel()
+	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS rooms (
-			id BIGSERIAL PRIMARY KEY,
-			name TEXT NOT NULL,
-			square DOUBLE PRECISION NOT NULL,
-			created_at BIGINT NOT NULL DEFAULT 0
-		)
-	`)
-	require.NoError(t, err)
-	defer func() {
-		_, _ = db.Exec(`DROP TABLE IF EXISTS rooms`)
-	}()
-
-	_, err = db.Exec(`DELETE FROM rooms`)
+	_, err := ex.ExecContext(ctx, `DELETE FROM rooms`)
 	require.NoError(t, err)
 
-	tbl := table.NewTable[*fixtures.Rooms](dialect.PostgreSQLDialect{})
+	tbl := table.NewTable[fixtures.Rooms](dialect.PostgreSQLDialect{})
 
 	now := int64(1700000000)
 	room := &fixtures.Rooms{
@@ -54,7 +38,7 @@ func TestFunctional_CRUD_Rooms_PostgreSQL(t *testing.T) {
 	assert.Equal(t, room.Square, inserted.Square)
 	assert.NotZero(t, inserted.ID, "auto-generated ID should not be zero")
 
-	fetched, err := tbl.GetByKey(ctx, ex, inserted.ID)
+	fetched, err := tbl.GetByPK(ctx, ex, inserted.ID)
 	require.NoError(t, err)
 	assert.Equal(t, inserted.ID, fetched.ID)
 	assert.Equal(t, room.Name, fetched.Name)
@@ -65,7 +49,7 @@ func TestFunctional_CRUD_Rooms_PostgreSQL(t *testing.T) {
 	err = tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
 
-	updated, err := tbl.GetByKey(ctx, ex, inserted.ID)
+	updated, err := tbl.GetByPK(ctx, ex, inserted.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Conference Room B", updated.Name)
 	assert.Equal(t, 60.0, updated.Square)
@@ -78,36 +62,16 @@ func TestFunctional_CRUD_Rooms_PostgreSQL(t *testing.T) {
 	err = tbl.Delete(ctx, ex, inserted.ID)
 	require.NoError(t, err)
 
-	_, err = tbl.GetByKey(ctx, ex, inserted.ID)
+	_, err = tbl.GetByPK(ctx, ex, inserted.ID)
 	assert.Error(t, err)
 }
 
 func TestFunctional_CRUD_RoomMapping_PostgreSQL(t *testing.T) {
-	db := openTestPG(t)
-	defer func() { _ = db.Close() }()
-
-	ex := executor.NewDBAdapter(db)
+	t.Parallel()
+	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS room_mapping (
-			room_id BIGINT NOT NULL,
-			teacher_ID BIGINT NOT NULL,
-			time_from BIGINT NOT NULL,
-			time_to BIGINT NOT NULL,
-			created_at BIGINT NOT NULL DEFAULT 0,
-			PRIMARY KEY (room_id, teacher_ID)
-		)
-	`)
-	require.NoError(t, err)
-	defer func() {
-		_, _ = db.Exec(`DROP TABLE IF EXISTS room_mapping`)
-	}()
-
-	_, err = db.Exec(`DELETE FROM room_mapping`)
-	require.NoError(t, err)
-
-	tbl := table.NewTable[*fixtures.RoomMapping](dialect.PostgreSQLDialect{})
+	tbl := table.NewTable[fixtures.RoomMapping](dialect.PostgreSQLDialect{})
 
 	now := int64(1700000000)
 	mapping := &fixtures.RoomMapping{
@@ -123,7 +87,7 @@ func TestFunctional_CRUD_RoomMapping_PostgreSQL(t *testing.T) {
 	assert.Equal(t, mapping.MappingRoomID.ID, inserted.MappingRoomID.ID)
 	assert.Equal(t, mapping.TeacherKey.Key, inserted.TeacherKey.Key)
 
-	fetched, err := tbl.GetByKey(ctx, ex, int64(100), int64(200))
+	fetched, err := tbl.GetByPK(ctx, ex, int64(100), int64(200))
 	require.NoError(t, err)
 	assert.Equal(t, mapping.MappingRoomID.ID, fetched.MappingRoomID.ID)
 	assert.Equal(t, mapping.TeacherKey.Key, fetched.TeacherKey.Key)
@@ -132,7 +96,7 @@ func TestFunctional_CRUD_RoomMapping_PostgreSQL(t *testing.T) {
 	err = tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
 
-	updated, err := tbl.GetByKey(ctx, ex, int64(100), int64(200))
+	updated, err := tbl.GetByPK(ctx, ex, int64(100), int64(200))
 	require.NoError(t, err)
 	assert.Equal(t, now+10800, updated.To)
 
@@ -143,40 +107,22 @@ func TestFunctional_CRUD_RoomMapping_PostgreSQL(t *testing.T) {
 	err = tbl.Delete(ctx, ex, int64(100), int64(200))
 	require.NoError(t, err)
 
-	_, err = tbl.GetByKey(ctx, ex, int64(100), int64(200))
+	_, err = tbl.GetByPK(ctx, ex, int64(100), int64(200))
 	assert.Error(t, err)
 }
 
 func TestFunctional_ListWithFilters_PostgreSQL(t *testing.T) {
-	db := openTestPG(t)
-	defer func() { _ = db.Close() }()
-
-	ex := executor.NewDBAdapter(db)
+	t.Parallel()
+	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS user_with_age (
-			id BIGINT NOT NULL,
-			name TEXT NOT NULL,
-			email TEXT NOT NULL,
-			age BIGINT NOT NULL
-		)
-	`)
-	require.NoError(t, err)
-	defer func() {
-		_, _ = db.Exec(`DROP TABLE IF EXISTS user_with_age`)
-	}()
-
-	_, err = db.Exec(`DELETE FROM user_with_age`)
-	require.NoError(t, err)
-
-	tbl := table.NewTable[*fixtures.UserWithAge](dialect.PostgreSQLDialect{})
+	tbl := table.NewTable[fixtures.UserWithAge](dialect.PostgreSQLDialect{})
 
 	users := []*fixtures.UserWithAge{
-		{ID: 1, Name: "Alice", Email: "alice@test.com", Age: 25},
-		{ID: 2, Name: "Bob", Email: "bob@test.com", Age: 30},
-		{ID: 3, Name: "Charlie", Email: "charlie@test.com", Age: 35},
-		{ID: 4, Name: "Diana", Email: "diana@test.com", Age: 40},
+		{Name: "Alice", Email: "alice@test.com", Age: 25},
+		{Name: "Bob", Email: "bob@test.com", Age: 30},
+		{Name: "Charlie", Email: "charlie@test.com", Age: 35},
+		{Name: "Diana", Email: "diana@test.com", Age: 40},
 	}
 	for _, u := range users {
 		_, err := tbl.Insert(ctx, ex, u)
@@ -251,32 +197,11 @@ func TestFunctional_ListWithFilters_PostgreSQL(t *testing.T) {
 }
 
 func TestFunctional_CRUD_FullRoomMapping_PostgreSQL(t *testing.T) {
-	db := openTestPG(t)
-	defer func() { _ = db.Close() }()
-
-	ex := executor.NewDBAdapter(db)
+	t.Parallel()
+	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS full_room_mapping (
-			room_id BIGINT NOT NULL,
-			teacher_ID BIGINT NOT NULL,
-			time_from BIGINT NOT NULL,
-			time_to BIGINT NOT NULL,
-			created_at BIGINT NOT NULL DEFAULT 0,
-			author_name TEXT NOT NULL,
-			PRIMARY KEY (room_id, teacher_ID)
-		)
-	`)
-	require.NoError(t, err)
-	defer func() {
-		_, _ = db.Exec(`DROP TABLE IF EXISTS full_room_mapping`)
-	}()
-
-	_, err = db.Exec(`DELETE FROM full_room_mapping`)
-	require.NoError(t, err)
-
-	tbl := table.NewTable[*fixtures.FullRoomMapping](dialect.PostgreSQLDialect{})
+	tbl := table.NewTable[fixtures.FullRoomMapping](dialect.PostgreSQLDialect{})
 
 	now := int64(1700000000)
 	fullMapping := &fixtures.FullRoomMapping{
@@ -296,7 +221,7 @@ func TestFunctional_CRUD_FullRoomMapping_PostgreSQL(t *testing.T) {
 	assert.Equal(t, fullMapping.MappingRoomID.ID, inserted.MappingRoomID.ID)
 	assert.Equal(t, fullMapping.Author, inserted.Author)
 
-	fetched, err := tbl.GetByKey(ctx, ex, int64(300), int64(400))
+	fetched, err := tbl.GetByPK(ctx, ex, int64(300), int64(400))
 	require.NoError(t, err)
 	assert.Equal(t, fullMapping.MappingRoomID.ID, fetched.MappingRoomID.ID)
 	assert.Equal(t, fullMapping.Author, fetched.Author)
@@ -305,7 +230,7 @@ func TestFunctional_CRUD_FullRoomMapping_PostgreSQL(t *testing.T) {
 	err = tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
 
-	updated, err := tbl.GetByKey(ctx, ex, int64(300), int64(400))
+	updated, err := tbl.GetByPK(ctx, ex, int64(300), int64(400))
 	require.NoError(t, err)
 	assert.Equal(t, "Jane Smith", updated.Author)
 
@@ -316,6 +241,6 @@ func TestFunctional_CRUD_FullRoomMapping_PostgreSQL(t *testing.T) {
 	err = tbl.Delete(ctx, ex, int64(300), int64(400))
 	require.NoError(t, err)
 
-	_, err = tbl.GetByKey(ctx, ex, int64(300), int64(400))
+	_, err = tbl.GetByPK(ctx, ex, int64(300), int64(400))
 	assert.Error(t, err)
 }

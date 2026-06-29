@@ -12,13 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/executor"
 	"github.com/mirrorru/qqm/table"
 	"github.com/mirrorru/qqm/test/fixtures"
 )
 
 func TestFunctional_SomeTable_Meta(t *testing.T) {
-	tbl := table.NewTable[*fixtures.SomeTable](dialect.PostgreSQLDialect{})
+	t.Parallel()
+	tbl := table.NewTable[fixtures.SomeTable](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
 
 	assert.Equal(t, "some_table", m.TableName)
@@ -31,7 +31,7 @@ func TestFunctional_SomeTable_Meta(t *testing.T) {
 	assert.Contains(t, m.Columns, "field_ro")
 
 	insertCols := m.InsertColumns()
-	assert.Contains(t, insertCols, "some_id")
+	assert.NotContains(t, insertCols, "some_id", "auto PK should not be in InsertColumns")
 	assert.Contains(t, insertCols, "field_rw")
 	assert.NotContains(t, insertCols, "field_ro", "auto field should not be in InsertColumns")
 
@@ -42,88 +42,52 @@ func TestFunctional_SomeTable_Meta(t *testing.T) {
 }
 
 func TestFunctional_SomeTable_CRUD_PostgreSQL(t *testing.T) {
-	db := openTestPG(t)
-	defer func() { _ = db.Close() }()
-
-	ex := executor.NewDBAdapter(db)
+	t.Parallel()
+	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS some_table (
-			some_id BIGINT PRIMARY KEY,
-			field_rw TEXT NOT NULL,
-			field_ro TIMESTAMPTZ NOT NULL DEFAULT now()
-		)
-	`)
-	require.NoError(t, err)
-	defer func() {
-		_, _ = db.Exec(`DROP TABLE IF EXISTS some_table`)
-	}()
-
-	_, err = db.Exec(`DELETE FROM some_table`)
-	require.NoError(t, err)
-
-	tbl := table.NewTable[*fixtures.SomeTable](dialect.PostgreSQLDialect{})
+	tbl := table.NewTable[fixtures.SomeTable](dialect.PostgreSQLDialect{})
 
 	now := time.Now().Truncate(time.Second)
 	row := &fixtures.SomeTable{
-		SomeID:  fixtures.SomeID(1),
 		FieldRW: "hello",
 		FieldRO: now,
 	}
 
 	inserted, err := tbl.Insert(ctx, ex, row)
 	require.NoError(t, err)
-	assert.Equal(t, fixtures.SomeID(1), inserted.SomeID)
-	assert.Equal(t, "hello", inserted.FieldRW)
 
-	fetched, err := tbl.GetByKey(ctx, ex, int64(1))
+	fetched, err := tbl.GetByPK(ctx, ex, int64(inserted.SomeID))
 	require.NoError(t, err)
-	assert.Equal(t, fixtures.SomeID(1), fetched.SomeID)
+	assert.Equal(t, inserted.SomeID, fetched.SomeID)
 	assert.Equal(t, "hello", fetched.FieldRW)
 
 	fetched.FieldRW = "world"
 	err = tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
 
-	updated, err := tbl.GetByKey(ctx, ex, int64(1))
+	updated, err := tbl.GetByPK(ctx, ex, int64(inserted.SomeID))
 	require.NoError(t, err)
 	assert.Equal(t, "world", updated.FieldRW)
 
 	list, err := tbl.List(ctx, ex)
 	require.NoError(t, err)
 	assert.Len(t, list, 1)
-	assert.Equal(t, fixtures.SomeID(1), list[0].SomeID)
+	assert.Equal(t, inserted.SomeID, list[0].SomeID)
 
-	err = tbl.Delete(ctx, ex, int64(1))
+	err = tbl.Delete(ctx, ex, int64(inserted.SomeID))
 	require.NoError(t, err)
 
-	_, err = tbl.GetByKey(ctx, ex, int64(1))
+	_, err = tbl.GetByPK(ctx, ex, int64(inserted.SomeID))
 	assert.Error(t, err)
 }
 
 func TestFunctional_SomeTable_QueryRow_PostgreSQL(t *testing.T) {
-	db := openTestPG(t)
-	defer func() { _ = db.Close() }()
-
+	t.Parallel()
+	tx, _ := beginTxPG(t)
 	ctx := context.Background()
 
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS some_table (
-			some_id BIGINT PRIMARY KEY,
-			field_rw TEXT NOT NULL,
-			field_ro TIMESTAMPTZ NOT NULL DEFAULT now()
-		)
-	`)
-	require.NoError(t, err)
-	defer func() {
-		_, _ = db.Exec(`DROP TABLE IF EXISTS some_table`)
-	}()
-
-	_, err = db.Exec(`DELETE FROM some_table`)
-	require.NoError(t, err)
-
-	_, err = db.ExecContext(ctx,
+	_, err := tx.ExecContext(ctx,
 		`INSERT INTO some_table (some_id, field_rw) VALUES ($1, $2)`,
 		int64(42), "queryrow-test",
 	)
@@ -132,7 +96,7 @@ func TestFunctional_SomeTable_QueryRow_PostgreSQL(t *testing.T) {
 	var id int64
 	var rw string
 	var ro time.Time
-	row := db.QueryRowContext(ctx,
+	row := tx.QueryRowContext(ctx,
 		`SELECT some_id, field_rw, field_ro FROM some_table WHERE some_id = $1`,
 		int64(42),
 	)

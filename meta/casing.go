@@ -1,42 +1,48 @@
-// Created at 2026-06-28
+// Updated at 2026-06-29
 package meta
 
-import (
-	"strings"
-	"unicode"
-)
-
-// SplitCamelCase разбивает строку по смене регистра.
-func SplitCamelCase(s string) []string {
+// ToSnakeCase преобразует CamelCase в snake_case за один проход.
+// Работает напрямую с байтами для ASCII-строк (Go field names).
+func ToSnakeCase(s string) string {
 	if s == "" {
-		return nil
+		return ""
 	}
 
-	var result []string
-	runes := []rune(s)
-	start := 0
+	// Оценка: максимум _ на каждую заглавную букву, начиная со второй
+	maxLen := len(s) + countUpperAfterLower(s)
+	buf := make([]byte, 0, maxLen)
 
-	for i := 1; i < len(runes); i++ {
-		if unicode.IsUpper(runes[i]) {
-			if unicode.IsLower(runes[i-1]) {
-				result = append(result, string(runes[start:i]))
-				start = i
-			} else if i+1 < len(runes) && unicode.IsLower(runes[i+1]) {
-				result = append(result, string(runes[start:i]))
-				start = i
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			if i > 0 {
+				prev := s[i-1]
+				if prev >= 'a' && prev <= 'z' {
+					buf = append(buf, '_')
+				} else if i+1 < len(s) {
+					next := s[i+1]
+					if next >= 'a' && next <= 'z' && i > 1 {
+						buf = append(buf, '_')
+					}
+				}
 			}
+			buf = append(buf, c+32) // to lower
+		} else {
+			buf = append(buf, c)
 		}
 	}
 
-	result = append(result, string(runes[start:]))
-	return result
+	return string(buf)
 }
 
-// ToSnakeCase преобразует CamelCase в snake_case.
-func ToSnakeCase(s string) string {
-	split := SplitCamelCase(s)
-	for idx := range split {
-		split[idx] = strings.ToLower(split[idx])
+// countUpperAfterLower считает количество заглавных букв, после которых идёт строчная.
+// Используется для предвычисления ёмкости буфера.
+func countUpperAfterLower(s string) int {
+	count := 0
+	for i := 1; i < len(s); i++ {
+		if s[i] >= 'A' && s[i] <= 'Z' && s[i-1] >= 'a' && s[i-1] <= 'z' {
+			count++
+		}
 	}
-	return strings.Join(split, "_")
+	return count
 }

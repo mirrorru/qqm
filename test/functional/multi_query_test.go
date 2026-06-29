@@ -11,54 +11,26 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/executor"
 	"github.com/mirrorru/qqm/table"
 	"github.com/mirrorru/qqm/test/fixtures"
 )
 
 func TestFunctional_MultiQuery_INNER_JOIN_PostgreSQL(t *testing.T) {
-	db := openTestPG(t)
-	defer func() { _ = db.Close() }()
-
-	ex := executor.NewDBAdapter(db)
+	t.Parallel()
+	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id BIGINT PRIMARY KEY,
-			name TEXT NOT NULL,
-			email TEXT NOT NULL
-		)
-	`)
-	require.NoError(t, err)
-	defer func() { _, _ = db.Exec(`DROP TABLE IF EXISTS users`) }()
+	userTbl := table.NewTable[fixtures.User](dialect.PostgreSQLDialect{})
+	orderTbl := table.NewTable[fixtures.Order](dialect.PostgreSQLDialect{})
 
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS orders (
-			id BIGSERIAL PRIMARY KEY,
-			user_id BIGINT NOT NULL REFERENCES users(id),
-			amount DOUBLE PRECISION NOT NULL
-		)
-	`)
+	alice, err := userTbl.Insert(ctx, ex, &fixtures.User{Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
-	defer func() { _, _ = db.Exec(`DROP TABLE IF EXISTS orders`) }()
-
-	_, err = db.Exec(`DELETE FROM orders`)
-	require.NoError(t, err)
-	_, err = db.Exec(`DELETE FROM users`)
+	_, err = userTbl.Insert(ctx, ex, &fixtures.User{Name: "Bob", Email: "bob@test.com"})
 	require.NoError(t, err)
 
-	userTbl := table.NewTable[*fixtures.User](dialect.PostgreSQLDialect{})
-	orderTbl := table.NewTable[*fixtures.Order](dialect.PostgreSQLDialect{})
-
-	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
+	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 150.0})
 	require.NoError(t, err)
-	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 2, Name: "Bob", Email: "bob@test.com"})
-	require.NoError(t, err)
-
-	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: 1, Amount: 150.0})
-	require.NoError(t, err)
-	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: 1, Amount: 250.0})
+	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 250.0})
 	require.NoError(t, err)
 
 	q, err := table.NewQuery[fixtures.UserWithOrder](dialect.PostgreSQLDialect{})
@@ -69,7 +41,8 @@ func TestFunctional_MultiQuery_INNER_JOIN_PostgreSQL(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, results, 2)
 		for _, r := range results {
-			assert.Equal(t, int64(1), r.User.ID)
+			assert.Equal(t, alice.ID, r.User.ID)
+			assert.Equal(t, "Alice", r.User.Name)
 		}
 	})
 
@@ -101,46 +74,19 @@ func TestFunctional_MultiQuery_INNER_JOIN_PostgreSQL(t *testing.T) {
 }
 
 func TestFunctional_MultiQuery_LEFT_JOIN_PostgreSQL(t *testing.T) {
-	db := openTestPG(t)
-	defer func() { _ = db.Close() }()
-
-	ex := executor.NewDBAdapter(db)
+	t.Parallel()
+	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id BIGINT PRIMARY KEY,
-			name TEXT NOT NULL,
-			email TEXT NOT NULL
-		)
-	`)
-	require.NoError(t, err)
-	defer func() { _, _ = db.Exec(`DROP TABLE IF EXISTS users`) }()
+	userTbl := table.NewTable[fixtures.User](dialect.PostgreSQLDialect{})
+	orderTbl := table.NewTable[fixtures.Order](dialect.PostgreSQLDialect{})
 
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS orders (
-			id BIGSERIAL PRIMARY KEY,
-			user_id BIGINT NOT NULL REFERENCES users(id),
-			amount DOUBLE PRECISION NOT NULL
-		)
-	`)
+	alice, err := userTbl.Insert(ctx, ex, &fixtures.User{Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
-	defer func() { _, _ = db.Exec(`DROP TABLE IF EXISTS orders`) }()
-
-	_, err = db.Exec(`DELETE FROM orders`)
-	require.NoError(t, err)
-	_, err = db.Exec(`DELETE FROM users`)
+	_, err = userTbl.Insert(ctx, ex, &fixtures.User{Name: "Bob", Email: "bob@test.com"})
 	require.NoError(t, err)
 
-	userTbl := table.NewTable[*fixtures.User](dialect.PostgreSQLDialect{})
-	orderTbl := table.NewTable[*fixtures.Order](dialect.PostgreSQLDialect{})
-
-	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
-	require.NoError(t, err)
-	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 2, Name: "Bob", Email: "bob@test.com"})
-	require.NoError(t, err)
-
-	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: 1, Amount: 150.0})
+	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 150.0})
 	require.NoError(t, err)
 
 	q, err := table.NewQuery[fixtures.UserWithOrderPtr](dialect.PostgreSQLDialect{})
@@ -152,74 +98,34 @@ func TestFunctional_MultiQuery_LEFT_JOIN_PostgreSQL(t *testing.T) {
 
 	byName := make(map[string]fixtures.UserWithOrderPtr)
 	for _, r := range results {
-		byName[r.User.Name] = r
+		byName[r.User.Name] = *r
 	}
 
-	alice, ok := byName["Alice"]
+	aliceRow, ok := byName["Alice"]
 	require.True(t, ok)
-	require.NotNil(t, alice.Order)
-	assert.Equal(t, 150.0, alice.Order.Amount)
+	require.NotNil(t, aliceRow.Order)
+	assert.Equal(t, 150.0, aliceRow.Order.Amount)
 
-	bob, ok := byName["Bob"]
+	bobRow, ok := byName["Bob"]
 	require.True(t, ok)
-	assert.Nil(t, bob.Order)
+	assert.Nil(t, bobRow.Order)
 }
 
 func TestFunctional_MultiQuery_ThreeTableJoin_PostgreSQL(t *testing.T) {
-	db := openTestPG(t)
-	defer func() { _ = db.Close() }()
-
-	ex := executor.NewDBAdapter(db)
+	t.Parallel()
+	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id BIGINT PRIMARY KEY,
-			name TEXT NOT NULL,
-			email TEXT NOT NULL
-		)
-	`)
-	require.NoError(t, err)
-	defer func() { _, _ = db.Exec(`DROP TABLE IF EXISTS users`) }()
+	userTbl := table.NewTable[fixtures.User](dialect.PostgreSQLDialect{})
+	orderTbl := table.NewTable[fixtures.Order](dialect.PostgreSQLDialect{})
+	itemTbl := table.NewTable[fixtures.OrderItem](dialect.PostgreSQLDialect{})
 
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS orders (
-			id BIGSERIAL PRIMARY KEY,
-			user_id BIGINT NOT NULL REFERENCES users(id),
-			amount DOUBLE PRECISION NOT NULL
-		)
-	`)
+	alice, err := userTbl.Insert(ctx, ex, &fixtures.User{Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
-	defer func() { _, _ = db.Exec(`DROP TABLE IF EXISTS orders`) }()
-
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS order_items (
-			id BIGSERIAL PRIMARY KEY,
-			order_id BIGINT NOT NULL REFERENCES orders(id),
-			quantity INTEGER NOT NULL,
-			price DOUBLE PRECISION NOT NULL
-		)
-	`)
-	require.NoError(t, err)
-	defer func() { _, _ = db.Exec(`DROP TABLE IF EXISTS order_items`) }()
-
-	_, err = db.Exec(`DELETE FROM order_items`)
-	require.NoError(t, err)
-	_, err = db.Exec(`DELETE FROM orders`)
-	require.NoError(t, err)
-	_, err = db.Exec(`DELETE FROM users`)
+	_, err = userTbl.Insert(ctx, ex, &fixtures.User{Name: "Bob", Email: "bob@test.com"})
 	require.NoError(t, err)
 
-	userTbl := table.NewTable[*fixtures.User](dialect.PostgreSQLDialect{})
-	orderTbl := table.NewTable[*fixtures.Order](dialect.PostgreSQLDialect{})
-	itemTbl := table.NewTable[*fixtures.OrderItem](dialect.PostgreSQLDialect{})
-
-	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
-	require.NoError(t, err)
-	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 2, Name: "Bob", Email: "bob@test.com"})
-	require.NoError(t, err)
-
-	insertedOrder, err := orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: 1, Amount: 100.0})
+	insertedOrder, err := orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 100.0})
 	require.NoError(t, err)
 
 	_, err = itemTbl.Insert(ctx, ex, &fixtures.OrderItem{OrderID: insertedOrder.ID, Quantity: 2, Price: 25.0})
@@ -235,7 +141,7 @@ func TestFunctional_MultiQuery_ThreeTableJoin_PostgreSQL(t *testing.T) {
 	assert.Len(t, results, 2)
 
 	for _, r := range results {
-		assert.Equal(t, int64(1), r.User.ID)
+		assert.Equal(t, alice.ID, r.User.ID)
 		assert.Equal(t, "Alice", r.User.Name)
 		assert.Equal(t, insertedOrder.ID, r.Order.ID)
 		require.NotNil(t, r.OrderItem)
@@ -243,46 +149,19 @@ func TestFunctional_MultiQuery_ThreeTableJoin_PostgreSQL(t *testing.T) {
 }
 
 func TestFunctional_MultiQuery_FilterOnlyPrimary_PostgreSQL(t *testing.T) {
-	db := openTestPG(t)
-	defer func() { _ = db.Close() }()
-
-	ex := executor.NewDBAdapter(db)
+	t.Parallel()
+	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id BIGINT PRIMARY KEY,
-			name TEXT NOT NULL,
-			email TEXT NOT NULL
-		)
-	`)
-	require.NoError(t, err)
-	defer func() { _, _ = db.Exec(`DROP TABLE IF EXISTS users`) }()
+	userTbl := table.NewTable[fixtures.User](dialect.PostgreSQLDialect{})
+	orderTbl := table.NewTable[fixtures.Order](dialect.PostgreSQLDialect{})
 
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS orders (
-			id BIGSERIAL PRIMARY KEY,
-			user_id BIGINT NOT NULL REFERENCES users(id),
-			amount DOUBLE PRECISION NOT NULL
-		)
-	`)
+	alice, err := userTbl.Insert(ctx, ex, &fixtures.User{Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
-	defer func() { _, _ = db.Exec(`DROP TABLE IF EXISTS orders`) }()
-
-	_, err = db.Exec(`DELETE FROM orders`)
-	require.NoError(t, err)
-	_, err = db.Exec(`DELETE FROM users`)
+	_, err = userTbl.Insert(ctx, ex, &fixtures.User{Name: "Bob", Email: "bob@test.com"})
 	require.NoError(t, err)
 
-	userTbl := table.NewTable[*fixtures.User](dialect.PostgreSQLDialect{})
-	orderTbl := table.NewTable[*fixtures.Order](dialect.PostgreSQLDialect{})
-
-	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
-	require.NoError(t, err)
-	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 2, Name: "Bob", Email: "bob@test.com"})
-	require.NoError(t, err)
-
-	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: 1, Amount: 100.0})
+	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 100.0})
 	require.NoError(t, err)
 
 	q, err := table.NewQuery[fixtures.UserWithOrderPtr](dialect.PostgreSQLDialect{})
@@ -290,7 +169,7 @@ func TestFunctional_MultiQuery_FilterOnlyPrimary_PostgreSQL(t *testing.T) {
 
 	t.Run("Gt filter on primary table only", func(t *testing.T) {
 		results, err := q.List(ctx, ex, table.AndFilter(
-			table.Field("User.ID", table.And, table.Gt(int64(1))),
+			table.Field("User.ID", table.And, table.Gt(alice.ID)),
 		))
 		require.NoError(t, err)
 		require.Len(t, results, 1)
@@ -310,48 +189,21 @@ func TestFunctional_MultiQuery_FilterOnlyPrimary_PostgreSQL(t *testing.T) {
 }
 
 func TestFunctional_MultiQuery_OrFilter_PostgreSQL(t *testing.T) {
-	db := openTestPG(t)
-	defer func() { _ = db.Close() }()
-
-	ex := executor.NewDBAdapter(db)
+	t.Parallel()
+	_, ex := beginTxPG(t)
 	ctx := context.Background()
 
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id BIGINT PRIMARY KEY,
-			name TEXT NOT NULL,
-			email TEXT NOT NULL
-		)
-	`)
-	require.NoError(t, err)
-	defer func() { _, _ = db.Exec(`DROP TABLE IF EXISTS users`) }()
+	userTbl := table.NewTable[fixtures.User](dialect.PostgreSQLDialect{})
+	orderTbl := table.NewTable[fixtures.Order](dialect.PostgreSQLDialect{})
 
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS orders (
-			id BIGSERIAL PRIMARY KEY,
-			user_id BIGINT NOT NULL REFERENCES users(id),
-			amount DOUBLE PRECISION NOT NULL
-		)
-	`)
+	alice, err := userTbl.Insert(ctx, ex, &fixtures.User{Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
-	defer func() { _, _ = db.Exec(`DROP TABLE IF EXISTS orders`) }()
-
-	_, err = db.Exec(`DELETE FROM orders`)
-	require.NoError(t, err)
-	_, err = db.Exec(`DELETE FROM users`)
+	bob, err := userTbl.Insert(ctx, ex, &fixtures.User{Name: "Bob", Email: "bob@test.com"})
 	require.NoError(t, err)
 
-	userTbl := table.NewTable[*fixtures.User](dialect.PostgreSQLDialect{})
-	orderTbl := table.NewTable[*fixtures.Order](dialect.PostgreSQLDialect{})
-
-	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
+	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 100.0})
 	require.NoError(t, err)
-	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 2, Name: "Bob", Email: "bob@test.com"})
-	require.NoError(t, err)
-
-	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: 1, Amount: 100.0})
-	require.NoError(t, err)
-	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: 2, Amount: 200.0})
+	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: bob.ID, Amount: 200.0})
 	require.NoError(t, err)
 
 	q, err := table.NewQuery[fixtures.UserWithOrder](dialect.PostgreSQLDialect{})

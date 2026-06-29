@@ -29,6 +29,10 @@ type RowMeta struct {
 	PKFields []*FieldMeta
 	// Columns — все имена колонок (для SELECT)
 	Columns []string
+	// insertColumns — кэшированные колонки для INSERT
+	insertColumns []string
+	// updateColumns — кэшированные колонки для UPDATE
+	updateColumns []string
 }
 
 // Updated at 2026-06-28
@@ -54,6 +58,9 @@ func BuildRowMeta(t reflect.Type, tableName string) *RowMeta {
 	rm.walkFields(t, nil, "", &pkCounter)
 
 	rm.validateUniqueColumns()
+
+	rm.insertColumns = buildInsertColumns(rm)
+	rm.updateColumns = buildUpdateColumns(rm)
 
 	return rm
 }
@@ -221,10 +228,21 @@ func (rm *RowMeta) ScanDest(row any) []any {
 	return dest
 }
 
-// Updated at 2026-06-28
+// Updated at 2026-06-29
 // InsertColumns возвращает колонки для INSERT (без auto, без omit).
 // PK-поля включаются, если не помечены как auto.
 func (rm *RowMeta) InsertColumns() []string {
+	return rm.insertColumns
+}
+
+// Updated at 2026-06-29
+// UpdateColumns возвращает колонки для UPDATE (без readonly, без pk, без omit, без auto).
+func (rm *RowMeta) UpdateColumns() []string {
+	return rm.updateColumns
+}
+
+// buildInsertColumns строит слайс колонок для INSERT (без auto, без omit).
+func buildInsertColumns(rm *RowMeta) []string {
 	cols := make([]string, 0, len(rm.Fields))
 	for _, fm := range rm.Fields {
 		if fm.IsAuto || fm.IsOmit {
@@ -235,9 +253,8 @@ func (rm *RowMeta) InsertColumns() []string {
 	return cols
 }
 
-// Updated at 2026-06-28
-// UpdateColumns возвращает колонки для UPDATE (без readonly, без pk, без omit, без auto).
-func (rm *RowMeta) UpdateColumns() []string {
+// buildUpdateColumns строит слайс колонок для UPDATE (без readonly, без pk, без omit, без auto).
+func buildUpdateColumns(rm *RowMeta) []string {
 	cols := make([]string, 0, len(rm.Fields))
 	for _, fm := range rm.Fields {
 		if fm.IsReadonly || fm.IsPK || fm.IsOmit || fm.IsAuto {

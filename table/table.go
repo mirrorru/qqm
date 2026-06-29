@@ -16,17 +16,48 @@ type SQLNamer interface {
 type CRUD[ROW any] interface {
 	Internals() *tableInternals
 
-	Insert(ctx context.Context, ex executor.Executor, src ROW) (ROW, error)
-	Update(ctx context.Context, ex executor.Executor, src ROW) error
-	GetByKey(ctx context.Context, ex executor.Executor, keys ...any) (ROW, error)
+	Insert(ctx context.Context, ex executor.Executor, src *ROW) (*ROW, error)
+	Update(ctx context.Context, ex executor.Executor, src *ROW) error
+	GetByPK(ctx context.Context, ex executor.Executor, keys ...any) (*ROW, error)
 	Delete(ctx context.Context, ex executor.Executor, keys ...any) error
-	List(ctx context.Context, ex executor.Executor, filters ...Filter) ([]ROW, error)
+	List(ctx context.Context, ex executor.Executor, filters ...Filter) ([]*ROW, error)
 }
 
 type tableInternals struct {
-	dialect dialect.DialectProvider
-	meta    *meta.RowMeta
-	queries *queryBuilder
+	dialect      dialect.DialectProvider
+	meta         *meta.RowMeta
+	queries      *queryBuilder
+	whereBuilder *whereBuilder
+	scanHelper   *scanDestHelper
+}
+
+type scanDestHelper struct {
+	fieldIndexes [][]int
+	dest         []any
+}
+
+func newScanDestHelper(rm *meta.RowMeta) *scanDestHelper {
+	var indexes [][]int
+	for _, fm := range rm.Fields {
+		if fm.IsOmit {
+			continue
+		}
+		idx := make([]int, len(fm.Index))
+		copy(idx, fm.Index)
+		indexes = append(indexes, idx)
+	}
+	return &scanDestHelper{
+		fieldIndexes: indexes,
+		dest:         make([]any, len(indexes)),
+	}
+}
+
+func (h *scanDestHelper) resetForRow(rowVal reflect.Value) []any {
+	for i, idx := range h.fieldIndexes {
+		fv := rowVal.FieldByIndex(idx)
+		h.dest[i] = fv.Addr().Interface()
+	}
+	return h.dest
 }
 
 type Table[ROW any] struct {
@@ -34,11 +65,13 @@ type Table[ROW any] struct {
 	rowType  reflect.Type
 }
 
-var _ CRUD[any] = (*Table[any])(nil)
-
 func NewTable[ROW any](d dialect.DialectProvider) *Table[ROW] {
 	var zero ROW
 	rt := reflect.TypeOf(zero)
+
+	if rt.Kind() == reflect.Pointer {
+		panic("qqm: ROW must not be a pointer type, use struct value")
+	}
 
 	tableName := resolveTableName(rt, zero)
 	rm := meta.GetOrBuildRowMeta(rt, tableName)
@@ -50,9 +83,11 @@ func NewTable[ROW any](d dialect.DialectProvider) *Table[ROW] {
 
 	return &Table[ROW]{
 		internal: tableInternals{
-			dialect: d,
-			meta:    rm,
-			queries: newQueryBuilder(),
+			dialect:      d,
+			meta:         rm,
+			queries:      newQueryBuilder(),
+			whereBuilder: newWhereBuilder(d, rm.Fields),
+			scanHelper:   newScanDestHelper(rm),
 		},
 		rowType: elemType,
 	}
@@ -110,26 +145,26 @@ func (i *tableInternals) ListSQL() string {
 	return i.queries.ListSQL(i.dialect, i.meta)
 }
 
-func (t *Table[ROW]) Insert(ctx context.Context, ex executor.Executor, src ROW) (ROW, error) {
+func (t *Table[ROW]) Insert(ctx context.Context, ex executor.Executor, src *ROW) (*ROW, error) {
 	args := t.internal.meta.InsertValues(src)
 
 	if t.internal.dialect.SupportsReturning() {
 		row := ex.QueryRowContext(ctx, t.internal.InsertSQL(), args...)
-		result := t.newRow()
-		dest := t.internal.meta.ScanDest(result)
+		buf := new(ROW)
+		dest := t.internal.scanHelper.resetForRow(t.rowValue(buf))
 		if err := row.Scan(dest...); err != nil {
-			var zero ROW
-			return zero, err
+			return nil, err
 		}
+		result := new(ROW)
+		*result = *buf
 		return result, nil
 	}
 
 	_, err := ex.ExecContext(ctx, t.internal.InsertSQL(), args...)
-	var zero ROW
-	return zero, err
+	return nil, err
 }
 
-func (t *Table[ROW]) Update(ctx context.Context, ex executor.Executor, src ROW) error {
+func (t *Table[ROW]) Update(ctx context.Context, ex executor.Executor, src *ROW) error {
 	updateVals := t.internal.meta.UpdateValues(src)
 	pkVals := t.internal.meta.PKFieldValues(src)
 	args := append(updateVals, pkVals...)
@@ -138,15 +173,16 @@ func (t *Table[ROW]) Update(ctx context.Context, ex executor.Executor, src ROW) 
 	return err
 }
 
-func (t *Table[ROW]) GetByKey(ctx context.Context, ex executor.Executor, keys ...any) (ROW, error) {
+func (t *Table[ROW]) GetByPK(ctx context.Context, ex executor.Executor, keys ...any) (*ROW, error) {
 	row := ex.QueryRowContext(ctx, t.internal.SelectSQL(), keys...)
 
-	result := t.newRow()
-	dest := t.internal.meta.ScanDest(result)
+	buf := new(ROW)
+	dest := t.internal.scanHelper.resetForRow(t.rowValue(buf))
 	if err := row.Scan(dest...); err != nil {
-		var zero ROW
-		return zero, err
+		return nil, err
 	}
+	result := new(ROW)
+	*result = *buf
 	return result, nil
 }
 
@@ -155,7 +191,7 @@ func (t *Table[ROW]) Delete(ctx context.Context, ex executor.Executor, keys ...a
 	return err
 }
 
-func (t *Table[ROW]) List(ctx context.Context, ex executor.Executor, filters ...Filter) ([]ROW, error) {
+func (t *Table[ROW]) List(ctx context.Context, ex executor.Executor, filters ...Filter) ([]*ROW, error) {
 	if len(filters) == 0 {
 		rows, err := ex.QueryContext(ctx, t.internal.ListSQL())
 		if err != nil {
@@ -163,13 +199,15 @@ func (t *Table[ROW]) List(ctx context.Context, ex executor.Executor, filters ...
 		}
 		defer func() { _ = rows.Close() }()
 
-		var result []ROW
+		var result []*ROW
+		buf := new(ROW)
+		dest := t.internal.scanHelper.resetForRow(t.rowValue(buf))
 		for rows.Next() {
-			row := t.newRow()
-			dest := t.internal.meta.ScanDest(row)
 			if err := rows.Scan(dest...); err != nil {
 				return nil, err
 			}
+			row := new(ROW)
+			*row = *buf
 			result = append(result, row)
 		}
 		return result, nil
@@ -187,27 +225,24 @@ func (t *Table[ROW]) List(ctx context.Context, ex executor.Executor, filters ...
 	}
 	defer func() { _ = rows.Close() }()
 
-	var result []ROW
+	var result []*ROW
 	for rows.Next() {
-		row := t.newRow()
-		dest := t.internal.meta.ScanDest(row)
+		buf := new(ROW)
+		dest := t.internal.scanHelper.resetForRow(t.rowValue(buf))
 		if err := rows.Scan(dest...); err != nil {
 			return nil, err
 		}
+		row := new(ROW)
+		*row = *buf
 		result = append(result, row)
 	}
 	return result, nil
 }
 
-func (t *Table[ROW]) newRow() ROW {
-	v := reflect.New(t.rowType)
-	return v.Interface().(ROW)
+func (t *Table[ROW]) rowValue(row *ROW) reflect.Value {
+	return reflect.ValueOf(row).Elem()
 }
 
 func (t *Table[ROW]) buildFilterWhereClause(filters []Filter) (string, []any, error) {
-	wb := &whereBuilder{
-		dialect: t.internal.dialect,
-		fields:  t.internal.meta.Fields,
-	}
-	return wb.buildWhereClause(filters)
+	return t.internal.whereBuilder.buildWhereClause(filters)
 }

@@ -5,7 +5,7 @@ import "time"
 
 // User — структура с простым ключом
 type User struct {
-	ID    int64 `qqm:"pk"`
+	ID    int64 `qqm:"pk;auto"`
 	Name  string
 	Email string
 }
@@ -14,7 +14,7 @@ func (u *User) SQLName() string { return "users" }
 
 // UserWithAge — структура с простым ключом и возрастом
 type UserWithAge struct {
-	ID    int64 `qqm:"pk"`
+	ID    int64 `qqm:"pk;auto"`
 	Name  string
 	Email string
 	Age   int
@@ -76,7 +76,7 @@ type SomeID int64
 
 // SomeTable — структура с anonymous non-struct PK и auto полем
 type SomeTable struct {
-	SomeID  `qqm:"pk"`
+	SomeID  `qqm:"pk;auto"`
 	FieldRW string
 	FieldRO time.Time `qqm:"auto"`
 }

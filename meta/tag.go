@@ -1,7 +1,5 @@
-// Created at 2026-06-28
+// Updated at 2026-06-29
 package meta
-
-import "strings"
 
 const (
 	// tagCol — имя колонки в БД. Пример: `qqm:"col=user_name"`
@@ -47,9 +45,6 @@ const (
 	// Пример: `qqm:"table=app_users"`.
 	tagTable = "table="
 
-	// tagSeparator — разделитель ключей в теге
-	tagSeparator = ";"
-
 	// tagName — имя тега для метаданных
 	tagName = "qqm"
 )
@@ -81,44 +76,82 @@ func ParseTag(raw string) TagOptions {
 		return opts
 	}
 
-	parts := strings.Split(raw, tagSeparator)
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
+	i := 0
+	n := len(raw)
+	for i < n {
+		// пропускаем пробелы в начале сегмента
+		for i < n && raw[i] == ' ' {
+			i++
+		}
+		if i >= n {
+			break
+		}
+
+		start := i
+		for i < n && raw[i] != ';' {
+			i++
+		}
+
+		seg := raw[start:i]
+		// trim trailing spaces
+		end := len(seg)
+		for end > 0 && seg[end-1] == ' ' {
+			end--
+		}
+		seg = seg[:end]
+
+		if seg == "" {
+			if i < n {
+				i++ // skip ;
+			}
 			continue
 		}
 
 		switch {
-		case strings.HasPrefix(p, tagCol):
-			opts.Col = strings.TrimPrefix(p, tagCol)
-		case p == tagPK:
+		case len(seg) > 4 && seg[:4] == tagCol:
+			opts.Col = seg[4:]
+		case seg == tagPK:
 			opts.IsPK = true
-		case strings.HasPrefix(p, tagRef):
-			ref := strings.TrimPrefix(p, tagRef)
-			if dot := strings.IndexByte(ref, '.'); dot >= 0 {
+		case len(seg) > 4 && seg[:4] == tagRef:
+			ref := seg[4:]
+			if dot := indexByte(ref, '.'); dot >= 0 {
 				opts.RefTable = ref[:dot]
 				opts.RefCol = ref[dot+1:]
 			} else {
 				opts.RefTable = ref
 			}
-		case strings.HasPrefix(p, tagPrefix):
-			opts.Prefix = strings.TrimPrefix(p, tagPrefix)
-		case p == tagReadonly:
+		case len(seg) > 7 && seg[:7] == tagPrefix:
+			opts.Prefix = seg[7:]
+		case seg == tagReadonly:
 			opts.Readonly = true
-		case p == tagAuto:
+		case seg == tagAuto:
 			opts.Auto = true
-		case p == tagOmit:
+		case seg == tagOmit:
 			opts.Omit = true
-		case strings.HasPrefix(p, tagJoin):
-			opts.JoinType = strings.TrimPrefix(p, tagJoin)
-		case p == tagPrimary:
+		case len(seg) > 5 && seg[:5] == tagJoin:
+			opts.JoinType = seg[5:]
+		case seg == tagPrimary:
 			opts.IsPrimary = true
-		case strings.HasPrefix(p, tagOn):
-			opts.On = strings.TrimPrefix(p, tagOn)
-		case strings.HasPrefix(p, tagTable):
-			opts.TableName = strings.TrimPrefix(p, tagTable)
+		case len(seg) > 3 && seg[:3] == tagOn:
+			opts.On = seg[3:]
+		case len(seg) > 6 && seg[:6] == tagTable:
+			opts.TableName = seg[6:]
+		}
+
+		if i < n {
+			i++ // skip ;
 		}
 	}
 
 	return opts
+}
+
+// indexByte — как strings.IndexByte, но без импорта.
+func indexByte(s string, c byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
 }
