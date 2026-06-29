@@ -184,3 +184,63 @@ func TestTable_NamedStructPrefix_SQLite(t *testing.T) {
 	selectSQL := tbl.Internals().SelectSQL()
 	assert.Contains(t, selectSQL, `home_city, home_street, home_zip, work_city, work_street, work_zip`)
 }
+
+// Created at 2026-06-29
+func TestTable_ListSQL_WithSort(t *testing.T) {
+	tbl := NewTable[fixtures.UserWithSort](dialect.SQLiteDialect{})
+
+	listSQL := tbl.Internals().ListSQL()
+	assert.Contains(t, listSQL, `SELECT id, name, email, age FROM users`)
+	assert.Contains(t, listSQL, `ORDER BY name ASC, email DESC`)
+}
+
+func TestTable_ListSQL_WithSort_MultiplePositions(t *testing.T) {
+	tbl := NewTable[fixtures.UserWithSortMulti](dialect.SQLiteDialect{})
+
+	listSQL := tbl.Internals().ListSQL()
+	assert.Contains(t, listSQL, `SELECT id, name, email, age FROM user_with_sort_multi`)
+	assert.Contains(t, listSQL, `ORDER BY email DESC, name ASC, age ASC`)
+}
+
+func TestTable_ListSQL_NoSort(t *testing.T) {
+	tbl := NewTable[fixtures.User](dialect.SQLiteDialect{})
+
+	listSQL := tbl.Internals().ListSQL()
+	assert.Contains(t, listSQL, `SELECT id, name, email FROM users`)
+	assert.NotContains(t, listSQL, `ORDER BY`)
+}
+
+func TestTable_ListSQL_WithSort_PostgreSQL(t *testing.T) {
+	tbl := NewTable[fixtures.UserWithSort](dialect.PostgreSQLDialect{})
+
+	listSQL := tbl.Internals().ListSQL()
+	assert.Contains(t, listSQL, `ORDER BY name ASC, email DESC`)
+}
+
+func TestTable_ListSQL_WithSort_CompositeKey(t *testing.T) {
+	type Row struct {
+		OrgID  int64  `qqm:"pk"`
+		UserID int64  `qqm:"pk"`
+		Name   string `qqm:"sort=1,desc"`
+		Value  int    `qqm:"sort=2"`
+	}
+
+	tbl := NewTable[Row](dialect.SQLiteDialect{})
+
+	listSQL := tbl.Internals().ListSQL()
+	assert.Contains(t, listSQL, `SELECT org_id, user_id, name, value FROM row`)
+	assert.Contains(t, listSQL, `ORDER BY name DESC, value ASC`)
+}
+
+func TestTable_QueryListSQL_WithSort(t *testing.T) {
+	type QRow struct {
+		User  fixtures.UserWithSort
+		Order fixtures.OrderWithSort
+	}
+
+	q, err := NewQuery[QRow](dialect.SQLiteDialect{})
+	require.NoError(t, err)
+
+	listSQL := q.qmeta.listSQL
+	assert.Contains(t, listSQL, `ORDER BY t1.name ASC, t1.email DESC`)
+}

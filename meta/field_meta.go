@@ -27,4 +27,8 @@ type FieldMeta struct {
 	RefColumn string
 	// IsOmit — поле пропускается при генерации SQL
 	IsOmit bool
+	// SortPosition — позиция поля в сортировке (0 если не задана)
+	SortPosition int
+	// SortDirection — направление сортировки: "ASC" или "DESC"
+	SortDirection string
 }

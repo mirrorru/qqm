@@ -187,3 +187,34 @@ type UserOrderItem struct {
 	Order     Order
 	OrderItem *OrderItem
 }
+
+// Created at 2026-06-29
+
+// UserWithSort — структура с sort-тегами
+type UserWithSort struct {
+	ID    int64  `qqm:"pk;auto"`
+	Name  string `qqm:"sort=1"`
+	Email string `qqm:"sort=2,desc"`
+	Age   int
+}
+
+func (u *UserWithSort) SQLName() string { return "users" }
+
+// UserWithSortMulti — структура с несколькими sort-полями и DESC
+type UserWithSortMulti struct {
+	ID    int64  `qqm:"pk;auto"`
+	Name  string `qqm:"sort=2"`
+	Email string `qqm:"sort=1,desc"`
+	Age   int    `qqm:"sort=3"`
+}
+
+func (u *UserWithSortMulti) SQLName() string { return "user_with_sort_multi" }
+
+// OrderWithSort — структура заказа с sort для Query-тестов
+type OrderWithSort struct {
+	ID     int64   `qqm:"pk;auto"`
+	UserID int64   `qqm:"ref=users.id;sort=1"`
+	Amount float64 `qqm:"sort=2,desc"`
+}
+
+func (o *OrderWithSort) SQLName() string { return "orders" }

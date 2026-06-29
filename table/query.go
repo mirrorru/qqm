@@ -25,6 +25,9 @@ const (
 	sqlOpenParen  = "("
 	sqlCloseParen = ")"
 	sqlIn         = " IN "
+	sqlOrderBy    = " ORDER BY "
+	sqlAsc        = " ASC"
+	sqlDesc       = " DESC"
 )
 
 type queryBuilder struct {
@@ -160,8 +163,33 @@ func buildListSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 		allCols[i] = d.QuoteIdent(col)
 	}
 
-	return sqlSelect + strings.Join(allCols, sqlCommaSpace) +
+	sql := sqlSelect + strings.Join(allCols, sqlCommaSpace) +
 		sqlFrom + d.QuoteIdent(m.TableName)
+
+	if len(m.SortFields) > 0 {
+		sql += buildOrderByClause(d, m, "")
+	}
+
+	return sql
+}
+
+// Created at 2026-06-29
+// buildOrderByClause строит "ORDER BY col1 ASC, col2 DESC" из SortFields.
+// tableAlias — алиас таблицы (например, "t1") для квалифицированных имён в Query; пустая строка для простой таблицы.
+func buildOrderByClause(d dialect.DialectProvider, m *meta.RowMeta, tableAlias string) string {
+	parts := make([]string, len(m.SortFields))
+	for i, sf := range m.SortFields {
+		dir := sqlAsc
+		if sf.SortDirection == "DESC" {
+			dir = sqlDesc
+		}
+		col := d.QuoteIdent(sf.Column)
+		if tableAlias != "" {
+			col = d.QuoteIdent(tableAlias) + "." + col
+		}
+		parts[i] = col + dir
+	}
+	return sqlOrderBy + strings.Join(parts, sqlCommaSpace)
 }
 
 func buildWhereClauses(d dialect.DialectProvider, m *meta.RowMeta, offset int) []string {

@@ -249,3 +249,95 @@ func TestBuildRowMeta_PKOrderDeclaration(t *testing.T) {
 	assert.Equal(t, 3, rm.PKFields[2].PkOrder)
 	assert.Equal(t, "third", rm.PKFields[2].Column)
 }
+
+// Created at 2026-06-29
+func TestBuildRowMeta_SortFields_Basic(t *testing.T) {
+	type Row struct {
+		ID   int64  `qqm:"pk"`
+		Name string `qqm:"sort=1"`
+		Age  int    `qqm:"sort=2,desc"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	require.Len(t, rm.SortFields, 2)
+	assert.Equal(t, "name", rm.SortFields[0].Column)
+	assert.Equal(t, 1, rm.SortFields[0].SortPosition)
+	assert.Equal(t, "ASC", rm.SortFields[0].SortDirection)
+
+	assert.Equal(t, "age", rm.SortFields[1].Column)
+	assert.Equal(t, 2, rm.SortFields[1].SortPosition)
+	assert.Equal(t, "DESC", rm.SortFields[1].SortDirection)
+}
+
+// Created at 2026-06-29
+func TestBuildRowMeta_SortFields_OrderedByPosition(t *testing.T) {
+	type Row struct {
+		ID     int64  `qqm:"pk"`
+		Second string `qqm:"sort=2"`
+		First  string `qqm:"sort=1"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	require.Len(t, rm.SortFields, 2)
+	assert.Equal(t, "first", rm.SortFields[0].Column)
+	assert.Equal(t, 1, rm.SortFields[0].SortPosition)
+
+	assert.Equal(t, "second", rm.SortFields[1].Column)
+	assert.Equal(t, 2, rm.SortFields[1].SortPosition)
+}
+
+// Created at 2026-06-29
+func TestBuildRowMeta_SortFields_NoSort(t *testing.T) {
+	type Row struct {
+		ID   int64 `qqm:"pk"`
+		Name string
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	assert.Len(t, rm.SortFields, 0)
+}
+
+// Created at 2026-06-29
+func TestBuildRowMeta_SortFields_Embedded(t *testing.T) {
+	type Embedded struct {
+		Name string `qqm:"sort=1"`
+	}
+
+	type Row struct {
+		ID int64 `qqm:"pk"`
+		Embedded
+		Age int `qqm:"sort=2,desc"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	require.Len(t, rm.SortFields, 2)
+	assert.Equal(t, "name", rm.SortFields[0].Column)
+	assert.Equal(t, 1, rm.SortFields[0].SortPosition)
+	assert.Equal(t, "age", rm.SortFields[1].Column)
+	assert.Equal(t, 2, rm.SortFields[1].SortPosition)
+}
+
+// Created at 2026-06-29
+func TestBuildRowMeta_SortFields_WithPrefix(t *testing.T) {
+	type Addr struct {
+		City string `qqm:"sort=1"`
+		Zip  string `qqm:"sort=2,desc"`
+	}
+	type Row struct {
+		ID          int64 `qqm:"pk"`
+		HomeAddress Addr  `qqm:"prefix=home_"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	require.Len(t, rm.SortFields, 2)
+	assert.Equal(t, "home_city", rm.SortFields[0].Column)
+	assert.Equal(t, 1, rm.SortFields[0].SortPosition)
+	assert.Equal(t, "home_zip", rm.SortFields[1].Column)
+	assert.Equal(t, 2, rm.SortFields[1].SortPosition)
+	assert.Equal(t, "DESC", rm.SortFields[1].SortDirection)
+}

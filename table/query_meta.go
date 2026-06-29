@@ -260,6 +260,10 @@ func buildQueryListSQL(d dialect.DialectProvider, qm *queryMeta) string {
 			joinType, d.QuoteIdent(entry.TableName), alias, entry.OnClause)
 	}
 
+	if len(qm.entries[0].RowMeta.SortFields) > 0 {
+		sql += buildOrderByClause(d, qm.entries[0].RowMeta, "t1")
+	}
+
 	return sql
 }
 
