@@ -10,6 +10,8 @@ type User struct {
 	Email string
 }
 
+func (u *User) SQLName() string { return "users" }
+
 // UserWithAge — структура с простым ключом и возрастом
 type UserWithAge struct {
 	ID    int64 `qqm:"pk"`
@@ -146,4 +148,42 @@ type PersonWithAddress struct {
 	Name        string
 	HomeAddress Address `qqm:"prefix=home_"`
 	WorkAddress Address `qqm:"prefix=work_"`
+}
+
+// Order — структура заказа с FK на User
+type Order struct {
+	ID     int64 `qqm:"pk;auto"`
+	UserID int64 `qqm:"ref=users.id"`
+	Amount float64
+}
+
+func (o *Order) SQLName() string { return "orders" }
+
+// OrderItem — структура позиции заказа с FK на Order
+type OrderItem struct {
+	ID       int64 `qqm:"pk;auto"`
+	OrderID  int64 `qqm:"ref=orders.id"`
+	Quantity int
+	Price    float64
+}
+
+func (oi *OrderItem) SQLName() string { return "order_items" }
+
+// UserWithOrder — Query-структура: User + Order (INNER JOIN)
+type UserWithOrder struct {
+	User  User
+	Order Order
+}
+
+// UserWithOrderPtr — Query-структура: User + *Order (LEFT JOIN по умолчанию для указателя)
+type UserWithOrderPtr struct {
+	User  User
+	Order *Order
+}
+
+// UserOrderItem — Query-структура с тремя таблицами: User + Order + OrderItem
+type UserOrderItem struct {
+	User      User
+	Order     Order
+	OrderItem *OrderItem
 }

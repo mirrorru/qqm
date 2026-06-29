@@ -31,6 +31,22 @@ const (
 	// Пример: `qqm:"omit"`.
 	tagOmit = "omit"
 
+	// tagJoin — тип JOIN (LEFT, INNER, RIGHT, FULL).
+	// Пример: `qqm:"join=LEFT"`.
+	tagJoin = "join="
+
+	// tagPrimary — явное указание первичной таблицы в Query.
+	// Пример: `qqm:"primary"`.
+	tagPrimary = "primary"
+
+	// tagOn — явное условие JOIN.
+	// Пример: `qqm:"on=users.id=orders.user_id"`.
+	tagOn = "on="
+
+	// tagTable — переопределение имени таблицы для поля в Query.
+	// Пример: `qqm:"table=app_users"`.
+	tagTable = "table="
+
 	// tagSeparator — разделитель ключей в теге
 	tagSeparator = ";"
 
@@ -40,19 +56,23 @@ const (
 
 // TagOptions — разобранные опции тега qqm.
 type TagOptions struct {
-	Col      string
-	IsPK     bool
-	RefTable string
-	RefCol   string
-	Prefix   string
-	Readonly bool
-	Auto     bool
-	Omit     bool
+	Col       string
+	IsPK      bool
+	RefTable  string
+	RefCol    string
+	Prefix    string
+	Readonly  bool
+	Auto      bool
+	Omit      bool
+	JoinType  string
+	IsPrimary bool
+	On        string
+	TableName string
 }
 
-// Updated at 2026-06-28
+// Updated at 2026-06-29
 // ParseTag разбирает строку тега qqm в TagOptions.
-// Формат: "col=name;pk;ref=users.id;prefix=audit_;readonly;auto;omit"
+// Формат: "col=name;pk;ref=users.id;prefix=audit_;readonly;auto;omit;join=LEFT;primary;on=cond"
 // Разделитель: точка с запятой (;).
 // Тег "pk" — флаг, порядок определяется порядком объявления в структуре.
 func ParseTag(raw string) TagOptions {
@@ -89,6 +109,14 @@ func ParseTag(raw string) TagOptions {
 			opts.Auto = true
 		case p == tagOmit:
 			opts.Omit = true
+		case strings.HasPrefix(p, tagJoin):
+			opts.JoinType = strings.TrimPrefix(p, tagJoin)
+		case p == tagPrimary:
+			opts.IsPrimary = true
+		case strings.HasPrefix(p, tagOn):
+			opts.On = strings.TrimPrefix(p, tagOn)
+		case strings.HasPrefix(p, tagTable):
+			opts.TableName = strings.TrimPrefix(p, tagTable)
 		}
 	}
 

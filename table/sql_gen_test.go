@@ -14,13 +14,13 @@ import (
 func TestTable_SQLite_SimpleKeySQL(t *testing.T) {
 	tbl := NewTable[*fixtures.User](dialect.SQLiteDialect{})
 
-	assert.Equal(t, "user", tbl.Internals().Meta().TableName)
+	assert.Equal(t, "users", tbl.Internals().Meta().TableName)
 	assert.Contains(t, tbl.Internals().Meta().Columns, "name")
 	assert.Contains(t, tbl.Internals().Meta().Columns, "email")
 
 	insertSQL := tbl.Internals().InsertSQL()
 	assert.NotEmpty(t, insertSQL)
-	assert.Contains(t, insertSQL, `INSERT INTO user`)
+	assert.Contains(t, insertSQL, `INSERT INTO users`)
 	assert.Contains(t, insertSQL, `id`)
 	assert.Contains(t, insertSQL, `name`)
 	assert.Contains(t, insertSQL, `email`)
@@ -28,19 +28,19 @@ func TestTable_SQLite_SimpleKeySQL(t *testing.T) {
 
 	updateSQL := tbl.Internals().UpdateSQL()
 	assert.NotEmpty(t, updateSQL)
-	assert.Contains(t, updateSQL, `UPDATE user`)
+	assert.Contains(t, updateSQL, `UPDATE users`)
 	assert.Contains(t, updateSQL, `SET name = ?`)
 	assert.Contains(t, updateSQL, `WHERE id = ?`)
 
 	selectSQL := tbl.Internals().SelectSQL()
 	assert.NotEmpty(t, selectSQL)
 	assert.Contains(t, selectSQL, `SELECT id, name, email`)
-	assert.Contains(t, selectSQL, `FROM user`)
+	assert.Contains(t, selectSQL, `FROM users`)
 	assert.Contains(t, selectSQL, `WHERE id = ?`)
 
 	deleteSQL := tbl.Internals().DeleteSQL()
 	assert.NotEmpty(t, deleteSQL)
-	assert.Contains(t, deleteSQL, `DELETE FROM user`)
+	assert.Contains(t, deleteSQL, `DELETE FROM users`)
 	assert.Contains(t, deleteSQL, `WHERE id = ?`)
 }
 

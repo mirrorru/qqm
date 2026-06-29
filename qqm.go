@@ -34,6 +34,10 @@ func NewTable[ROW any](d dialect.DialectProvider) *table.Table[ROW] {
 	return table.NewTable[ROW](d)
 }
 
+func NewQuery[QROW any](d dialect.DialectProvider) (*table.Query[QROW], error) {
+	return table.NewQuery[QROW](d)
+}
+
 func Eq(value any) Condition {
 	return table.Eq(value)
 }
