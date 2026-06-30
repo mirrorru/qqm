@@ -30,18 +30,17 @@ func TestSmoke_CRUD_Rooms(t *testing.T) {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL,
 			square REAL NOT NULL,
-			created_at INTEGER NOT NULL DEFAULT 0
+			created_at INTEGER NOT NULL DEFAULT 123
 		)
 	`)
 	require.NoError(t, err)
 
 	tbl := qqm.NewTable[fixtures.Rooms](dialect.SQLiteDialect{})
 
-	now := int64(1700000000)
+	createdAtExpect := int64(123)
 	room := &fixtures.Rooms{
-		Name:      "Conference Room A",
-		Square:    50.5,
-		CreatedAt: now,
+		Name:   "Conference Room A",
+		Square: 50.5,
 	}
 
 	inserted, err := tbl.Insert(ctx, ex, room)
@@ -49,22 +48,30 @@ func TestSmoke_CRUD_Rooms(t *testing.T) {
 	assert.Equal(t, room.Name, inserted.Name)
 	assert.Equal(t, room.Square, inserted.Square)
 	assert.NotZero(t, inserted.ID, "auto-generated ID should not be zero")
+	assert.Equal(t, createdAtExpect, inserted.CreatedAt)
 
 	fetched, err := tbl.GetByPK(ctx, ex, inserted.ID)
 	require.NoError(t, err)
 	assert.Equal(t, inserted.ID, fetched.ID)
 	assert.Equal(t, room.Name, fetched.Name)
 	assert.Equal(t, room.Square, fetched.Square)
+	assert.Equal(t, createdAtExpect, fetched.CreatedAt)
 
 	fetched.Name = "Conference Room B"
 	fetched.Square = 60.0
-	err = tbl.Update(ctx, ex, fetched)
+	fetched.CreatedAt = -createdAtExpect
+	returned, err := tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
+	assert.NotNil(t, returned)
+	assert.Equal(t, "Conference Room B", returned.Name)
+	assert.Equal(t, 60.0, returned.Square)
+	assert.Equal(t, createdAtExpect, returned.CreatedAt, tbl.Internals().UpdateSQL())
 
 	updated, err := tbl.GetByPK(ctx, ex, inserted.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Conference Room B", updated.Name)
 	assert.Equal(t, 60.0, updated.Square)
+	assert.Equal(t, createdAtExpect, updated.CreatedAt)
 
 	list, err := tbl.List(ctx, ex)
 	require.NoError(t, err)
@@ -121,8 +128,10 @@ func TestSmoke_CRUD_RoomMapping(t *testing.T) {
 	assert.Equal(t, mapping.TeacherKey.Key, fetched.TeacherKey.Key)
 
 	fetched.To = now + 10800
-	err = tbl.Update(ctx, ex, fetched)
+	returned, err := tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
+	assert.NotNil(t, returned)
+	assert.Equal(t, now+10800, returned.To)
 
 	updated, err := tbl.GetByPK(ctx, ex, int64(100), int64(200))
 	require.NoError(t, err)
@@ -308,8 +317,10 @@ func TestSmoke_CRUD_FullRoomMapping(t *testing.T) {
 	assert.Equal(t, fullMapping.Author, fetched.Author)
 
 	fetched.Author = "Jane Smith"
-	err = tbl.Update(ctx, ex, fetched)
+	returned, err := tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
+	assert.NotNil(t, returned)
+	assert.Equal(t, "Jane Smith", returned.Author)
 
 	updated, err := tbl.GetByPK(ctx, ex, int64(300), int64(400))
 	require.NoError(t, err)

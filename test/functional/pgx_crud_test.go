@@ -43,8 +43,10 @@ func TestFunctional_PGX_CRUD_Rooms(t *testing.T) {
 	assert.Equal(t, "PGX Room", fetched.Name)
 
 	fetched.Name = "PGX Room Updated"
-	err = tbl.Update(ctx, ex, fetched)
+	returned, err := tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
+	assert.NotNil(t, returned)
+	assert.Equal(t, "PGX Room Updated", returned.Name)
 
 	updated, err := tbl.GetByPK(ctx, ex, inserted.ID)
 	require.NoError(t, err)
@@ -129,8 +131,10 @@ func TestFunctional_PGX_CRUD_RoomMapping(t *testing.T) {
 	assert.Equal(t, mapping.MappingRoomID.ID, fetched.MappingRoomID.ID)
 
 	fetched.To = now + 10800
-	err = tbl.Update(ctx, ex, fetched)
+	returned, err := tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
+	assert.NotNil(t, returned)
+	assert.Equal(t, now+10800, returned.To)
 
 	updated, err := tbl.GetByPK(ctx, ex, int64(500), int64(600))
 	require.NoError(t, err)

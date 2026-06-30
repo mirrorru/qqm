@@ -16,7 +16,7 @@ type CRUD[ROW any] interface {
 	Internals() *tableInternals
 
 	Insert(ctx context.Context, ex Executor, src *ROW) (*ROW, error)
-	Update(ctx context.Context, ex Executor, src *ROW) error
+	Update(ctx context.Context, ex Executor, src *ROW) (*ROW, error)
 	GetByPK(ctx context.Context, ex Executor, keys ...any) (*ROW, error)
 	Delete(ctx context.Context, ex Executor, keys ...any) error
 	List(ctx context.Context, ex Executor, filters ...Filter) ([]*ROW, error)
@@ -164,16 +164,38 @@ func (t *Table[ROW]) Insert(ctx context.Context, ex Executor, src *ROW) (*ROW, e
 	}
 
 	_, err := ex.ExecContext(ctx, t.internal.InsertSQL(), args...)
-	return nil, err
+	if err != nil {
+		return nil, err
+	}
+	result := new(ROW)
+	*result = *src
+	return result, nil
 }
 
-func (t *Table[ROW]) Update(ctx context.Context, ex Executor, src *ROW) error {
+func (t *Table[ROW]) Update(ctx context.Context, ex Executor, src *ROW) (*ROW, error) {
 	updateVals := t.internal.meta.UpdateValues(src)
 	pkVals := t.internal.meta.PKFieldValues(src)
 	args := append(updateVals, pkVals...)
 
+	if t.internal.dialect.SupportsReturning() {
+		row := ex.QueryRowContext(ctx, t.internal.UpdateSQL(), args...)
+		buf := new(ROW)
+		dest := t.internal.scanHelper.resetForRow(t.rowValue(buf))
+		if err := row.Scan(dest...); err != nil {
+			return nil, err
+		}
+		result := new(ROW)
+		*result = *buf
+		return result, nil
+	}
+
 	_, err := ex.ExecContext(ctx, t.internal.UpdateSQL(), args...)
-	return err
+	if err != nil {
+		return nil, err
+	}
+	result := new(ROW)
+	*result = *src
+	return result, nil
 }
 
 func (t *Table[ROW]) GetByPK(ctx context.Context, ex Executor, keys ...any) (*ROW, error) {
@@ -181,12 +203,8 @@ func (t *Table[ROW]) GetByPK(ctx context.Context, ex Executor, keys ...any) (*RO
 
 	buf := new(ROW)
 	dest := t.internal.scanHelper.resetForRow(t.rowValue(buf))
-	if err := row.Scan(dest...); err != nil {
-		return nil, err
-	}
-	result := new(ROW)
-	*result = *buf
-	return result, nil
+	err := row.Scan(dest...)
+	return buf, err
 }
 
 func (t *Table[ROW]) Delete(ctx context.Context, ex Executor, keys ...any) error {

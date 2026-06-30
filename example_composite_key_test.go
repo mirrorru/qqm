@@ -36,7 +36,7 @@ func Example_compositeKey() {
 
 	// Output:
 	// INSERT: INSERT INTO org_users (org_id, user_id, name, email) VALUES (?, ?, ?, ?) RETURNING org_id, user_id, name, email
-	// UPDATE: UPDATE org_users SET name = ?, email = ? WHERE org_id = ? AND user_id = ?
+	// UPDATE: UPDATE org_users SET name = ?, email = ? WHERE org_id = ? AND user_id = ? RETURNING org_id, user_id, name, email
 	// SELECT: SELECT org_id, user_id, name, email FROM org_users WHERE org_id = ? AND user_id = ?
 	// DELETE: DELETE FROM org_users WHERE org_id = ? AND user_id = ?
 	// Table: org_users

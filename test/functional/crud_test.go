@@ -45,8 +45,11 @@ func TestFunctional_CRUD_Rooms_PostgreSQL(t *testing.T) {
 
 	fetched.Name = "Conference Room B"
 	fetched.Square = 60.0
-	err = tbl.Update(ctx, ex, fetched)
+	returned, err := tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
+	assert.NotNil(t, returned)
+	assert.Equal(t, "Conference Room B", returned.Name)
+	assert.Equal(t, 60.0, returned.Square)
 
 	updated, err := tbl.GetByPK(ctx, ex, inserted.ID)
 	require.NoError(t, err)
@@ -92,8 +95,10 @@ func TestFunctional_CRUD_RoomMapping_PostgreSQL(t *testing.T) {
 	assert.Equal(t, mapping.TeacherKey.Key, fetched.TeacherKey.Key)
 
 	fetched.To = now + 10800
-	err = tbl.Update(ctx, ex, fetched)
+	returned, err := tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
+	assert.NotNil(t, returned)
+	assert.Equal(t, now+10800, returned.To)
 
 	updated, err := tbl.GetByPK(ctx, ex, int64(100), int64(200))
 	require.NoError(t, err)
@@ -226,8 +231,10 @@ func TestFunctional_CRUD_FullRoomMapping_PostgreSQL(t *testing.T) {
 	assert.Equal(t, fullMapping.Author, fetched.Author)
 
 	fetched.Author = "Jane Smith"
-	err = tbl.Update(ctx, ex, fetched)
+	returned, err := tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
+	assert.NotNil(t, returned)
+	assert.Equal(t, "Jane Smith", returned.Author)
 
 	updated, err := tbl.GetByPK(ctx, ex, int64(300), int64(400))
 	require.NoError(t, err)
