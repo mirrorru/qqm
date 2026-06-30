@@ -38,9 +38,9 @@ func TestParseTag_Prefix(t *testing.T) {
 	assert.Equal(t, "audit_", opts.Prefix)
 }
 
-func TestParseTag_Readonly(t *testing.T) {
-	opts := ParseTag("readonly")
-	assert.True(t, opts.Readonly)
+func TestParseTag_Update(t *testing.T) {
+	opts := ParseTag("update")
+	assert.True(t, opts.Update)
 }
 
 func TestParseTag_Auto(t *testing.T) {
@@ -54,13 +54,13 @@ func TestParseTag_Omit(t *testing.T) {
 }
 
 func TestParseTag_Combined(t *testing.T) {
-	opts := ParseTag("col=name;pk;ref=users.id;prefix=audit_;readonly;auto;omit")
+	opts := ParseTag("col=name;pk;ref=users.id;prefix=audit_;update;auto;omit")
 	assert.Equal(t, "name", opts.Col)
 	assert.True(t, opts.IsPK)
 	assert.Equal(t, "users", opts.RefTable)
 	assert.Equal(t, "id", opts.RefCol)
 	assert.Equal(t, "audit_", opts.Prefix)
-	assert.True(t, opts.Readonly)
+	assert.True(t, opts.Update)
 	assert.True(t, opts.Auto)
 	assert.True(t, opts.Omit)
 }
@@ -136,8 +136,8 @@ func TestParseTag_Create_Unique(t *testing.T) {
 }
 
 func TestParseTag_Create_Combined(t *testing.T) {
-	opts := ParseTag("col=status;create=DEFAULT 'new';readonly")
+	opts := ParseTag("col=status;create=DEFAULT 'new';update")
 	assert.Equal(t, "status", opts.Col)
 	assert.Equal(t, "DEFAULT 'new'", opts.Create)
-	assert.True(t, opts.Readonly)
+	assert.True(t, opts.Update)
 }

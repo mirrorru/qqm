@@ -91,7 +91,7 @@ type Query[QROW any] struct {
 - Поля QROW — существующие ROW-структуры (User, Order и т.д.)
 - Тип JOIN определяется по типу поля: `*Order` → LEFT, `Order` → INNER
 - Условие ON выводится из тега `ref=table.col` на полях ROW-структур
-- Явное переопределение через теги поля: `join=LEFT`, `on=...`, `table=...`, `primary`
+- Явное переопределение через теги поля: `join=LEFT`, `table=...`, `primary`
 
 ### 4. Метаданные (meta/)
 
@@ -111,7 +111,7 @@ type Query[QROW any] struct {
 | `col=name` | Колонка = name |
 | `pk` | Поле — первичный ключ |
 | `auto` | Пропускается в INSERT |
-| `readonly` | Пропускается в UPDATE |
+| `update` | Разрешает UPDATE для auto-поля |
 | `omit` | Полностью исключается из SQL |
 | `prefix=...` на embedded struct | Колонки с префиксом |
 | `prefix=...` на именованной struct | Колонки с префиксом (новая возможность) |

@@ -58,13 +58,13 @@ func BenchmarkSplitCamelCase(b *testing.B) {
 func BenchmarkParseTag(b *testing.B) {
 	tags := []string{
 		"col=user_name;pk",
-		"col=name;pk;ref=users.id;prefix=audit_;readonly;auto;omit",
+		"col=name;pk;ref=users.id;prefix=audit_;update;auto;omit",
 		"col=name",
 		"pk",
 		"ref=users.id",
 		"prefix=audit_",
-		"readonly;auto;omit",
-		"join=LEFT;primary;on=users.id=orders.user_id",
+		"update;auto;omit",
+		"join=LEFT;primary",
 		"table=app_users",
 		"",
 	}
@@ -83,7 +83,7 @@ type benchUser struct {
 	LastName  string `qqm:"col=last_name"`
 	Email     string
 	Age       int
-	Bio       string `qqm:"readonly"`
+	Bio       string `qqm:"auto;update"`
 	Secret    string `qqm:"omit"`
 	CreatedAt string `qqm:"auto"`
 }

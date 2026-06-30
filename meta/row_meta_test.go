@@ -13,7 +13,7 @@ type TestUser struct {
 	ID     int64  `qqm:"col=user_id;pk"`
 	Name   string `qqm:"col=name"`
 	Age    int    `qqm:"col=age"`
-	Bio    string `qqm:"col=bio;readonly"`
+	Bio    string `qqm:"col=bio;auto;update"`
 	Secret string `qqm:"omit"`
 }
 
@@ -63,12 +63,12 @@ func TestBuildRowMeta_UpdateColumns(t *testing.T) {
 
 	for _, col := range cols {
 		assert.NotEqual(t, "user_id", col, "PK should not be in UpdateColumns")
-		assert.NotEqual(t, "bio", col, "readonly should not be in UpdateColumns")
 		assert.NotEqual(t, "secret", col, "omit should not be in UpdateColumns")
 	}
 
 	assert.Contains(t, cols, "name")
 	assert.Contains(t, cols, "age")
+	assert.Contains(t, cols, "bio", "auto+update should be in UpdateColumns")
 }
 
 func TestScanDest(t *testing.T) {

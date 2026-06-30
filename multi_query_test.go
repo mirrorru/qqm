@@ -164,29 +164,6 @@ func TestNewQuery_MissingFKError(t *testing.T) {
 	})
 }
 
-func TestNewQuery_ExplicitON(t *testing.T) {
-	t.Run("explicit on= clause overrides auto-join", func(t *testing.T) {
-		type User struct {
-			ID   int64 `qqm:"pk"`
-			Name string
-		}
-		type Ref struct {
-			ID    int64 `qqm:"pk"`
-			Value string
-		}
-		type QueryWithExplicitON struct {
-			User User
-			Ref  Ref `qqm:"on=ref.user_id=users.id"`
-		}
-
-		q, err := NewQuery[QueryWithExplicitON](dialect.SQLiteDialect{})
-		require.NoError(t, err)
-
-		sql := q.qmeta.listSQL
-		assert.Contains(t, sql, "ON ref.user_id=users.id")
-	})
-}
-
 func TestNewQuery_TableNameOverride(t *testing.T) {
 	t.Run("table= tag overrides table name", func(t *testing.T) {
 		type User struct {

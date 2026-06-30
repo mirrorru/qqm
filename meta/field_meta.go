@@ -11,8 +11,8 @@ type FieldMeta struct {
 	GoType        reflect.Type // Go-тип поля. / EN: Go type of the field.
 	IsPK          bool         // Поле является первичным ключом (определяется по тегу pk). / EN: Field is a primary key (determined by pk tag).
 	PkOrder       int          // Порядок поля в составном первичном ключе (1-based, по порядку объявления). / EN: Field order in composite primary key (1-based, by declaration order).
-	IsReadonly    bool         // Поле только для чтения (не участвует в UPDATE). / EN: Field is read-only (excluded from UPDATE).
 	IsAuto        bool         // Автогенерируемое поле (не участвует в INSERT). / EN: Auto-generated field (excluded from INSERT).
+	IsUpdate      bool         // Разрешено обновление auto-поля через UPDATE. / EN: Auto field allowed in UPDATE.
 	RefTable      string       // Имя таблицы для внешнего ключа (из тега ref=table.column). / EN: Table name for foreign key (from ref=table.column tag).
 	RefColumn     string       // Имя колонки для внешнего ключа. / EN: Column name for foreign key.
 	IsOmit        bool         // Поле пропускается при генерации SQL. / EN: Field is skipped during SQL generation.

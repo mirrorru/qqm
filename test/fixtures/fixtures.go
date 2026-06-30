@@ -52,7 +52,7 @@ type Rooms struct {
 	RoomID
 	Name      string
 	Square    float64
-	CreatedAt int64 `qqm:"auto"`
+	CreatedAt int64 `qqm:"auto;update"`
 }
 
 // RoomMapping — таблица связей комнат и преподавателей
@@ -110,13 +110,13 @@ type RowWithDeepEmbed struct {
 	TopField   string `qqm:"col=top_field"`
 }
 
-// AutoEmbedded — структура с auto и readonly полями
+// AutoEmbedded — структура с auto и update полями
 type AutoEmbedded struct {
 	CreatedAt string `qqm:"col=created_at;auto"`
-	UpdatedAt string `qqm:"col=updated_at;readonly"`
+	UpdatedAt string `qqm:"col=updated_at;auto;update"`
 }
 
-// RowWithAutoEmbed — структура с embedded auto/readonly полями
+// RowWithAutoEmbed — структура с embedded auto/update полями
 type RowWithAutoEmbed struct {
 	ID int64 `qqm:"pk"`
 	AutoEmbedded

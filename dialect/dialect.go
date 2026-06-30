@@ -9,6 +9,8 @@ type DialectProvider interface {
 	SupportsReturning() bool        // Поддерживает ли RETURNING. / EN: Whether RETURNING is supported.
 }
 
+// quoteIdentANSI экранирует идентификатор без кавычек (для ANSI/SQLite).
+// EN: quoteIdentANSI quotes an identifier without quotes (for ANSI/SQLite).
 func quoteIdentANSI(ident string) string {
 	return ident
 }

@@ -14,7 +14,7 @@
 - **Гибкая фильтрация** — And/Or-комбинации, операторы Eq, Gt, Lt, Gte, Lte, Between, In.
 - **Квалифицированные имена** — фильтры по полям присоединённых таблиц (`"Order.Amount"`).
 - **LEFT JOIN с nil** — `*ROW`-поля автоматически становятся nil при отсутствии строки.
-- **Теги полей** — колонка, первичный ключ, внешний ключ, readonly, auto, omit, join, on, table, primary.
+- **Теги полей** — колонка, первичный ключ, внешний ключ, update, auto, omit, join, table, primary.
 - **Embedded структуры** — поддержка встраивания с префиксом колонок.
 - **Именованные поля-структуры** — префикс для неанонимных структур (например, несколько адресов).
 - **Составные ключи** —переменное количество полей в PK.
@@ -98,7 +98,7 @@ func Example() {
 
 ## Настройка колонок через теги
 
-Формат тега: `qqm:"col=name;pk;ref=table.col;readonly;auto;omit;prefix=...;join=TYPE;on=...;table=...;primary;sort=<pos>[,dir];create=..."`
+Формат тега: `qqm:"col=name;pk;ref=table.col;update;auto;omit;prefix=...;join=TYPE;table=...;primary;sort=<pos>[,dir];create=..."`
 
 | Опция | Описание |
 |-------|----------|
@@ -106,11 +106,10 @@ func Example() {
 | `pk` | Поле является первичным ключом |
 | `ref=table.col` | Внешний ключ |
 | `prefix=...` | Префикс для колонок из embedded или именованной структуры |
-| `readonly` | Не участвует в UPDATE |
+| `update` | Разрешает UPDATE для auto-поля |
 | `auto` | Не участвует в INSERT (например, SERIAL) |
 | `omit` | Полностью исключается из SQL |
 | `join=TYPE` | Тип JOIN для Query: LEFT, INNER, RIGHT, FULL |
-| `on=...` | Явное условие JOIN (переопределяет авто-вывод из ref=) |
 | `table=...` | Переопределение имени таблицы для Query-поля |
 | `primary` | Явное указание primary-таблицы в Query |
 | `sort=<pos>[,dir]` | Позиция в ORDER BY для List() (1-based), направление ASC/DESC |
@@ -196,11 +195,6 @@ JOIN-условие ON строится по тегу `ref=users.id` на пол
 type CustomQuery struct {
     User  User   `qqm:"table=app_users;primary"`  // переопределение имени + primary
     Order *Order `qqm:"join=LEFT"`                 // явный тип JOIN
-}
-
-type WithExplicitON struct {
-    User User
-    Ref  RefData `qqm:"on=ref.user_id=users.id"`   // явное условие
 }
 ```
 

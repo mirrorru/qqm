@@ -41,7 +41,7 @@ func TestFunctional_AnonymousStruct_DeepNesting(t *testing.T) {
 	assert.Contains(t, m.Columns, "top_field")
 }
 
-func TestFunctional_AnonymousStruct_AutoReadonly(t *testing.T) {
+func TestFunctional_AnonymousStruct_AutoUpdate(t *testing.T) {
 	t.Parallel()
 	tbl := qqm.NewTable[fixtures.RowWithAutoEmbed](dialect.PostgreSQLDialect{})
 	m := tbl.Internals().Meta()
@@ -50,13 +50,13 @@ func TestFunctional_AnonymousStruct_AutoReadonly(t *testing.T) {
 	assert.Contains(t, insertCols, "id")
 	assert.Contains(t, insertCols, "value")
 	assert.NotContains(t, insertCols, "created_at", "auto field from embedded struct should not be in InsertColumns")
-	assert.Contains(t, insertCols, "updated_at", "readonly field should be in InsertColumns (set once on insert)")
+	assert.NotContains(t, insertCols, "updated_at", "auto field should not be in InsertColumns")
 
 	updateCols := m.UpdateColumns()
 	assert.Contains(t, updateCols, "value")
 	assert.NotContains(t, updateCols, "id", "PK should not be in UpdateColumns")
 	assert.NotContains(t, updateCols, "created_at", "auto field should not be in UpdateColumns")
-	assert.NotContains(t, updateCols, "updated_at", "readonly field should not be in UpdateColumns")
+	assert.Contains(t, updateCols, "updated_at", "auto+update field should be in UpdateColumns")
 }
 
 func TestFunctional_AnonymousStruct_PKAuto(t *testing.T) {

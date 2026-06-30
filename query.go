@@ -37,6 +37,10 @@ const (
 	sqlAutoincrement = " AUTOINCREMENT"
 )
 
+// queryBuilder кэширует SQL-запросы для таблицы.
+// Использует sync.Once для ленивой генерации.
+// EN: queryBuilder caches SQL queries for a table.
+// Uses sync.Once for lazy generation.
 type queryBuilder struct {
 	insertOnce      sync.Once
 	updateOnce      sync.Once
@@ -53,10 +57,14 @@ type queryBuilder struct {
 	createTableSQL string
 }
 
+// newQueryBuilder создаёт новый queryBuilder для кэширования SQL.
+// EN: newQueryBuilder creates a new queryBuilder for SQL caching.
 func newQueryBuilder() *queryBuilder {
 	return &queryBuilder{}
 }
 
+// InsertSQL возвращает кэшированный SQL INSERT.
+// EN: InsertSQL returns the cached INSERT SQL.
 func (qb *queryBuilder) InsertSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	qb.insertOnce.Do(func() {
 		qb.insertSQL = buildInsertSQL(d, m)
@@ -64,6 +72,8 @@ func (qb *queryBuilder) InsertSQL(d dialect.DialectProvider, m *meta.RowMeta) st
 	return qb.insertSQL
 }
 
+// UpdateSQL возвращает кэшированный SQL UPDATE.
+// EN: UpdateSQL returns the cached UPDATE SQL.
 func (qb *queryBuilder) UpdateSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	qb.updateOnce.Do(func() {
 		qb.updateSQL = buildUpdateSQL(d, m)
@@ -71,6 +81,8 @@ func (qb *queryBuilder) UpdateSQL(d dialect.DialectProvider, m *meta.RowMeta) st
 	return qb.updateSQL
 }
 
+// SelectSQL возвращает кэшированный SQL SELECT по PK.
+// EN: SelectSQL returns the cached SELECT SQL by PK.
 func (qb *queryBuilder) SelectSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	qb.selectOnce.Do(func() {
 		qb.selectSQL = buildSelectSQL(d, m)
@@ -78,6 +90,8 @@ func (qb *queryBuilder) SelectSQL(d dialect.DialectProvider, m *meta.RowMeta) st
 	return qb.selectSQL
 }
 
+// DeleteSQL возвращает кэшированный SQL DELETE по PK.
+// EN: DeleteSQL returns the cached DELETE SQL by PK.
 func (qb *queryBuilder) DeleteSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	qb.deleteOnce.Do(func() {
 		qb.deleteSQL = buildDeleteSQL(d, m)
@@ -85,6 +99,8 @@ func (qb *queryBuilder) DeleteSQL(d dialect.DialectProvider, m *meta.RowMeta) st
 	return qb.deleteSQL
 }
 
+// ListSQL возвращает кэшированный SQL SELECT ALL.
+// EN: ListSQL returns the cached SELECT ALL SQL.
 func (qb *queryBuilder) ListSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	qb.listOnce.Do(func() {
 		qb.listSQL = buildListSQL(d, m)
@@ -92,6 +108,8 @@ func (qb *queryBuilder) ListSQL(d dialect.DialectProvider, m *meta.RowMeta) stri
 	return qb.listSQL
 }
 
+// CreateTableSQL возвращает кэшированный SQL CREATE TABLE.
+// EN: CreateTableSQL returns the cached CREATE TABLE SQL.
 func (qb *queryBuilder) CreateTableSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	qb.createTableOnce.Do(func() {
 		qb.createTableSQL = buildCreateTableSQL(d, m)
@@ -99,6 +117,8 @@ func (qb *queryBuilder) CreateTableSQL(d dialect.DialectProvider, m *meta.RowMet
 	return qb.createTableSQL
 }
 
+// buildInsertSQL формирует SQL INSERT с учётом диалекта и метаданных.
+// EN: buildInsertSQL builds INSERT SQL accounting for dialect and metadata.
 func buildInsertSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	cols := m.InsertColumns()
 	if len(cols) == 0 {
@@ -127,6 +147,8 @@ func buildInsertSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	return sql
 }
 
+// buildUpdateSQL формирует SQL UPDATE с учётом диалекта и метаданных.
+// EN: buildUpdateSQL builds UPDATE SQL accounting for dialect and metadata.
 func buildUpdateSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	cols := m.UpdateColumns()
 	if len(cols) == 0 || len(m.PKFields) == 0 {
@@ -155,6 +177,8 @@ func buildUpdateSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	return sql
 }
 
+// buildSelectSQL формирует SQL SELECT по PK с учётом диалекта и метаданных.
+// EN: buildSelectSQL builds SELECT by PK SQL accounting for dialect and metadata.
 func buildSelectSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	if len(m.PKFields) == 0 {
 		return ""
@@ -172,6 +196,8 @@ func buildSelectSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 		sqlWhere + strings.Join(whereClauses, sqlAnd)
 }
 
+// buildDeleteSQL формирует SQL DELETE по PK с учётом диалекта и метаданных.
+// EN: buildDeleteSQL builds DELETE by PK SQL accounting for dialect and metadata.
 func buildDeleteSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	if len(m.PKFields) == 0 {
 		return ""
@@ -183,6 +209,8 @@ func buildDeleteSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 		sqlWhere + strings.Join(whereClauses, sqlAnd)
 }
 
+// buildListSQL формирует SQL SELECT ALL с учётом диалекта, метаданных и сортировки.
+// EN: buildListSQL builds SELECT ALL SQL accounting for dialect, metadata and sort.
 func buildListSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	allCols := make([]string, len(m.Columns))
 	for i, col := range m.Columns {
@@ -219,6 +247,10 @@ func buildOrderByClause(d dialect.DialectProvider, m *meta.RowMeta, tableAlias s
 	return sqlOrderBy + strings.Join(parts, sqlCommaSpace)
 }
 
+// buildWhereClauses формирует условия WHERE для PK-полей.
+// offset добавляется к индексу плейсхолдеров.
+// EN: buildWhereClauses builds WHERE conditions for PK fields.
+// offset is added to placeholder index.
 func buildWhereClauses(d dialect.DialectProvider, m *meta.RowMeta, offset int) []string {
 	whereClauses := make([]string, len(m.PKFields))
 	for i, pk := range m.PKFields {
