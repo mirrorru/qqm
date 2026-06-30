@@ -1,4 +1,3 @@
-// Created at 2026-06-28
 package fixtures
 
 import "time"
@@ -188,8 +187,6 @@ type UserOrderItem struct {
 	OrderItem *OrderItem
 }
 
-// Created at 2026-06-29
-
 // UserWithSort — структура с sort-тегами
 type UserWithSort struct {
 	ID    int64  `qqm:"pk;auto"`
@@ -218,8 +215,6 @@ type OrderWithSort struct {
 }
 
 func (o *OrderWithSort) SQLName() string { return "orders" }
-
-// Created at 2026-06-29
 
 // RowWithCreate — структура с create= для тестов CREATE TABLE
 type RowWithCreate struct {

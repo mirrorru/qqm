@@ -1,4 +1,3 @@
-// Created at 2026-06-28
 package qqm
 
 import (
@@ -9,11 +8,13 @@ import (
 )
 
 // PGXAdapter адаптирует *pgx.Conn к интерфейсу Executor.
+// EN: PGXAdapter adapts *pgx.Conn to the Executor interface.
 type PGXAdapter struct {
 	conn *pgx.Conn
 }
 
-// NewPGXTxAdapterVal создает адаптер для *pgx.Conn к интерфейсу Executor
+// NewPGXAdapterVal создаёт адаптер для *pgx.Conn к интерфейсу Executor.
+// EN: NewPGXAdapterVal creates an adapter from *pgx.Conn to the Executor interface.
 func NewPGXAdapterVal(conn *pgx.Conn) PGXAdapter {
 	return PGXAdapter{conn: conn}
 }
@@ -39,11 +40,13 @@ func (a PGXAdapter) QueryRowContext(ctx context.Context, query string, args ...a
 }
 
 // PGXTxAdapter адаптирует pgx.Tx к интерфейсу Executor.
+// EN: PGXTxAdapter adapts pgx.Tx to the Executor interface.
 type PGXTxAdapter struct {
 	tx pgx.Tx
 }
 
-// NewPGXTxAdapterVal создает адаптер для pgx.Tx к интерфейсу Executor
+// NewPGXTxAdapterVal создаёт адаптер для pgx.Tx к интерфейсу Executor.
+// EN: NewPGXTxAdapterVal creates an adapter from pgx.Tx to the Executor interface.
 func NewPGXTxAdapterVal(tx pgx.Tx) PGXTxAdapter {
 	return PGXTxAdapter{tx: tx}
 }
@@ -69,6 +72,7 @@ func (a PGXTxAdapter) QueryRowContext(ctx context.Context, query string, args ..
 }
 
 // PgxResult адаптирует pgconn.CommandTag к интерфейсу Result.
+// EN: PgxResult adapts pgconn.CommandTag to the Result interface.
 type PgxResult struct {
 	tag pgconn.CommandTag
 }
@@ -82,6 +86,7 @@ func (r *PgxResult) RowsAffected() (int64, error) {
 }
 
 // PgxRows адаптирует pgx.Rows к интерфейсу Rows.
+// EN: PgxRows adapts pgx.Rows to the Rows interface.
 type PgxRows struct {
 	rows pgx.Rows
 }

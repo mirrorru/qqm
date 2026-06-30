@@ -92,7 +92,6 @@ func (qb *queryBuilder) ListSQL(d dialect.DialectProvider, m *meta.RowMeta) stri
 	return qb.listSQL
 }
 
-// Created at 2026-06-29
 func (qb *queryBuilder) CreateTableSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	qb.createTableOnce.Do(func() {
 		qb.createTableSQL = buildCreateTableSQL(d, m)
@@ -190,9 +189,10 @@ func buildListSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	return sql
 }
 
-// Created at 2026-06-29
 // buildOrderByClause строит "ORDER BY col1 ASC, col2 DESC" из SortFields.
 // tableAlias — алиас таблицы (например, "t1") для квалифицированных имён в Query; пустая строка для простой таблицы.
+// EN: buildOrderByClause builds "ORDER BY col1 ASC, col2 DESC" from SortFields.
+// tableAlias — table alias (e.g. "t1") for qualified names in Query; empty string for a simple table.
 func buildOrderByClause(d dialect.DialectProvider, m *meta.RowMeta, tableAlias string) string {
 	parts := make([]string, len(m.SortFields))
 	for i, sf := range m.SortFields {
@@ -217,8 +217,8 @@ func buildWhereClauses(d dialect.DialectProvider, m *meta.RowMeta, offset int) [
 	return whereClauses
 }
 
-// Created at 2026-06-29
 // buildCreateTableSQL строит CREATE TABLE с учётом pk, default= и ref=.
+// EN: buildCreateTableSQL builds CREATE TABLE accounting for pk, default= and ref=.
 func buildCreateTableSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	var b strings.Builder
 	b.WriteString(sqlCreateTable)
@@ -289,8 +289,8 @@ func buildCreateTableSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	return b.String()
 }
 
-// Created at 2026-06-29
 // goTypeToSQL преобразует Go-тип в SQL-тип для CREATE TABLE.
+// EN: goTypeToSQL converts Go type to SQL type for CREATE TABLE.
 func goTypeToSQL(t reflect.Type) string {
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()

@@ -1,4 +1,3 @@
-// Updated at 2026-06-29
 package meta
 
 import (
@@ -6,20 +5,22 @@ import (
 	"sync"
 )
 
-// cacheKey — ключ кэша, включающий тип и имя таблицы.
+// cacheKey содержит ключ кэша — тип и имя таблицы.
+// EN: cacheKey holds the cache key — type and table name.
 type cacheKey struct {
 	t reflect.Type
 	n string
 }
 
-// metaCache — thread-safe кэш метаданных.
+// metaMap — thread-safe кэш метаданных (RowMeta).
+// EN: metaMap — thread-safe metadata cache (RowMeta).
 var (
 	metaMu  sync.RWMutex
 	metaMap = make(map[cacheKey]*RowMeta)
 )
 
-// Updated at 2026-06-29
 // GetOrBuildRowMeta возвращает кэшированную RowMeta или строит новую.
+// EN: GetOrBuildRowMeta returns cached RowMeta or builds a new one.
 func GetOrBuildRowMeta(t reflect.Type, tableName string) *RowMeta {
 	key := cacheKey{t: t, n: tableName}
 	for key.t.Kind() == reflect.Pointer {
@@ -45,8 +46,8 @@ func GetOrBuildRowMeta(t reflect.Type, tableName string) *RowMeta {
 	return rm
 }
 
-// Updated at 2026-06-29
-// ClearCache очищает кэш (для тестов).
+// ClearCache очищает кэш метаданных (для тестов).
+// EN: ClearCache clears the metadata cache (for tests).
 func ClearCache() {
 	metaMu.Lock()
 	metaMap = make(map[cacheKey]*RowMeta)

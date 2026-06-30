@@ -1,4 +1,3 @@
-// Created at 2026-06-28
 package meta
 
 import (
@@ -6,41 +5,47 @@ import (
 )
 
 const (
-	// errRequiresStruct — ошибка: тип не является структурой
+	// errRequiresStruct возвращается, когда тип не является структурой.
+	// EN: Error returned when type is not a struct.
 	errRequiresStruct = "qqm: BuildRowMeta requires struct type, got "
 
-	// errDuplicateColumn — ошибка: дублирующееся имя колонки
+	// errDuplicateColumn возвращается при дублировании имени колонки.
+	// EN: Error returned when a column name is duplicated.
 	errDuplicateColumn = "qqm: duplicate column name "
 
-	// errInTable — часть сообщения об ошибке
+	// errInTable добавляется в сообщения об ошибках для указания таблицы.
+	// EN: Added to error messages to indicate the table.
 	errInTable = " in table "
 
-	// errScanDestAddressable — ошибка: ScanDest требует адресуемого значения
+	// errScanDestAddressable возвращается, когда ScanDest требует адресуемое значение.
+	// EN: Error returned when ScanDest requires an addressable value.
 	errScanDestAddressable = "qqm: ScanDest requires an addressable value (pass a pointer to struct)"
 )
 
-// RowMeta — метаданные структуры ROW для работы с БД.
+// RowMeta содержит метаданные структуры ROW для работы с БД.
+// EN: RowMeta holds ROW struct metadata for database operations.
 type RowMeta struct {
-	// TableName — имя таблицы в БД
+	// TableName — имя таблицы в БД.
 	TableName string
-	// Fields — метаданные всех полей
+	// Fields — метаданные всех полей.
 	Fields []*FieldMeta
-	// PKFields — поля первичного ключа (в порядке объявления)
+	// PKFields — поля первичного ключа в порядке объявления.
 	PKFields []*FieldMeta
-	// Columns — все имена колонок (для SELECT)
+	// Columns — все имена колонок для SELECT.
 	Columns []string
-	// insertColumns — кэшированные колонки для INSERT
+	// insertColumns — кэшированные колонки для INSERT.
 	insertColumns []string
-	// updateColumns — кэшированные колонки для UPDATE
+	// updateColumns — кэшированные колонки для UPDATE.
 	updateColumns []string
-	// SortFields — поля для ORDER BY (отсортированы по SortPosition)
+	// SortFields — поля для ORDER BY, отсортированные по SortPosition.
 	SortFields []*FieldMeta
 }
 
-// Updated at 2026-06-28
 // BuildRowMeta строит метаданные для типа t с именем таблицы tableName.
+// EN: BuildRowMeta builds metadata for type t with table name tableName.
 func BuildRowMeta(t reflect.Type, tableName string) *RowMeta {
-	// разыменовываем указатель
+	// Разыменовываем указатель.
+	// EN: Dereference pointer.
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
@@ -69,8 +74,8 @@ func BuildRowMeta(t reflect.Type, tableName string) *RowMeta {
 	return rm
 }
 
-// Created at 2026-06-28
-// validateUniqueColumns проверяет уникальность имён колонок.
+// validateUniqueColumns проверяет уникальность имён колонок и вызывает panic при дублировании.
+// EN: validateUniqueColumns checks column name uniqueness and panics on duplicates.
 func (rm *RowMeta) validateUniqueColumns() {
 	seen := make(map[string]bool, len(rm.Columns))
 	for _, col := range rm.Columns {
@@ -81,25 +86,30 @@ func (rm *RowMeta) validateUniqueColumns() {
 	}
 }
 
-// Updated at 2026-06-28
 // walkFields рекурсивно обходит поля структуры, включая embedded.
 // prefix — префикс для колонок из anonymous struct (из тега prefix=).
 // pkCounter — счётчик для назначения порядка PK-полей по порядку объявления.
+// EN: walkFields recursively traverses struct fields, including embedded.
+// prefix — prefix for columns from anonymous struct (from prefix= tag).
+// pkCounter — counter for assigning PK field order by declaration order.
 func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, pkCounter *int) {
 	for i := range t.NumField() {
 		sf := t.Field(i)
 
-		// формируем индекс поля
+		// Формируем индекс поля.
+		// EN: Build field index.
 		idx := make([]int, len(parentIndex)+1)
 		copy(idx, parentIndex)
 		idx[len(parentIndex)] = i
 
-		// пропускаем неэкспортируемые поля (включая anonymous)
+		// Пропускаем неэкспортируемые поля (включая anonymous).
+		// EN: Skip unexported fields (including anonymous).
 		if !sf.IsExported() {
 			continue
 		}
 
-		// anonymous поле: struct — набор полей, non-struct — обычное поле
+		// Anonymous поле: struct — набор полей, non-struct — обычное поле.
+		// EN: Anonymous field: struct — field set, non-struct — regular field.
 		if sf.Anonymous {
 			ft := sf.Type
 			for ft.Kind() == reflect.Pointer {
@@ -107,16 +117,18 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 			}
 
 			if ft.Kind() == reflect.Struct {
-				// читаем тег anonymous struct для получения префикса
-				tagRaw := sf.Tag.Get(tagName)
+				// Читаем тег anonymous struct для получения префикса.
+				// EN: Read anonymous struct tag to get prefix.
+				tagRaw := sf.Tag.Get(TagName)
 				opts := ParseTag(tagRaw)
 				childPrefix := prefix + opts.Prefix
 				rm.walkFields(ft, idx, childPrefix, pkCounter)
 				continue
 			}
 
-			// парсим тег qqm для anonymous non-struct
-			tagRaw := sf.Tag.Get(tagName)
+			// Парсим тег qqm для anonymous non-struct.
+			// EN: Parse qqm tag for anonymous non-struct.
+			tagRaw := sf.Tag.Get(TagName)
 			opts := ParseTag(tagRaw)
 
 			col := prefix + ToSnakeCase(sf.Name)
@@ -159,11 +171,13 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 			continue
 		}
 
-		// парсим тег qqm
-		tagRaw := sf.Tag.Get(tagName)
+		// Парсим тег qqm.
+		// EN: Parse qqm tag.
+		tagRaw := sf.Tag.Get(TagName)
 		opts := ParseTag(tagRaw)
 
-		// неанонимное поле-структура с префиксом — разворачиваем её поля
+		// Неанонимное поле-структура с префиксом — разворачиваем её поля.
+		// EN: Non-anonymous struct field with prefix — expand its fields.
 		if opts.Prefix != "" {
 			ft := sf.Type
 			for ft.Kind() == reflect.Pointer {
@@ -176,7 +190,8 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 			}
 		}
 
-		// если нет col=, используем ToSnakeCase от имени поля
+		// Если нет col=, используем ToSnakeCase от имени поля.
+		// EN: If no col=, use ToSnakeCase from field name.
 		col := opts.Col
 		if col == "" {
 			col = ToSnakeCase(sf.Name)
@@ -219,13 +234,14 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 	}
 }
 
-// Created at 2026-06-29
 // sortSortFields сортирует SortFields по SortPosition.
+// EN: sortSortFields sorts SortFields by SortPosition.
 func (rm *RowMeta) sortSortFields() {
 	if len(rm.SortFields) < 2 {
 		return
 	}
-	// insertion sort — SortFields обычно небольшой
+	// Insertion sort — SortFields обычно небольшой.
+	// EN: Insertion sort — SortFields is usually small.
 	for i := 1; i < len(rm.SortFields); i++ {
 		j := i
 		for j > 0 && rm.SortFields[j-1].SortPosition > rm.SortFields[j].SortPosition {
@@ -235,9 +251,10 @@ func (rm *RowMeta) sortSortFields() {
 	}
 }
 
-// Created at 2026-06-28
 // ScanDest формирует слайс указателей на поля row для sql.Rows.Scan().
 // row должен быть указателем на struct.
+// EN: ScanDest builds a slice of pointers to row fields for sql.Rows.Scan().
+// row must be a pointer to struct.
 func (rm *RowMeta) ScanDest(row any) []any {
 	v := reflect.ValueOf(row)
 	for v.Kind() == reflect.Pointer {
@@ -260,20 +277,22 @@ func (rm *RowMeta) ScanDest(row any) []any {
 	return dest
 }
 
-// Updated at 2026-06-29
 // InsertColumns возвращает колонки для INSERT (без auto, без omit).
 // PK-поля включаются, если не помечены как auto.
+// EN: InsertColumns returns columns for INSERT (without auto, without omit).
+// PK fields are included if not marked as auto.
 func (rm *RowMeta) InsertColumns() []string {
 	return rm.insertColumns
 }
 
-// Updated at 2026-06-29
 // UpdateColumns возвращает колонки для UPDATE (без readonly, без pk, без omit, без auto).
+// EN: UpdateColumns returns columns for UPDATE (without readonly, without pk, without omit, without auto).
 func (rm *RowMeta) UpdateColumns() []string {
 	return rm.updateColumns
 }
 
 // buildInsertColumns строит слайс колонок для INSERT (без auto, без omit).
+// EN: buildInsertColumns builds column slice for INSERT (without auto, without omit).
 func buildInsertColumns(rm *RowMeta) []string {
 	cols := make([]string, 0, len(rm.Fields))
 	for _, fm := range rm.Fields {
@@ -286,6 +305,7 @@ func buildInsertColumns(rm *RowMeta) []string {
 }
 
 // buildUpdateColumns строит слайс колонок для UPDATE (без readonly, без pk, без omit, без auto).
+// EN: buildUpdateColumns builds column slice for UPDATE (without readonly, without pk, without omit, without auto).
 func buildUpdateColumns(rm *RowMeta) []string {
 	cols := make([]string, 0, len(rm.Fields))
 	for _, fm := range rm.Fields {
@@ -297,8 +317,8 @@ func buildUpdateColumns(rm *RowMeta) []string {
 	return cols
 }
 
-// Created at 2026-06-28
 // InsertValues извлекает значения полей для INSERT из row.
+// EN: InsertValues extracts field values for INSERT from row.
 func (rm *RowMeta) InsertValues(row any) []any {
 	v := reflect.ValueOf(row)
 	for v.Kind() == reflect.Pointer {
@@ -316,8 +336,8 @@ func (rm *RowMeta) InsertValues(row any) []any {
 	return vals
 }
 
-// Created at 2026-06-28
 // UpdateValues извлекает значения полей для UPDATE из row.
+// EN: UpdateValues extracts field values for UPDATE from row.
 func (rm *RowMeta) UpdateValues(row any) []any {
 	v := reflect.ValueOf(row)
 	for v.Kind() == reflect.Pointer {
@@ -335,8 +355,8 @@ func (rm *RowMeta) UpdateValues(row any) []any {
 	return vals
 }
 
-// Created at 2026-06-28
 // PKFieldValues извлекает значения PK-полей из row.
+// EN: PKFieldValues extracts PK field values from row.
 func (rm *RowMeta) PKFieldValues(row any) []any {
 	v := reflect.ValueOf(row)
 	for v.Kind() == reflect.Pointer {

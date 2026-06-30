@@ -1,5 +1,7 @@
 # qqm — Quick Query Maker
 
+[English version](README.en.md)
+
 **qqm** — это ORM-подобная Go-библиотека для типизированной работы с SQL-базами данных через структуры. Она автоматически генерирует SQL-запросы на основе тегов в полях структуры и предоставляет простой CRUD-интерфейс, включая multi-table SELECT с JOIN.
 
 ## Возможности
@@ -8,7 +10,7 @@
 - **Multi-table запросы** — `Query[QROW]` для SELECT с JOIN по ref-связям.
 - **Автогенерация SQL** — INSERT, UPDATE, SELECT, DELETE строятся по метаданным структуры.
 - **Поддержка диалектов** — SQLite (`?`) и PostgreSQL (`$1`, `$2`, …).
-- **CRUD-интерфейс** — Insert, Update, GetByKey, Delete, List.
+- **CRUD-интерфейс** — Insert, Update, GetByPK, Delete, List.
 - **Гибкая фильтрация** — And/Or-комбинации, операторы Eq, Gt, Lt, Gte, Lte, Between, In.
 - **Квалифицированные имена** — фильтры по полям присоединённых таблиц (`"Order.Amount"`).
 - **LEFT JOIN с nil** — `*ROW`-поля автоматически становятся nil при отсутствии строки.
@@ -63,7 +65,6 @@ import (
     "context"
     "database/sql"
     "github.com/mirrorru/qqm"
-    "github.com/mirrorru/qqm/executor"
 )
 
 func Example() {
@@ -73,7 +74,7 @@ func Example() {
         name TEXT, email TEXT, age INTEGER
     )`)
 
-    ex := executor.NewDBAdapter(db)
+    ex := qqm.NewDBAdapterVal(db)
     ctx := context.Background()
     tbl := qqm.NewTable[User](qqm.SQLiteDialect)
 
@@ -81,7 +82,7 @@ func Example() {
     u, _ := tbl.Insert(ctx, ex, &User{Name: "Alice", Email: "alice@test.com", Age: 25})
 
     // Read
-    alice, _ := tbl.GetByKey(ctx, ex, u.ID)
+    alice, _ := tbl.GetByPK(ctx, ex, u.ID)
 
     // Update
     alice.Age = 26
@@ -97,7 +98,7 @@ func Example() {
 
 ## Настройка колонок через теги
 
-Формат тега: `qqm:"col=name;pk;ref=table.col;readonly;auto;omit;prefix=...;join=TYPE;on=...;table=...;primary"`
+Формат тега: `qqm:"col=name;pk;ref=table.col;readonly;auto;omit;prefix=...;join=TYPE;on=...;table=...;primary;sort=<pos>[,dir];create=..."`
 
 | Опция | Описание |
 |-------|----------|
@@ -112,6 +113,8 @@ func Example() {
 | `on=...` | Явное условие JOIN (переопределяет авто-вывод из ref=) |
 | `table=...` | Переопределение имени таблицы для Query-поля |
 | `primary` | Явное указание primary-таблицы в Query |
+| `sort=<pos>[,dir]` | Позиция в ORDER BY для List() (1-based), направление ASC/DESC |
+| `create=...` | Строка для колонки в CREATE TABLE (DEFAULT, UNIQUE и т.д.) |
 
 ### Префикс для именованных полей-структур
 
@@ -244,7 +247,7 @@ type OrgUser struct {
 
 ### Кастомное имя таблицы
 
-Реализуйте интерфейс `table.SQLNamer`:
+Реализуйте интерфейс `qqm.SQLNamer`:
 
 ```go
 func (u *OrgUser) SQLName() string { return "org_members" }
@@ -300,20 +303,20 @@ nameFilter := qqm.AndFilter(
 
 ## Адаптеры БД
 
-Для передачи в CRUD-методы используйте адаптеры из `executor`:
+Для передачи в CRUD-методы используйте адаптеры из корневого пакета `qqm`:
 
 | Адаптер | Конструктор | Для чего |
 |---------|------------|----------|
-| `executor.DBAdapter` | `executor.NewDBAdapter(db)` | `*sql.DB` |
-| `executor.TxAdapter` | `executor.NewTxAdapter(tx)` | `*sql.Tx` |
-| `executor.PGXAdapter` | `executor.NewPGXAdapter(conn)` | `*pgx.Conn` |
-| `executor.PGXTxAdapter` | `executor.NewPGXTxAdapter(tx)` | `pgx.Tx` |
+| `DBAdapter` | `qqm.NewDBAdapterVal(db)` | `*sql.DB` |
+| `TxAdapter` | `qqm.NewTxAdapterVal(tx)` | `*sql.Tx` |
+| `PGXAdapter` | `qqm.NewPGXAdapterVal(conn)` | `*pgx.Conn` |
+| `PGXTxAdapter` | `qqm.NewPGXTxAdapterVal(tx)` | `pgx.Tx` |
 
 ### Транзакции
 
 ```go
 tx, _ := db.BeginTx(ctx, nil)
-ex := executor.NewTxAdapter(tx)
+ex := qqm.NewTxAdapterVal(tx)
 
 inserted, err := tbl.Insert(ctx, ex, &User{Name: "Alice"})
 if err != nil {
@@ -323,11 +326,11 @@ if err != nil {
 _ = tx.Commit()
 ```
 
-Все CRUD-методы (`Insert`, `Update`, `GetByKey`, `Delete`, `List`) работают как с `DBAdapter`, так и с `TxAdapter`.
+Все CRUD-методы (`Insert`, `Update`, `GetByPK`, `Delete`, `List`) работают как с `DBAdapter`, так и с `TxAdapter`.
 
 ## Интерфейс Executor
 
-Пакет `executor` определяет интерфейс для абстракции SQL-выполнения:
+Пакет `qqm` определяет интерфейс для абстракции SQL-выполнения:
 
 ```go
 type Executor interface {
@@ -337,4 +340,4 @@ type Executor interface {
 }
 ```
 
-- `QueryRowContext` — для запросов, возвращающих одну строку (Insert RETURNING, GetByKey).
+- `QueryRowContext` — для запросов, возвращающих одну строку (Insert RETURNING, GetByPK).

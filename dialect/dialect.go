@@ -1,16 +1,12 @@
-// Created at 2026-06-28
 package dialect
 
-// DialectProvider — интерфейс для диалектов БД.
+// DialectProvider описывает интерфейс диалекта БД.
+// EN: DialectProvider describes the DB dialect interface.
 type DialectProvider interface {
-	// Name — название диалекта
-	Name() string
-	// QuoteIdent — экранирование идентификатора (таблицы, колонки)
-	QuoteIdent(ident string) string
-	// Placeholder — плейсхолдер для параметра по позиции (1-based)
-	Placeholder(pos int) string
-	// SupportsReturning — поддерживает ли диалект RETURNING
-	SupportsReturning() bool
+	Name() string                   // Название диалекта. / EN: Dialect name.
+	QuoteIdent(ident string) string // Экранирование идентификатора. / EN: Identifier quoting.
+	Placeholder(pos int) string     // Плейсхолдер для параметра (1-based). / EN: Placeholder for parameter (1-based).
+	SupportsReturning() bool        // Поддерживает ли RETURNING. / EN: Whether RETURNING is supported.
 }
 
 func quoteIdentANSI(ident string) string {

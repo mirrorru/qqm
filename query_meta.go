@@ -9,37 +9,42 @@ import (
 	"github.com/mirrorru/qqm/meta"
 )
 
-// queryTableEntry — одна таблица в запросе.
+// queryTableEntry содержит описание одной таблицы в multi-table запросе.
+// EN: queryTableEntry holds the description of one table in a multi-table query.
 type queryTableEntry struct {
-	FieldName  string        // имя поля в QROW (например, "Order")
-	FieldIndex int           // индекс поля в QROW-структуре
-	RowMeta    *meta.RowMeta // метаданные ROW-типа
-	RowType    reflect.Type  // базовый struct-тип (без указателя)
-	IsPointer  bool          // true если поле — указатель (*ROW)
-	JoinType   string        // INNER, LEFT, RIGHT, FULL
-	TableName  string        // итоговое имя таблицы (с учётом override)
-	OnClause   string        // условие JOIN (auto или explicit)
-	Alias      string        // алиас таблицы (t1, t2, ...)
+	FieldName  string        // Имя поля в QROW (например, "Order"). / EN: Field name in QROW (e.g. "Order").
+	FieldIndex int           // Индекс поля в QROW-структуре. / EN: Field index in QROW struct.
+	RowMeta    *meta.RowMeta // Метаданные ROW-типа. / EN: ROW type metadata.
+	RowType    reflect.Type  // Базовый struct-тип (без указателя). / EN: Base struct type (without pointer).
+	IsPointer  bool          // true, если поле — указатель (*ROW). / EN: true if field is a pointer (*ROW).
+	JoinType   string        // Тип JOIN: INNER, LEFT, RIGHT, FULL.
+	TableName  string        // Итоговое имя таблицы (с учётом override). / EN: Final table name (with override).
+	OnClause   string        // Условие JOIN (авто или явное). / EN: JOIN condition (auto or explicit).
+	Alias      string        // Алиас таблицы (t1, t2, ...). / EN: Table alias (t1, t2, ...).
 }
 
-// qualifiedColumn — колонка с алиасом таблицы для SELECT.
+// qualifiedColumn содержит колонку с алиасом таблицы для SELECT.
+// EN: qualifiedColumn holds a column with a table alias for SELECT.
 type qualifiedColumn struct {
 	TableAlias string
 	Column     string
 }
 
-// queryMeta — кэшируемые метаданные Query.
+// queryMeta содержит кэшируемые метаданные Query.
+// EN: queryMeta holds cacheable Query metadata.
 type queryMeta struct {
-	entries     []queryTableEntry // первая = primary
-	listSQL     string            // полный SELECT ... FROM ... JOIN ...
-	columns     []qualifiedColumn // все колонки в порядке SELECT
+	entries     []queryTableEntry // Первая запись — primary. / EN: First entry is primary.
+	listSQL     string            // Полный SELECT ... FROM ... JOIN ... .
+	columns     []qualifiedColumn // Все колонки в порядке SELECT.
 	entryByName map[string]*queryTableEntry
 }
 
 // resolveQueryFieldTableName определяет имя таблицы для поля QROW.
 // Приоритет: тег `table=` > SQLNamer > snake_case(TypeName).
+// EN: resolveQueryFieldTableName determines the table name for a QROW field.
+// Priority: `table=` tag > SQLNamer > snake_case(TypeName).
 func resolveQueryFieldTableName(sf reflect.StructField) string {
-	tagRaw := sf.Tag.Get("qqm")
+	tagRaw := sf.Tag.Get(meta.TagName)
 	if tagRaw != "" {
 		opts := meta.ParseTag(tagRaw)
 		if opts.TableName != "" {
@@ -61,6 +66,7 @@ func resolveQueryFieldTableName(sf reflect.StructField) string {
 }
 
 // buildQueryMeta строит метаданные для QROW.
+// EN: buildQueryMeta builds metadata for QROW.
 func buildQueryMeta[QROW any]() (*queryMeta, error) {
 	var zero QROW
 	t := reflect.TypeOf(zero)
@@ -81,7 +87,8 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 			continue
 		}
 
-		// только struct или *struct
+		// Только struct или *struct.
+		// EN: Only struct or *struct.
 		ft := sf.Type
 		isPtr := false
 		if ft.Kind() == reflect.Pointer {
@@ -92,7 +99,7 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 			continue
 		}
 
-		tagRaw := sf.Tag.Get("qqm")
+		tagRaw := sf.Tag.Get(meta.TagName)
 		opts := meta.ParseTag(tagRaw)
 
 		tableName := resolveQueryFieldTableName(sf)
@@ -133,7 +140,8 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 		return nil, fmt.Errorf("qqm: QROW must have at least one struct field")
 	}
 
-	// первая запись — primary, если не отмечено явно
+	// Первая запись — primary, если не отмечено явно.
+	// EN: First entry is primary if not explicitly marked.
 	if !primaryFound && len(entries) > 0 {
 		for i := range entries {
 			if !entries[i].IsPointer {
@@ -143,7 +151,8 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 		}
 	}
 
-	// строим JOIN-условия для non-primary таблиц
+	// Строим JOIN-условия для non-primary таблиц.
+	// EN: Build JOIN conditions for non-primary tables.
 	for i := 1; i < len(entries); i++ {
 		if entries[i].OnClause != "" {
 			continue
@@ -160,7 +169,8 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 		entries: entries,
 	}
 
-	// назначаем алиасы таблиц
+	// Назначаем алиасы таблиц.
+	// EN: Assign table aliases.
 	for i := range qm.entries {
 		qm.entries[i].Alias = fmt.Sprintf("t%d", i+1)
 	}
@@ -176,13 +186,17 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 	return qm, nil
 }
 
-// buildJoinOnClause автоматически строит ON условие для entry.
+// buildJoinOnClause автоматически строит ON-условие для entry.
 // currentAlias — алиас текущей таблицы (t1, t2, ...).
 // prevEntries — уже добавленные таблицы (их алиасы t1, t2, ..., tN).
+// EN: buildJoinOnClause automatically builds the ON condition for entry.
+// currentAlias — alias of the current table (t1, t2, ...).
+// prevEntries — already added tables (their aliases t1, t2, ..., tN).
 func buildJoinOnClause(entry *queryTableEntry, prevEntries []queryTableEntry, currentAlias int) (string, error) {
 	var conditions []string
 
-	// Прямое направление: поля entry ссылаются на prevEntries
+	// Прямое направление: поля entry ссылаются на prevEntries.
+	// EN: Forward direction: entry fields reference prevEntries.
 	for _, fm := range entry.RowMeta.Fields {
 		if fm.RefTable == "" || fm.IsOmit {
 			continue
@@ -203,7 +217,8 @@ func buildJoinOnClause(entry *queryTableEntry, prevEntries []queryTableEntry, cu
 		}
 	}
 
-	// Обратное направление: поля prevEntries ссылаются на entry
+	// Обратное направление: поля prevEntries ссылаются на entry.
+	// EN: Reverse direction: prevEntries fields reference entry.
 	for pi, pe := range prevEntries {
 		for _, fm := range pe.RowMeta.Fields {
 			if fm.RefTable == "" || fm.IsOmit {
@@ -232,6 +247,7 @@ func buildJoinOnClause(entry *queryTableEntry, prevEntries []queryTableEntry, cu
 }
 
 // buildQueryListSQL строит полный SQL для SELECT с JOIN.
+// EN: buildQueryListSQL builds the full SQL for SELECT with JOIN.
 func buildQueryListSQL(d dialect.DialectProvider, qm *queryMeta) string {
 	if len(qm.entries) == 0 {
 		return ""
@@ -268,6 +284,7 @@ func buildQueryListSQL(d dialect.DialectProvider, qm *queryMeta) string {
 }
 
 // buildQualifiedColumns строит маппинг колонок SELECT к полям QROW.
+// EN: buildQualifiedColumns builds the mapping of SELECT columns to QROW fields.
 func buildQualifiedColumns(qm *queryMeta) []qualifiedColumn {
 	var cols []qualifiedColumn
 	for i, entry := range qm.entries {
@@ -286,6 +303,7 @@ func buildQualifiedColumns(qm *queryMeta) []qualifiedColumn {
 }
 
 // findEntryByFieldName находит entry по имени поля в QROW.
+// EN: findEntryByFieldName finds an entry by field name in QROW.
 func (qm *queryMeta) findEntryByFieldName(name string) *queryTableEntry {
 	return qm.entryByName[name]
 }

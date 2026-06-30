@@ -1,66 +1,77 @@
-// Updated at 2026-06-29
 package meta
 
 const (
-	// tagCol — имя колонки в БД. Пример: `qqm:"col=user_name"`
+	// tagCol — имя колонки в БД. Пример: `qqm:"col=user_name"`.
+	// EN: tagCol — column name in DB. Example: `qqm:"col=user_name"`.
 	tagCol = "col="
 
 	// tagPK — поле является частью первичного ключа.
-	// Пример: `qqm:"pk"`. Порядок определяется порядком объявления в структуре.
+	// Пример: `qqm:"pk"`. Порядок — по объявлению в структуре.
+	// EN: tagPK — field is part of the primary key.
+	// Example: `qqm:"pk"`. Order is by declaration in the struct.
 	tagPK = "pk"
 
 	// tagRef — внешний ключ на другую таблицу.
 	// Формат: `qqm:"ref=table.column"` или `qqm:"ref=table"`.
+	// EN: tagRef — foreign key reference to another table.
+	// Format: `qqm:"ref=table.column"` or `qqm:"ref=table"`.
 	tagRef = "ref="
 
 	// tagPrefix — префикс для колонок из анонимной (embedded) структуры.
-	// Пример: `qqm:"prefix=audit_"` — все колонки из embedded struct получат префикс "audit_".
+	// Пример: `qqm:"prefix=audit_"` добавляет префикс "audit_" ко всем колонкам embedded struct.
+	// EN: tagPrefix — prefix for columns from an anonymous (embedded) struct.
+	// Example: `qqm:"prefix=audit_"` adds the "audit_" prefix to all columns from the embedded struct.
 	tagPrefix = "prefix="
 
-	// tagReadonly — поле только для чтения, не участвует в UPDATE.
-	// Пример: `qqm:"readonly"`.
+	// tagReadonly — поле только для чтения, исключается из UPDATE. Пример: `qqm:"readonly"`.
+	// EN: tagReadonly — read-only field, excluded from UPDATE. Example: `qqm:"readonly"`.
 	tagReadonly = "readonly"
 
-	// tagAuto — автогенерируемое поле, не участвует в INSERT.
-	// Пример: `qqm:"auto"`.
+	// tagAuto — автогенерируемое поле, исключается из INSERT. Пример: `qqm:"auto"`.
+	// EN: tagAuto — auto-generated field, excluded from INSERT. Example: `qqm:"auto"`.
 	tagAuto = "auto"
 
-	// tagOmit — поле пропускается при генерации SQL.
-	// Пример: `qqm:"omit"`.
+	// tagOmit — поле пропускается при генерации SQL. Пример: `qqm:"omit"`.
+	// EN: tagOmit — field is skipped during SQL generation. Example: `qqm:"omit"`.
 	tagOmit = "omit"
 
-	// tagJoin — тип JOIN (LEFT, INNER, RIGHT, FULL).
-	// Пример: `qqm:"join=LEFT"`.
+	// tagJoin — тип JOIN (LEFT, INNER, RIGHT, FULL). Пример: `qqm:"join=LEFT"`.
+	// EN: tagJoin — JOIN type (LEFT, INNER, RIGHT, FULL). Example: `qqm:"join=LEFT"`.
 	tagJoin = "join="
 
-	// tagPrimary — явное указание первичной таблицы в Query.
-	// Пример: `qqm:"primary"`.
+	// tagPrimary — явное указание первичной таблицы в Query. Пример: `qqm:"primary"`.
+	// EN: tagPrimary — explicit primary table marker in Query. Example: `qqm:"primary"`.
 	tagPrimary = "primary"
 
-	// tagOn — явное условие JOIN.
-	// Пример: `qqm:"on=users.id=orders.user_id"`.
+	// tagOn — явное условие JOIN. Пример: `qqm:"on=users.id=orders.user_id"`.
+	// EN: tagOn — explicit JOIN condition. Example: `qqm:"on=users.id=orders.user_id"`.
 	tagOn = "on="
 
-	// tagTable — переопределение имени таблицы для поля в Query.
-	// Пример: `qqm:"table=app_users"`.
+	// tagTable — переопределение имени таблицы для поля в Query. Пример: `qqm:"table=app_users"`.
+	// EN: tagTable — override table name for a field in Query. Example: `qqm:"table=app_users"`.
 	tagTable = "table="
 
-	// tagSort — порядок сортировки в List().
-	// Формат: `qqm:"sort=<position>[,direction]"`.
+	// tagSort — порядок сортировки в List(). Формат: `qqm:"sort=<position>[,direction]"`.
 	// position — порядок поля в сортировке (1-based).
 	// direction — ASC (по умолчанию) или DESC.
+	// EN: tagSort — sort order in List(). Format: `qqm:"sort=<position>[,direction]"`.
+	// position — field order in sorting (1-based).
+	// direction — ASC (default) or DESC.
 	tagSort = "sort="
 
 	// tagCreate — строка для колонки в CREATE TABLE (DEFAULT, UNIQUE, CHECK и т.д.).
 	// Формат: `qqm:"create=DEFAULT 0"` или `qqm:"create=UNIQUE"`.
-	// Значение подставляется в определение колонки как есть.
+	// EN: tagCreate — column definition in CREATE TABLE (DEFAULT, UNIQUE, CHECK, etc.).
+	// Format: `qqm:"create=DEFAULT 0"` or `qqm:"create=UNIQUE"`.
 	tagCreate = "create="
-
-	// tagName — имя тега для метаданных
-	tagName = "qqm"
 )
 
-// TagOptions — разобранные опции тега qqm.
+// TagName содержит имя тега для метаданных.
+// EN: TagName holds the tag name for metadata.
+var TagName = "qqm"
+
+// TagOptions содержит разобранные опции тега qqm.
+// EN: TagOptions holds parsed options of the qqm tag.
 type TagOptions struct {
 	Col       string
 	IsPK      bool
@@ -74,16 +85,17 @@ type TagOptions struct {
 	IsPrimary bool
 	On        string
 	TableName string
-	Sort      int    // позиция в сортировке (0 если не задана)
-	SortDir   string // направление: "ASC" (по умолчанию) или "DESC"
-	Create    string // строка для CREATE TABLE (из create=...)
+	Sort      int    // Позиция в сортировке (0 если не задана). / EN: Position in ordering (0 if not set).
+	SortDir   string // Направление: "ASC" (по умолчанию) или "DESC". / EN: Sort direction: "ASC" (default) or "DESC".
+	Create    string // Строка для CREATE TABLE (из create=...). / EN: Column definition for CREATE TABLE (from create=...).
 }
 
-// Updated at 2026-06-29
 // ParseTag разбирает строку тега qqm в TagOptions.
 // Формат: "col=name;pk;ref=users.id;prefix=audit_;readonly;auto;omit;join=LEFT;primary;on=cond"
-// Разделитель: точка с запятой (;).
-// Тег "pk" — флаг, порядок определяется порядком объявления в структуре.
+// Разделитель — точка с запятой (;). Тег "pk" — флаг, порядок определяется объявлением в структуре.
+// EN: ParseTag parses the qqm tag string into TagOptions.
+// Format: "col=name;pk;ref=users.id;prefix=audit_;readonly;auto;omit;join=LEFT;primary;on=cond"
+// Separator — semicolon (;). "pk" tag is a flag; order is by struct declaration.
 func ParseTag(raw string) TagOptions {
 	var opts TagOptions
 	if raw == "" {
@@ -93,7 +105,8 @@ func ParseTag(raw string) TagOptions {
 	i := 0
 	n := len(raw)
 	for i < n {
-		// пропускаем пробелы в начале сегмента
+		// Пропускаем пробелы в начале сегмента.
+		// EN: Skip leading spaces.
 		for i < n && raw[i] == ' ' {
 			i++
 		}
@@ -107,7 +120,7 @@ func ParseTag(raw string) TagOptions {
 		}
 
 		seg := raw[start:i]
-		// trim trailing spaces
+		// Trim trailing spaces.
 		end := len(seg)
 		for end > 0 && seg[end-1] == ' ' {
 			end--
@@ -164,14 +177,15 @@ func ParseTag(raw string) TagOptions {
 	return opts
 }
 
-// Created at 2026-06-29
 // parseSortSegment разбирает значение после "sort=": "<position>[,direction]".
+// EN: parseSortSegment parses the value after "sort=": "<position>[,direction]".
 func parseSortSegment(raw string) (pos int, dir string) {
 	if raw == "" {
 		return 0, ""
 	}
 
-	// ищем запятую
+	// Ищем запятую.
+	// EN: Look for comma.
 	comma := indexByte(raw, ',')
 	if comma < 0 {
 		pos = atoi(raw)
@@ -196,8 +210,8 @@ func parseSortSegment(raw string) (pos int, dir string) {
 	return pos, dir
 }
 
-// Created at 2026-06-29
-// atoi — быстрый парсинг целого без импорта strconv.
+// atoi выполняет быстрый парсинг целого числа без импорта strconv.
+// EN: atoi performs fast integer parsing without strconv import.
 func atoi(s string) int {
 	n := 0
 	for i := 0; i < len(s); i++ {
@@ -209,7 +223,8 @@ func atoi(s string) int {
 	return n
 }
 
-// indexByte — как strings.IndexByte, но без импорта.
+// indexByte — аналог strings.IndexByte без импорта strings.
+// EN: indexByte — strings.IndexByte equivalent without importing strings.
 func indexByte(s string, c byte) int {
 	for i := 0; i < len(s); i++ {
 		if s[i] == c {

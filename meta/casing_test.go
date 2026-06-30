@@ -1,4 +1,3 @@
-// Updated at 2026-06-29
 package meta_test
 
 import (

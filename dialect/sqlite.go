@@ -1,20 +1,25 @@
-// Created at 2026-06-28
 package dialect
 
-// SQLiteDialect — диалект SQLite.
+// SQLiteDialect реализует диалект SQLite.
+// EN: SQLiteDialect implements the SQLite dialect.
 type SQLiteDialect struct{}
 
-// проверка интерфейса на этапе компиляции
+// Проверка интерфейса на этапе компиляции.
+// EN: Interface check at compile time.
 var _ DialectProvider = SQLiteDialect{}
 
-// Created at 2026-06-28
+// Name возвращает название диалекта.
+// EN: Name returns the dialect name.
 func (SQLiteDialect) Name() string { return "sqlite" }
 
-// Created at 2026-06-28
+// QuoteIdent экранирует идентификатор.
+// EN: QuoteIdent quotes an identifier.
 func (SQLiteDialect) QuoteIdent(ident string) string { return quoteIdentANSI(ident) }
 
-// Created at 2026-06-28
+// Placeholder возвращает плейсхолдер для параметра.
+// EN: Placeholder returns a placeholder for a parameter.
 func (SQLiteDialect) Placeholder(_ int) string { return "?" }
 
-// Created at 2026-06-28
+// SupportsReturning сообщает, поддерживает ли диалект RETURNING.
+// EN: SupportsReturning reports whether the dialect supports RETURNING.
 func (SQLiteDialect) SupportsReturning() bool { return true }

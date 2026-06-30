@@ -258,13 +258,15 @@ func (wb *whereBuilder) buildWhereClause(filters []Filter) (string, []any, error
 	return sqlWhere + combined, allArgs, nil
 }
 
-// multiWhereBuilder — построитель WHERE для multi-табличных запросов с квалифицированными именами.
+// multiWhereBuilder строит WHERE для multi-табличных запросов с квалифицированными именами.
+// EN: multiWhereBuilder builds WHERE clauses for multi-table queries with qualified names.
 type multiWhereBuilder struct {
 	dialect dialect.DialectProvider
 	qmeta   *queryMeta
 }
 
 // findQualifiedField разбирает квалифицированное имя "Order.Amount" на entry и FieldMeta.
+// EN: findQualifiedField parses a qualified name "Order.Amount" into entry and FieldMeta.
 func (wb *multiWhereBuilder) findQualifiedField(fieldName string) (string, *meta.FieldMeta, error) {
 	dot := strings.IndexByte(fieldName, '.')
 	if dot < 0 {

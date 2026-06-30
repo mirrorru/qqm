@@ -144,7 +144,6 @@ func (i *tableInternals) ListSQL() string {
 	return i.queries.ListSQL(i.dialect, i.meta)
 }
 
-// Created at 2026-06-29
 func (i *tableInternals) CreateTableSQL() string {
 	return i.queries.CreateTableSQL(i.dialect, i.meta)
 }

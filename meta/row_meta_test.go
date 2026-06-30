@@ -1,4 +1,3 @@
-// Created on kilo-host at 2026-06-28
 package meta
 
 import (
@@ -92,7 +91,6 @@ func TestScanDest(t *testing.T) {
 	}
 }
 
-// Created at 2026-06-28
 // TestBuildRowMeta_UnexportedAnonymous проверяет что неэкспортируемые anonymous поля пропускаются
 func TestBuildRowMeta_UnexportedAnonymous(t *testing.T) {
 	type unexportedKey int64 //nolint:unused
@@ -108,7 +106,6 @@ func TestBuildRowMeta_UnexportedAnonymous(t *testing.T) {
 	}
 }
 
-// Created at 2026-06-28
 // TestBuildRowMeta_DuplicateColumns проверяет валидацию уникальности колонок
 func TestBuildRowMeta_DuplicateColumns(t *testing.T) {
 	type DuplicateRow struct {
@@ -121,7 +118,6 @@ func TestBuildRowMeta_DuplicateColumns(t *testing.T) {
 	}, "should panic on duplicate column names")
 }
 
-// Created at 2026-06-28
 // TestBuildRowMeta_AnonymousStructFieldGroup проверяет anonymous struct как набор полей
 func TestBuildRowMeta_AnonymousStructFieldGroup(t *testing.T) {
 	type AuditFields struct {
@@ -141,7 +137,6 @@ func TestBuildRowMeta_AnonymousStructFieldGroup(t *testing.T) {
 	assert.Contains(t, cols, "id")
 }
 
-// Created at 2026-06-28
 // TestBuildRowMeta_CompositeKey проверяет составной ключ (порядок по объявлению)
 func TestBuildRowMeta_CompositeKey(t *testing.T) {
 	type CompositeKey struct {
@@ -162,7 +157,6 @@ func TestBuildRowMeta_CompositeKey(t *testing.T) {
 	assert.Equal(t, 2, rm.PKFields[1].PkOrder)
 }
 
-// Created at 2026-06-28
 // TestBuildRowMeta_AnonymousNonStructNotPK проверяет что anonymous non-struct не является PK
 func TestBuildRowMeta_AnonymousNonStructNotPK(t *testing.T) {
 	type EmbeddedID int64
@@ -176,7 +170,6 @@ func TestBuildRowMeta_AnonymousNonStructNotPK(t *testing.T) {
 	assert.Empty(t, rm.PKFields, "anonymous non-struct should not be PK without pk tag")
 }
 
-// Created at 2026-06-28
 // TestBuildRowMeta_NamedStructPrefix проверяет префикс на именованных полях-структурах
 func TestBuildRowMeta_NamedStructPrefix(t *testing.T) {
 	type Address struct {
@@ -213,7 +206,6 @@ func TestBuildRowMeta_NamedStructPrefix(t *testing.T) {
 	}
 }
 
-// Created at 2026-06-28
 // TestBuildRowMeta_NamedStructPrefixWithoutPrefix проверяет, что без префикса поля-структуры создаются как обычные поля
 func TestBuildRowMeta_NamedStructPrefixWithoutPrefix(t *testing.T) {
 	type Address struct {
@@ -230,7 +222,6 @@ func TestBuildRowMeta_NamedStructPrefixWithoutPrefix(t *testing.T) {
 	assert.NotContains(t, rm.Columns, "city")
 }
 
-// Created at 2026-06-28
 // TestBuildRowMeta_PKOrderDeclaration проверяет что порядок PK определяется порядком объявления
 func TestBuildRowMeta_PKOrderDeclaration(t *testing.T) {
 	type Row struct {
@@ -250,7 +241,6 @@ func TestBuildRowMeta_PKOrderDeclaration(t *testing.T) {
 	assert.Equal(t, "third", rm.PKFields[2].Column)
 }
 
-// Created at 2026-06-29
 func TestBuildRowMeta_SortFields_Basic(t *testing.T) {
 	type Row struct {
 		ID   int64  `qqm:"pk"`
@@ -270,7 +260,6 @@ func TestBuildRowMeta_SortFields_Basic(t *testing.T) {
 	assert.Equal(t, "DESC", rm.SortFields[1].SortDirection)
 }
 
-// Created at 2026-06-29
 func TestBuildRowMeta_SortFields_OrderedByPosition(t *testing.T) {
 	type Row struct {
 		ID     int64  `qqm:"pk"`
@@ -288,7 +277,6 @@ func TestBuildRowMeta_SortFields_OrderedByPosition(t *testing.T) {
 	assert.Equal(t, 2, rm.SortFields[1].SortPosition)
 }
 
-// Created at 2026-06-29
 func TestBuildRowMeta_SortFields_NoSort(t *testing.T) {
 	type Row struct {
 		ID   int64 `qqm:"pk"`
@@ -300,7 +288,6 @@ func TestBuildRowMeta_SortFields_NoSort(t *testing.T) {
 	assert.Len(t, rm.SortFields, 0)
 }
 
-// Created at 2026-06-29
 func TestBuildRowMeta_SortFields_Embedded(t *testing.T) {
 	type Embedded struct {
 		Name string `qqm:"sort=1"`
@@ -321,7 +308,6 @@ func TestBuildRowMeta_SortFields_Embedded(t *testing.T) {
 	assert.Equal(t, 2, rm.SortFields[1].SortPosition)
 }
 
-// Created at 2026-06-29
 func TestBuildRowMeta_SortFields_WithPrefix(t *testing.T) {
 	type Addr struct {
 		City string `qqm:"sort=1"`
