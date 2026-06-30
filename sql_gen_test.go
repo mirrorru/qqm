@@ -1,4 +1,3 @@
-// Created at 2026-06-28
 package qqm
 
 import (
@@ -185,7 +184,6 @@ func TestTable_NamedStructPrefix_SQLite(t *testing.T) {
 	assert.Contains(t, selectSQL, `home_city, home_street, home_zip, work_city, work_street, work_zip`)
 }
 
-// Created at 2026-06-29
 func TestTable_ListSQL_WithSort(t *testing.T) {
 	tbl := NewTable[fixtures.UserWithSort](dialect.SQLiteDialect{})
 
@@ -244,8 +242,6 @@ func TestTable_QueryListSQL_WithSort(t *testing.T) {
 	listSQL := q.qmeta.listSQL
 	assert.Contains(t, listSQL, `ORDER BY t1.name ASC, t1.email DESC`)
 }
-
-// Created at 2026-06-29
 
 func TestTable_CreateTableSQL_Basic(t *testing.T) {
 	tbl := NewTable[fixtures.User](dialect.SQLiteDialect{})

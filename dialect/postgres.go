@@ -1,22 +1,27 @@
-// Created at 2026-06-28
 package dialect
 
 import "strconv"
 
-// PostgreSQLDialect — диалект PostgreSQL.
+// PostgreSQLDialect реализует диалект PostgreSQL.
+// EN: PostgreSQLDialect implements the PostgreSQL dialect.
 type PostgreSQLDialect struct{}
 
-// проверка интерфейса на этапе компиляции
+// Проверка интерфейса на этапе компиляции.
+// EN: Interface check at compile time.
 var _ DialectProvider = PostgreSQLDialect{}
 
-// Created at 2026-06-28
+// Name возвращает название диалекта.
+// EN: Name returns the dialect name.
 func (PostgreSQLDialect) Name() string { return "postgres" }
 
-// Created at 2026-06-28
+// QuoteIdent экранирует идентификатор.
+// EN: QuoteIdent quotes an identifier.
 func (PostgreSQLDialect) QuoteIdent(ident string) string { return quoteIdentANSI(ident) }
 
-// Created at 2026-06-28
+// Placeholder возвращает плейсхолдер вида $N для параметра.
+// EN: Placeholder returns a $N-style placeholder for a parameter.
 func (PostgreSQLDialect) Placeholder(pos int) string { return "$" + strconv.Itoa(pos) }
 
-// Created at 2026-06-28
+// SupportsReturning сообщает, поддерживает ли диалект RETURNING.
+// EN: SupportsReturning reports whether the dialect supports RETURNING.
 func (PostgreSQLDialect) SupportsReturning() bool { return true }

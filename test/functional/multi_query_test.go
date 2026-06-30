@@ -1,4 +1,3 @@
-// Created at 2026-06-29
 //go:build functional
 
 package functional

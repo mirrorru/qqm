@@ -1,14 +1,14 @@
-// Updated at 2026-06-29
 package meta
 
-// ToSnakeCase преобразует CamelCase в snake_case за один проход.
-// Работает напрямую с байтами для ASCII-строк (Go field names).
+// ToSnakeCase преобразует CamelCase в snake_case за один проход по байтам.
+// EN: ToSnakeCase converts CamelCase to snake_case in a single byte pass.
 func ToSnakeCase(s string) string {
 	if s == "" {
 		return ""
 	}
 
-	// Оценка: максимум _ на каждую заглавную букву, начиная со второй
+	// Оценка: максимум один _ на каждую заглавную, начиная со второй.
+	// EN: Estimate: at most one _ per uppercase letter, starting from second.
 	maxLen := len(s) + countUpperAfterLower(s)
 	buf := make([]byte, 0, maxLen)
 
@@ -35,8 +35,8 @@ func ToSnakeCase(s string) string {
 	return string(buf)
 }
 
-// countUpperAfterLower считает количество заглавных букв, после которых идёт строчная.
-// Используется для предвычисления ёмкости буфера.
+// countUpperAfterLower считает заглавные буквы, после которых идёт строчная.
+// EN: countUpperAfterLower counts uppercase letters followed by a lowercase letter.
 func countUpperAfterLower(s string) int {
 	count := 0
 	for i := 1; i < len(s); i++ {

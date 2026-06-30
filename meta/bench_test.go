@@ -1,4 +1,3 @@
-// Created at 2026-06-29
 // Benchmark-тесты для meta-пакета
 
 //go:build bench
