@@ -30,6 +30,7 @@ func TestTable_SQLite_SimpleKeySQL(t *testing.T) {
 	assert.Contains(t, updateSQL, `UPDATE users`)
 	assert.Contains(t, updateSQL, `SET name = ?`)
 	assert.Contains(t, updateSQL, `WHERE id = ?`)
+	assert.Contains(t, updateSQL, "RETURNING")
 
 	selectSQL := tbl.Internals().SelectSQL()
 	assert.NotEmpty(t, selectSQL)
@@ -69,6 +70,7 @@ func TestTable_SQLite_CompositeKeySQL(t *testing.T) {
 	assert.Contains(t, updateSQL, `SET name = ?, email = ?`)
 	assert.Contains(t, updateSQL, `org_id = ?`)
 	assert.Contains(t, updateSQL, `user_id = ?`)
+	assert.Contains(t, updateSQL, "RETURNING")
 
 	selectSQL := tbl.Internals().SelectSQL()
 	assert.Contains(t, selectSQL, `SELECT org_id, user_id, name, email`)
@@ -94,6 +96,7 @@ func TestTable_SQLite_UserWithAgeSQL(t *testing.T) {
 	assert.Contains(t, updateSQL, `UPDATE user_with_age`)
 	assert.Contains(t, updateSQL, `SET name = ?`)
 	assert.Contains(t, updateSQL, `WHERE id = ?`)
+	assert.Contains(t, updateSQL, "RETURNING")
 
 	selectSQL := tbl.Internals().SelectSQL()
 	assert.Contains(t, selectSQL, `SELECT id, name, email, age`)
@@ -134,6 +137,7 @@ func TestTable_PostgreSQL_AnonymousStructSQL(t *testing.T) {
 	updateSQL := tbl.Internals().UpdateSQL()
 	assert.Contains(t, updateSQL, `SET usr_name = $1, usr_email = $2, status = $3`)
 	assert.Contains(t, updateSQL, `WHERE id = $4`)
+	assert.Contains(t, updateSQL, "RETURNING")
 }
 
 func TestTable_PostgreSQL_SomeTableSQL(t *testing.T) {
@@ -152,6 +156,7 @@ func TestTable_PostgreSQL_SomeTableSQL(t *testing.T) {
 	assert.Contains(t, updateSQL, `UPDATE some_table`)
 	assert.Contains(t, updateSQL, `SET field_rw = $1`)
 	assert.Contains(t, updateSQL, `WHERE some_id = $2`)
+	assert.Contains(t, updateSQL, "RETURNING")
 
 	selectSQL := tbl.Internals().SelectSQL()
 	assert.Contains(t, selectSQL, `SELECT some_id, field_rw, field_ro`)

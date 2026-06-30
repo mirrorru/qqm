@@ -140,9 +140,19 @@ func buildUpdateSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 
 	whereClauses := buildWhereClauses(d, m, len(cols))
 
-	return sqlUpdate + d.QuoteIdent(m.TableName) +
+	sql := sqlUpdate + d.QuoteIdent(m.TableName) +
 		sqlSet + strings.Join(setClauses, sqlCommaSpace) +
 		sqlWhere + strings.Join(whereClauses, sqlAnd)
+
+	if d.SupportsReturning() {
+		allCols := make([]string, len(m.Columns))
+		for i, col := range m.Columns {
+			allCols[i] = d.QuoteIdent(col)
+		}
+		sql += sqlReturning + strings.Join(allCols, sqlCommaSpace)
+	}
+
+	return sql
 }
 
 func buildSelectSQL(d dialect.DialectProvider, m *meta.RowMeta) string {

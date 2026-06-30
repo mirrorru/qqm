@@ -62,8 +62,10 @@ func TestFunctional_SomeTable_CRUD_PostgreSQL(t *testing.T) {
 	assert.Equal(t, "hello", fetched.FieldRW)
 
 	fetched.FieldRW = "world"
-	err = tbl.Update(ctx, ex, fetched)
+	returned, err := tbl.Update(ctx, ex, fetched)
 	require.NoError(t, err)
+	assert.NotNil(t, returned)
+	assert.Equal(t, "world", returned.FieldRW)
 
 	updated, err := tbl.GetByPK(ctx, ex, int64(inserted.SomeID))
 	require.NoError(t, err)

@@ -77,7 +77,7 @@ func TestSmoke_DataRace_ConcurrentCRUDAndList(t *testing.T) {
 					fetched, getErr := tbl.GetByPK(ctx, ex, rowID)
 					if getErr == nil {
 						fetched.Name = fmt.Sprintf("W%d_O%d", workerID, op)
-						_ = tbl.Update(ctx, ex, fetched)
+						_, _ = tbl.Update(ctx, ex, fetched)
 					}
 				case 2:
 					inserted, insErr := tbl.Insert(ctx, ex, &fixtures.Rooms{

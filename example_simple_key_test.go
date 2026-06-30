@@ -30,7 +30,7 @@ func Example_simpleKey() {
 
 	// Output:
 	// INSERT: INSERT INTO user (id, name, email, age) VALUES (?, ?, ?, ?) RETURNING id, name, email, age
-	// UPDATE: UPDATE user SET name = ?, email = ?, age = ? WHERE id = ?
+	// UPDATE: UPDATE user SET name = ?, email = ?, age = ? WHERE id = ? RETURNING id, name, email, age
 	// SELECT: SELECT id, name, email, age FROM user WHERE id = ?
 	// DELETE: DELETE FROM user WHERE id = ?
 	// Table: user
