@@ -26,17 +26,17 @@ type queryTableEntry struct {
 // qualifiedColumn содержит колонку с алиасом таблицы для SELECT.
 // EN: qualifiedColumn holds a column with a table alias for SELECT.
 type qualifiedColumn struct {
-	TableAlias string
-	Column     string
+	TableAlias string // Алиас таблицы (t1, t2, ...). / EN: Table alias (t1, t2, ...).
+	Column     string // Имя колонки. / EN: Column name.
 }
 
 // queryMeta содержит кэшируемые метаданные Query.
 // EN: queryMeta holds cacheable Query metadata.
 type queryMeta struct {
-	entries     []queryTableEntry // Первая запись — primary. / EN: First entry is primary.
-	listSQL     string            // Полный SELECT ... FROM ... JOIN ... .
-	columns     []qualifiedColumn // Все колонки в порядке SELECT.
-	entryByName map[string]*queryTableEntry
+	entries     []queryTableEntry           // Первая запись — primary. / EN: First entry is primary.
+	listSQL     string                      // Полный SELECT ... FROM ... JOIN ... .
+	columns     []qualifiedColumn           // Все колонки в порядке SELECT. / EN: All columns in SELECT order.
+	entryByName map[string]*queryTableEntry // Индекс по имени поля. / EN: Index by field name.
 }
 
 // resolveQueryFieldTableName определяет имя таблицы для поля QROW.
@@ -127,7 +127,6 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 			IsPointer:  isPtr,
 			JoinType:   joinType,
 			TableName:  tableName,
-			OnClause:   opts.On,
 		}
 		entries = append(entries, entry)
 

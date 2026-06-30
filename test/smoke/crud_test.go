@@ -65,13 +65,13 @@ func TestSmoke_CRUD_Rooms(t *testing.T) {
 	assert.NotNil(t, returned)
 	assert.Equal(t, "Conference Room B", returned.Name)
 	assert.Equal(t, 60.0, returned.Square)
-	assert.Equal(t, createdAtExpect, returned.CreatedAt, tbl.Internals().UpdateSQL())
+	assert.Equal(t, -createdAtExpect, returned.CreatedAt, tbl.Internals().UpdateSQL())
 
 	updated, err := tbl.GetByPK(ctx, ex, inserted.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Conference Room B", updated.Name)
 	assert.Equal(t, 60.0, updated.Square)
-	assert.Equal(t, createdAtExpect, updated.CreatedAt)
+	assert.Equal(t, -createdAtExpect, updated.CreatedAt)
 
 	list, err := tbl.List(ctx, ex)
 	require.NoError(t, err)

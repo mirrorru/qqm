@@ -19,6 +19,8 @@ func NewPGXAdapterVal(conn *pgx.Conn) PGXAdapter {
 	return PGXAdapter{conn: conn}
 }
 
+// ExecContext выполняет запрос, не возвращающий строк.
+// EN: ExecContext executes a query that does not return rows.
 func (a PGXAdapter) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
 	tag, err := a.conn.Exec(ctx, query, args...)
 	if err != nil {
@@ -27,6 +29,8 @@ func (a PGXAdapter) ExecContext(ctx context.Context, query string, args ...any) 
 	return &PgxResult{tag: tag}, nil
 }
 
+// QueryContext выполняет запрос, возвращающий строки.
+// EN: QueryContext executes a query that returns rows.
 func (a PGXAdapter) QueryContext(ctx context.Context, query string, args ...any) (Rows, error) {
 	rows, err := a.conn.Query(ctx, query, args...)
 	if err != nil {
@@ -35,6 +39,8 @@ func (a PGXAdapter) QueryContext(ctx context.Context, query string, args ...any)
 	return &PgxRows{rows: rows}, nil
 }
 
+// QueryRowContext выполняет запрос, возвращающий одну строку.
+// EN: QueryRowContext executes a query that returns a single row.
 func (a PGXAdapter) QueryRowContext(ctx context.Context, query string, args ...any) Row {
 	return a.conn.QueryRow(ctx, query, args...)
 }
@@ -51,6 +57,8 @@ func NewPGXTxAdapterVal(tx pgx.Tx) PGXTxAdapter {
 	return PGXTxAdapter{tx: tx}
 }
 
+// ExecContext выполняет запрос, не возвращающий строк.
+// EN: ExecContext executes a query that does not return rows.
 func (a PGXTxAdapter) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
 	tag, err := a.tx.Exec(ctx, query, args...)
 	if err != nil {
@@ -59,6 +67,8 @@ func (a PGXTxAdapter) ExecContext(ctx context.Context, query string, args ...any
 	return &PgxResult{tag: tag}, nil
 }
 
+// QueryContext выполняет запрос, возвращающий строки.
+// EN: QueryContext executes a query that returns rows.
 func (a PGXTxAdapter) QueryContext(ctx context.Context, query string, args ...any) (Rows, error) {
 	rows, err := a.tx.Query(ctx, query, args...)
 	if err != nil {
@@ -67,6 +77,8 @@ func (a PGXTxAdapter) QueryContext(ctx context.Context, query string, args ...an
 	return &PgxRows{rows: rows}, nil
 }
 
+// QueryRowContext выполняет запрос, возвращающий одну строку.
+// EN: QueryRowContext executes a query that returns a single row.
 func (a PGXTxAdapter) QueryRowContext(ctx context.Context, query string, args ...any) Row {
 	return a.tx.QueryRow(ctx, query, args...)
 }
@@ -77,10 +89,14 @@ type PgxResult struct {
 	tag pgconn.CommandTag
 }
 
+// LastInsertId возвращает ID последней вставленной строки (не поддерживается в PostgreSQL).
+// EN: LastInsertId returns the ID of the last inserted row (not supported in PostgreSQL).
 func (r *PgxResult) LastInsertId() (int64, error) {
 	return 0, nil
 }
 
+// RowsAffected возвращает количество затронутых строк.
+// EN: RowsAffected returns the number of affected rows.
 func (r *PgxResult) RowsAffected() (int64, error) {
 	return r.tag.RowsAffected(), nil
 }
@@ -91,14 +107,20 @@ type PgxRows struct {
 	rows pgx.Rows
 }
 
+// Next переходит к следующей строке результата.
+// EN: Next advances to the next row in the result set.
 func (r *PgxRows) Next() bool {
 	return r.rows.Next()
 }
 
+// Scan сканирует значения текущей строки в dest.
+// EN: Scan scans the current row values into dest.
 func (r *PgxRows) Scan(dest ...any) error {
 	return r.rows.Scan(dest...)
 }
 
+// Close закрывает курсор результатов.
+// EN: Close closes the result cursor.
 func (r *PgxRows) Close() error {
 	r.rows.Close()
 	return nil

@@ -23,9 +23,9 @@ const (
 	// Example: `qqm:"prefix=audit_"` adds the "audit_" prefix to all columns from the embedded struct.
 	tagPrefix = "prefix="
 
-	// tagReadonly — поле только для чтения, исключается из UPDATE. Пример: `qqm:"readonly"`.
-	// EN: tagReadonly — read-only field, excluded from UPDATE. Example: `qqm:"readonly"`.
-	tagReadonly = "readonly"
+	// tagUpdate — разрешает UPDATE для поля с тегом auto. Пример: `qqm:"auto;update"`.
+	// EN: tagUpdate — allows UPDATE for a field with the auto tag. Example: `qqm:"auto;update"`.
+	tagUpdate = "update"
 
 	// tagAuto — автогенерируемое поле, исключается из INSERT. Пример: `qqm:"auto"`.
 	// EN: tagAuto — auto-generated field, excluded from INSERT. Example: `qqm:"auto"`.
@@ -42,10 +42,6 @@ const (
 	// tagPrimary — явное указание первичной таблицы в Query. Пример: `qqm:"primary"`.
 	// EN: tagPrimary — explicit primary table marker in Query. Example: `qqm:"primary"`.
 	tagPrimary = "primary"
-
-	// tagOn — явное условие JOIN. Пример: `qqm:"on=users.id=orders.user_id"`.
-	// EN: tagOn — explicit JOIN condition. Example: `qqm:"on=users.id=orders.user_id"`.
-	tagOn = "on="
 
 	// tagTable — переопределение имени таблицы для поля в Query. Пример: `qqm:"table=app_users"`.
 	// EN: tagTable — override table name for a field in Query. Example: `qqm:"table=app_users"`.
@@ -73,28 +69,27 @@ var TagName = "qqm"
 // TagOptions содержит разобранные опции тега qqm.
 // EN: TagOptions holds parsed options of the qqm tag.
 type TagOptions struct {
-	Col       string
-	IsPK      bool
-	RefTable  string
-	RefCol    string
-	Prefix    string
-	Readonly  bool
-	Auto      bool
-	Omit      bool
-	JoinType  string
-	IsPrimary bool
-	On        string
-	TableName string
+	Col       string // Имя колонки (из col=). / EN: Column name (from col=).
+	IsPK      bool   // Является ли первичным ключом. / EN: Is primary key.
+	RefTable  string // Таблица для FK (из ref=). / EN: Table for FK (from ref=).
+	RefCol    string // Колонка для FK. / EN: Column for FK.
+	Prefix    string // Префикс колонок (из prefix=). / EN: Column prefix (from prefix=).
+	Update    bool   // Разрешает UPDATE для auto-полей. / EN: Allows UPDATE for auto fields.
+	Auto      bool   // Автогенерируемое поле. / EN: Auto-generated field.
+	Omit      bool   // Пропустить при генерации SQL. / EN: Skip during SQL generation.
+	JoinType  string // Тип JOIN (из join=). / EN: JOIN type (from join=).
+	IsPrimary bool   // Явно помечена как первичная. / EN: Explicitly marked as primary.
+	TableName string // Переопределённое имя таблицы (из table=). / EN: Overridden table name (from table=).
 	Sort      int    // Позиция в сортировке (0 если не задана). / EN: Position in ordering (0 if not set).
 	SortDir   string // Направление: "ASC" (по умолчанию) или "DESC". / EN: Sort direction: "ASC" (default) or "DESC".
 	Create    string // Строка для CREATE TABLE (из create=...). / EN: Column definition for CREATE TABLE (from create=...).
 }
 
 // ParseTag разбирает строку тега qqm в TagOptions.
-// Формат: "col=name;pk;ref=users.id;prefix=audit_;readonly;auto;omit;join=LEFT;primary;on=cond"
+// Формат: "col=name;pk;ref=users.id;prefix=audit_;update;auto;omit;join=LEFT;primary"
 // Разделитель — точка с запятой (;). Тег "pk" — флаг, порядок определяется объявлением в структуре.
 // EN: ParseTag parses the qqm tag string into TagOptions.
-// Format: "col=name;pk;ref=users.id;prefix=audit_;readonly;auto;omit;join=LEFT;primary;on=cond"
+// Format: "col=name;pk;ref=users.id;prefix=audit_;update;auto;omit;join=LEFT;primary"
 // Separator — semicolon (;). "pk" tag is a flag; order is by struct declaration.
 func ParseTag(raw string) TagOptions {
 	var opts TagOptions
@@ -149,8 +144,8 @@ func ParseTag(raw string) TagOptions {
 			}
 		case len(seg) > 7 && seg[:7] == tagPrefix:
 			opts.Prefix = seg[7:]
-		case seg == tagReadonly:
-			opts.Readonly = true
+		case seg == tagUpdate:
+			opts.Update = true
 		case seg == tagAuto:
 			opts.Auto = true
 		case seg == tagOmit:
@@ -159,8 +154,6 @@ func ParseTag(raw string) TagOptions {
 			opts.JoinType = seg[5:]
 		case seg == tagPrimary:
 			opts.IsPrimary = true
-		case len(seg) > 3 && seg[:3] == tagOn:
-			opts.On = seg[3:]
 		case len(seg) > 6 && seg[:6] == tagTable:
 			opts.TableName = seg[6:]
 		case len(seg) > 5 && seg[:5] == tagSort:

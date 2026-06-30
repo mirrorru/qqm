@@ -8,6 +8,10 @@ import (
 	"github.com/mirrorru/qqm/meta"
 )
 
+// Query represents a multi-table query.
+// QROW is a struct with nested ROW types.
+// EN: Query представляет много-табличный запрос.
+// QROW — структура с вложенными ROW-типами.
 type Query[QROW any] struct {
 	dialect      dialect.DialectProvider
 	qmeta        *queryMeta
@@ -15,6 +19,10 @@ type Query[QROW any] struct {
 	scanTemplate *scanContext
 }
 
+// NewQuery создаёт Query[QROW] для указанного диалекта.
+// QROW должен быть структурой с минимум одним struct-полем.
+// EN: NewQuery creates a Query[QROW] for the specified dialect.
+// QROW must be a struct with at least one struct field.
 func NewQuery[QROW any](d dialect.DialectProvider) (*Query[QROW], error) {
 	var zero QROW
 	rt := reflect.TypeOf(zero)
@@ -37,6 +45,8 @@ func NewQuery[QROW any](d dialect.DialectProvider) (*Query[QROW], error) {
 	}, nil
 }
 
+// List выполняет много-табличный запрос и возвращает строки.
+// EN: List executes a multi-table query and returns rows.
 func (q *Query[QROW]) List(ctx context.Context, ex Executor, filters ...Filter) ([]*QROW, error) {
 	query := q.qmeta.listSQL
 
@@ -81,11 +91,15 @@ func (q *Query[QROW]) List(ctx context.Context, ex Executor, filters ...Filter) 
 	return result, nil
 }
 
+// scanContext хранит подготовленные dest для много-табличного сканирования.
+// EN: scanContext holds prepared dest for multi-table scanning.
 type scanContext struct {
 	dest    []any
 	entries []entryScanCtx
 }
 
+// entryScanCtx содержит контекст для сканирования одной таблицы в Query.
+// EN: entryScanCtx holds scan context for one table in Query.
 type entryScanCtx struct {
 	isPointer    bool
 	fieldStart   int
@@ -96,6 +110,10 @@ type entryScanCtx struct {
 	applyFields  []*meta.FieldMeta
 }
 
+// buildScanTemplate создаёт шаблон для сканирования строк результата.
+// Обрабатывает как обычные поля, так и указатели (*ROW).
+// EN: buildScanTemplate creates a template for scanning result rows.
+// Handles both regular fields and pointers (*ROW).
 func buildScanTemplate(qm *queryMeta) *scanContext {
 	sc := &scanContext{}
 
@@ -145,6 +163,8 @@ func buildScanTemplate(qm *queryMeta) *scanContext {
 	return sc
 }
 
+// resetForRow обновляет dest-ы для нового значения QROW.
+// EN: resetForRow updates dests for a new QROW value.
 func (sc *scanContext) resetForRow(qrow reflect.Value) {
 	for ei := range sc.entries {
 		ec := &sc.entries[ei]
@@ -161,6 +181,10 @@ func (sc *scanContext) resetForRow(qrow reflect.Value) {
 	}
 }
 
+// apply копирует данные из tempAny в QROW для указательных полей.
+// Обрабатывает случай NULL: если все PK-значения nil, поле остаётся nil.
+// EN: apply copies data from tempAny into QROW for pointer fields.
+// Handles NULL case: if all PK values are nil, the field remains nil.
 func (sc *scanContext) apply(qm *queryMeta, qrow reflect.Value) {
 	for ei, entry := range qm.entries {
 		ec := sc.entries[ei]
@@ -194,6 +218,8 @@ func (sc *scanContext) apply(qm *queryMeta, qrow reflect.Value) {
 	}
 }
 
+// countNonOmitFields считает количество не-omit полей в RowMeta.
+// EN: countNonOmitFields counts non-omit fields in RowMeta.
 func countNonOmitFields(rm *meta.RowMeta) int {
 	count := 0
 	for _, fm := range rm.Fields {

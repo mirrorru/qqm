@@ -12,7 +12,7 @@
 - **Flexible filtering** — And/Or combinations, operators Eq, Gt, Lt, Gte, Lte, Between, In.
 - **Qualified names** — filters on joined table fields (`"Order.Amount"`).
 - **LEFT JOIN with nil** — `*ROW` pointer fields automatically become nil when no matching row exists.
-- **Field tags** — column, primary key, foreign key, readonly, auto, omit, join, on, table, primary, sort, create.
+- **Field tags** — column, primary key, foreign key, update, auto, omit, join, table, primary, sort, create.
 - **Embedded structs** — support for embedding with column prefix.
 - **Named struct fields** — prefix for non-anonymous structs (e.g., multiple addresses).
 - **Composite keys** — variable number of fields in PK.
@@ -96,7 +96,7 @@ func Example() {
 
 ## Column Configuration via Tags
 
-Tag format: `qqm:"col=name;pk;ref=table.col;readonly;auto;omit;prefix=...;join=TYPE;on=...;table=...;primary;sort=<pos>[,dir];create=..."`
+Tag format: `qqm:"col=name;pk;ref=table.col;update;auto;omit;prefix=...;join=TYPE;table=...;primary;sort=<pos>[,dir];create=..."`
 
 | Option | Description |
 |--------|-------------|
@@ -104,11 +104,10 @@ Tag format: `qqm:"col=name;pk;ref=table.col;readonly;auto;omit;prefix=...;join=T
 | `pk` | Field is a primary key |
 | `ref=table.col` | Foreign key reference |
 | `prefix=...` | Prefix for columns from embedded or named struct |
-| `readonly` | Excluded from UPDATE |
+| `update` | Allows UPDATE on auto field |
 | `auto` | Excluded from INSERT (e.g., SERIAL) |
 | `omit` | Fully excluded from SQL generation |
 | `join=TYPE` | JOIN type for Query: LEFT, INNER, RIGHT, FULL |
-| `on=...` | Explicit JOIN condition (overrides auto-inference from ref=) |
 | `table=...` | Override table name for Query field |
 | `primary` | Explicit primary table marker in Query |
 | `sort=<pos>[,dir]` | Position in ORDER BY for List() (1-based), direction ASC/DESC |
@@ -194,11 +193,6 @@ The ON clause is built from the `ref=users.id` tag on the `UserID` field of the 
 type CustomQuery struct {
     User  User   `qqm:"table=app_users;primary"`  // name override + primary
     Order *Order `qqm:"join=LEFT"`                 // explicit JOIN type
-}
-
-type WithExplicitON struct {
-    User User
-    Ref  RefData `qqm:"on=ref.user_id=users.id"`   // explicit condition
 }
 ```
 

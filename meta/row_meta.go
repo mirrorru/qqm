@@ -149,8 +149,8 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 				GoType:        sf.Type,
 				IsPK:          opts.IsPK,
 				PkOrder:       pkOrder,
-				IsReadonly:    opts.Readonly,
 				IsAuto:        opts.Auto,
+				IsUpdate:      opts.Update,
 				RefTable:      opts.RefTable,
 				RefColumn:     opts.RefCol,
 				IsOmit:        opts.Omit,
@@ -211,8 +211,8 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 			GoType:        sf.Type,
 			IsPK:          opts.IsPK,
 			PkOrder:       pkOrder,
-			IsReadonly:    opts.Readonly,
 			IsAuto:        opts.Auto,
+			IsUpdate:      opts.Update,
 			RefTable:      opts.RefTable,
 			RefColumn:     opts.RefCol,
 			IsOmit:        opts.Omit,
@@ -285,8 +285,8 @@ func (rm *RowMeta) InsertColumns() []string {
 	return rm.insertColumns
 }
 
-// UpdateColumns возвращает колонки для UPDATE (без readonly, без pk, без omit, без auto).
-// EN: UpdateColumns returns columns for UPDATE (without readonly, without pk, without omit, without auto).
+// UpdateColumns возвращает колонки для UPDATE (без pk, без omit, без auto без update).
+// EN: UpdateColumns returns columns for UPDATE (without pk, without omit, without auto without update).
 func (rm *RowMeta) UpdateColumns() []string {
 	return rm.updateColumns
 }
@@ -304,12 +304,12 @@ func buildInsertColumns(rm *RowMeta) []string {
 	return cols
 }
 
-// buildUpdateColumns строит слайс колонок для UPDATE (без readonly, без pk, без omit, без auto).
-// EN: buildUpdateColumns builds column slice for UPDATE (without readonly, without pk, without omit, without auto).
+// buildUpdateColumns строит слайс колонок для UPDATE (без pk, без omit, без auto без update).
+// EN: buildUpdateColumns builds column slice for UPDATE (without pk, without omit, without auto without update).
 func buildUpdateColumns(rm *RowMeta) []string {
 	cols := make([]string, 0, len(rm.Fields))
 	for _, fm := range rm.Fields {
-		if fm.IsReadonly || fm.IsPK || fm.IsOmit || fm.IsAuto {
+		if fm.IsPK || fm.IsOmit || (fm.IsAuto && !fm.IsUpdate) {
 			continue
 		}
 		cols = append(cols, fm.Column)
@@ -346,7 +346,7 @@ func (rm *RowMeta) UpdateValues(row any) []any {
 
 	vals := make([]any, 0, len(rm.Fields))
 	for _, fm := range rm.Fields {
-		if fm.IsReadonly || fm.IsPK || fm.IsOmit || fm.IsAuto {
+		if fm.IsPK || fm.IsOmit || (fm.IsAuto && !fm.IsUpdate) {
 			continue
 		}
 		fv := v.FieldByIndex(fm.Index)
