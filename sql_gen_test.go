@@ -302,3 +302,17 @@ func TestTable_CreateTableSQL_SomeTable(t *testing.T) {
 	assert.Contains(t, ddl, `field_rw TEXT NOT NULL`)
 	assert.Contains(t, ddl, `field_ro TIMESTAMPTZ NOT NULL`)
 }
+
+func TestTable_InsertOnlyField_SQL(t *testing.T) {
+	tbl := NewTable[fixtures.RowWithInsert](dialect.SQLiteDialect{})
+
+	insertSQL := tbl.Internals().InsertSQL()
+	assert.Contains(t, insertSQL, `INSERT INTO row_with_insert`)
+	assert.Contains(t, insertSQL, `name`)
+	assert.Contains(t, insertSQL, `created_at`, "insert field should be in INSERT SQL")
+
+	updateSQL := tbl.Internals().UpdateSQL()
+	assert.Contains(t, updateSQL, `SET name = ?`)
+	assert.Contains(t, updateSQL, `WHERE id = ?`)
+	assert.NotContains(t, updateSQL, `SET name = ?, created_at`, "insert field should not be in UPDATE SET clause")
+}

@@ -60,6 +60,12 @@ const (
 	// EN: tagCreate — column definition in CREATE TABLE (DEFAULT, UNIQUE, CHECK, etc.).
 	// Format: `qqm:"create=DEFAULT 0"` or `qqm:"create=UNIQUE"`.
 	tagCreate = "create="
+
+	// tagInsert — поле участвует в INSERT, но исключается из UPDATE.
+	// Пример: `qqm:"insert"`. Аналог: created_at — задаётся при создании, не меняется при обновлении.
+	// EN: tagInsert — field participates in INSERT but is excluded from UPDATE.
+	// Example: `qqm:"insert"`. Analog: created_at — set on create, not changed on update.
+	tagInsert = "insert"
 )
 
 // TagName содержит имя тега для метаданных.
@@ -83,13 +89,14 @@ type TagOptions struct {
 	Sort      int    // Позиция в сортировке (0 если не задана). / EN: Position in ordering (0 if not set).
 	SortDir   string // Направление: "ASC" (по умолчанию) или "DESC". / EN: Sort direction: "ASC" (default) or "DESC".
 	Create    string // Строка для CREATE TABLE (из create=...). / EN: Column definition for CREATE TABLE (from create=...).
+	Insert    bool   // Участвует в INSERT, исключается из UPDATE. / EN: Participates in INSERT, excluded from UPDATE.
 }
 
 // ParseTag разбирает строку тега qqm в TagOptions.
-// Формат: "col=name;pk;ref=users.id;prefix=audit_;update;auto;omit;join=LEFT;primary"
+// Формат: "col=name;pk;ref=users.id;prefix=audit_;update;auto;omit;join=LEFT;primary;insert"
 // Разделитель — точка с запятой (;). Тег "pk" — флаг, порядок определяется объявлением в структуре.
 // EN: ParseTag parses the qqm tag string into TagOptions.
-// Format: "col=name;pk;ref=users.id;prefix=audit_;update;auto;omit;join=LEFT;primary"
+// Format: "col=name;pk;ref=users.id;prefix=audit_;update;auto;omit;join=LEFT;primary;insert"
 // Separator — semicolon (;). "pk" tag is a flag; order is by struct declaration.
 func ParseTag(raw string) TagOptions {
 	var opts TagOptions
@@ -160,6 +167,8 @@ func ParseTag(raw string) TagOptions {
 			opts.Sort, opts.SortDir = parseSortSegment(seg[5:])
 		case len(seg) > 7 && seg[:7] == tagCreate:
 			opts.Create = seg[7:]
+		case seg == tagInsert:
+			opts.Insert = true
 		}
 
 		if i < n {

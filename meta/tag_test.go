@@ -54,7 +54,7 @@ func TestParseTag_Omit(t *testing.T) {
 }
 
 func TestParseTag_Combined(t *testing.T) {
-	opts := ParseTag("col=name;pk;ref=users.id;prefix=audit_;update;auto;omit")
+	opts := ParseTag("col=name;pk;ref=users.id;prefix=audit_;update;auto;omit;insert")
 	assert.Equal(t, "name", opts.Col)
 	assert.True(t, opts.IsPK)
 	assert.Equal(t, "users", opts.RefTable)
@@ -63,6 +63,7 @@ func TestParseTag_Combined(t *testing.T) {
 	assert.True(t, opts.Update)
 	assert.True(t, opts.Auto)
 	assert.True(t, opts.Omit)
+	assert.True(t, opts.Insert)
 }
 
 func TestParseTag_Spaces(t *testing.T) {
@@ -140,4 +141,9 @@ func TestParseTag_Create_Combined(t *testing.T) {
 	assert.Equal(t, "status", opts.Col)
 	assert.Equal(t, "DEFAULT 'new'", opts.Create)
 	assert.True(t, opts.Update)
+}
+
+func TestParseTag_Insert(t *testing.T) {
+	opts := ParseTag("insert")
+	assert.True(t, opts.Insert)
 }

@@ -98,7 +98,7 @@ func Example() {
 
 ## Настройка колонок через теги
 
-Формат тега: `qqm:"col=name;pk;ref=table.col;update;auto;omit;prefix=...;join=TYPE;table=...;primary;sort=<pos>[,dir];create=..."`
+Формат тега: `qqm:"col=name;pk;ref=table.col;update;auto;omit;prefix=...;join=TYPE;table=...;primary;sort=<pos>[,dir];create=...;insert"`
 
 | Опция | Описание |
 |-------|----------|
@@ -114,6 +114,7 @@ func Example() {
 | `primary` | Явное указание primary-таблицы в Query |
 | `sort=<pos>[,dir]` | Позиция в ORDER BY для List() (1-based), направление ASC/DESC |
 | `create=...` | Строка для колонки в CREATE TABLE (DEFAULT, UNIQUE и т.д.) |
+| `insert` | Поле участвует в INSERT, но исключается из UPDATE |
 
 ### Префикс для именованных полей-структур
 
