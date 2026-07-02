@@ -359,3 +359,137 @@ func TestBuildRowMeta_UpdateColumns_InsertOnly(t *testing.T) {
 		assert.NotEqual(t, "created_at", col, "insert field should not be in UpdateColumns")
 	}
 }
+
+// TestBuildRowMeta_InheritedInsert проверяет наследование флага insert от anonymous struct
+func TestBuildRowMeta_InheritedInsert(t *testing.T) {
+	type Audit struct {
+		CreatedAt string
+		UpdatedAt string
+	}
+	type Row struct {
+		ID    int64 `qqm:"pk;auto"`
+		Name  string
+		Audit `qqm:"insert"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	// insert-флаг должен быть унаследован внутренними полями
+	for _, fm := range rm.Fields {
+		if fm.Name == "CreatedAt" || fm.Name == "UpdatedAt" {
+			assert.True(t, fm.IsInsert, "field %s should inherit insert flag", fm.Name)
+		}
+	}
+
+	// insert-поля отсутствуют в UpdateColumns
+	cols := rm.UpdateColumns()
+	for _, col := range cols {
+		assert.NotEqual(t, "created_at", col, "created_at should not be in UpdateColumns")
+		assert.NotEqual(t, "updated_at", col, "updated_at should not be in UpdateColumns")
+	}
+}
+
+// TestBuildRowMeta_InheritedAuto проверяет наследование флага auto от anonymous struct
+func TestBuildRowMeta_InheritedAuto(t *testing.T) {
+	type Audit struct {
+		CreatedAt string
+		UpdatedAt string
+	}
+	type Row struct {
+		ID    int64 `qqm:"pk;auto"`
+		Name  string
+		Audit `qqm:"auto"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	// auto-флаг должен быть унаследован внутренними полями
+	for _, fm := range rm.Fields {
+		if fm.Name == "CreatedAt" || fm.Name == "UpdatedAt" {
+			assert.True(t, fm.IsAuto, "field %s should inherit auto flag", fm.Name)
+		}
+	}
+
+	// auto-поля отсутствуют в InsertColumns
+	cols := rm.InsertColumns()
+	for _, col := range cols {
+		assert.NotEqual(t, "created_at", col, "created_at should not be in InsertColumns")
+		assert.NotEqual(t, "updated_at", col, "updated_at should not be in InsertColumns")
+	}
+}
+
+// TestBuildRowMeta_InheritedOmit проверяет наследование флага omit от anonymous struct
+func TestBuildRowMeta_InheritedOmit(t *testing.T) {
+	type Audit struct {
+		CreatedAt string
+		UpdatedAt string
+	}
+	type Row struct {
+		ID    int64 `qqm:"pk;auto"`
+		Name  string
+		Audit `qqm:"omit"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	// omit-флаг должен быть унаследован внутренними полями
+	for _, fm := range rm.Fields {
+		if fm.Name == "CreatedAt" || fm.Name == "UpdatedAt" {
+			assert.True(t, fm.IsOmit, "field %s should inherit omit flag", fm.Name)
+		}
+	}
+
+	// omit-поля отсутствуют в Columns
+	for _, col := range rm.Columns {
+		assert.NotEqual(t, "created_at", col, "created_at should not be in Columns")
+		assert.NotEqual(t, "updated_at", col, "updated_at should not be in Columns")
+	}
+}
+
+// TestBuildRowMeta_InheritedPK проверяет наследование флага pk от anonymous struct
+func TestBuildRowMeta_InheritedPK(t *testing.T) {
+	type CompositeKey struct {
+		OrgID  int64
+		UserID int64
+	}
+	type Row struct {
+		CompositeKey `qqm:"pk"`
+		Name         string
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	// pk-флаг должен быть унаследован внутренними полями
+	assert.Len(t, rm.PKFields, 2)
+	assert.Equal(t, "org_id", rm.PKFields[0].Column)
+	assert.Equal(t, 1, rm.PKFields[0].PkOrder)
+	assert.Equal(t, "user_id", rm.PKFields[1].Column)
+	assert.Equal(t, 2, rm.PKFields[1].PkOrder)
+}
+
+// TestBuildRowMeta_InheritedFlagChildTagOverrides проверяет что тег дочернего поля имеет приоритет
+func TestBuildRowMeta_InheritedFlagChildTagOverrides(t *testing.T) {
+	type Audit struct {
+		CreatedAt string `qqm:"update"` // дочерний тег update (значим только с auto)
+		UpdatedAt string
+	}
+	type Row struct {
+		ID    int64 `qqm:"pk"`
+		Name  string
+		Audit `qqm:"auto"` // родитель наследует auto
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	// Оба поля должны унаследовать auto
+	for _, fm := range rm.Fields {
+		if fm.Name == "CreatedAt" {
+			assert.True(t, fm.IsAuto, "CreatedAt should inherit auto")
+			assert.True(t, fm.IsUpdate, "CreatedAt should have its own update tag")
+		}
+		if fm.Name == "UpdatedAt" {
+			assert.True(t, fm.IsAuto, "UpdatedAt should inherit auto")
+			assert.False(t, fm.IsUpdate, "UpdatedAt should not have update")
+		}
+	}
+}

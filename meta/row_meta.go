@@ -62,7 +62,7 @@ func BuildRowMeta(t reflect.Type, tableName string) *RowMeta {
 	}
 
 	pkCounter := 1
-	rm.walkFields(t, nil, "", &pkCounter)
+	rm.walkFields(t, nil, "", &pkCounter, TagOptions{})
 
 	rm.sortSortFields()
 
@@ -86,13 +86,37 @@ func (rm *RowMeta) validateUniqueColumns() {
 	}
 }
 
+// mergeInherited сливает унаследованные флаги от родительского anonymous struct в opts.
+// Флаги дочернего поля (уже установленные через ParseTag) имеют приоритет.
+// EN: mergeInherited merges inherited flags from parent anonymous struct into opts.
+// Child field flags (already set via ParseTag) take precedence.
+func mergeInherited(opts *TagOptions, inherited TagOptions) {
+	if inherited.IsPK {
+		opts.IsPK = true
+	}
+	if inherited.Auto {
+		opts.Auto = true
+	}
+	if inherited.Update {
+		opts.Update = true
+	}
+	if inherited.Omit {
+		opts.Omit = true
+	}
+	if inherited.Insert {
+		opts.Insert = true
+	}
+}
+
 // walkFields рекурсивно обходит поля структуры, включая embedded.
 // prefix — префикс для колонок из anonymous struct (из тега prefix=).
 // pkCounter — счётчик для назначения порядка PK-полей по порядку объявления.
+// inherited — флаги, унаследованные от родительского anonymous struct (pk, auto, update, omit, insert).
 // EN: walkFields recursively traverses struct fields, including embedded.
 // prefix — prefix for columns from anonymous struct (from prefix= tag).
 // pkCounter — counter for assigning PK field order by declaration order.
-func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, pkCounter *int) {
+// inherited — flags inherited from parent anonymous struct (pk, auto, update, omit, insert).
+func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, pkCounter *int, inherited TagOptions) {
 	for i := range t.NumField() {
 		sf := t.Field(i)
 
@@ -117,12 +141,12 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 			}
 
 			if ft.Kind() == reflect.Struct {
-				// Читаем тег anonymous struct для получения префикса.
-				// EN: Read anonymous struct tag to get prefix.
+				// Читаем тег anonymous struct для получения префикса и флагов.
+				// EN: Read anonymous struct tag to get prefix and flags.
 				tagRaw := sf.Tag.Get(TagName)
 				opts := ParseTag(tagRaw)
 				childPrefix := prefix + opts.Prefix
-				rm.walkFields(ft, idx, childPrefix, pkCounter)
+				rm.walkFields(ft, idx, childPrefix, pkCounter, opts)
 				continue
 			}
 
@@ -130,6 +154,12 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 			// EN: Parse qqm tag for anonymous non-struct.
 			tagRaw := sf.Tag.Get(TagName)
 			opts := ParseTag(tagRaw)
+
+			// Слияние унаследованных флагов от родительского anonymous struct
+			// (тег дочернего поля имеет приоритет).
+			// EN: Merge inherited flags from parent anonymous struct
+			// (child field tag takes precedence).
+			mergeInherited(&opts, inherited)
 
 			col := prefix + ToSnakeCase(sf.Name)
 			if opts.Col != "" {
@@ -173,9 +203,14 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 		}
 
 		// Парсим тег qqm.
-		// EN: Parse qqm tag.
 		tagRaw := sf.Tag.Get(TagName)
 		opts := ParseTag(tagRaw)
+
+		// Слияние унаследованных флагов от родительского anonymous struct
+		// (тег дочернего поля имеет приоритет).
+		// EN: Merge inherited flags from parent anonymous struct
+		// (child field tag takes precedence).
+		mergeInherited(&opts, inherited)
 
 		// Неанонимное поле-структура с префиксом — разворачиваем её поля.
 		// EN: Non-anonymous struct field with prefix — expand its fields.
@@ -186,7 +221,7 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 			}
 			if ft.Kind() == reflect.Struct {
 				childPrefix := prefix + opts.Prefix
-				rm.walkFields(ft, idx, childPrefix, pkCounter)
+				rm.walkFields(ft, idx, childPrefix, pkCounter, TagOptions{})
 				continue
 			}
 		}
