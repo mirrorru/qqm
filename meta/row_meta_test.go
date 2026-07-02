@@ -327,3 +327,35 @@ func TestBuildRowMeta_SortFields_WithPrefix(t *testing.T) {
 	assert.Equal(t, 2, rm.SortFields[1].SortPosition)
 	assert.Equal(t, "DESC", rm.SortFields[1].SortDirection)
 }
+
+// TestBuildRowMeta_InsertColumns проверяет что insert-поле есть в InsertColumns
+func TestBuildRowMeta_InsertColumns_WithInsert(t *testing.T) {
+	type Row struct {
+		ID        int64 `qqm:"pk;auto"`
+		Name      string
+		CreatedAt string `qqm:"insert"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+	cols := rm.InsertColumns()
+
+	assert.Contains(t, cols, "created_at", "insert field should be in InsertColumns")
+	assert.Contains(t, cols, "name", "regular field should be in InsertColumns")
+}
+
+// TestBuildRowMeta_UpdateColumns_InsertOnly проверяет что insert-поля нет в UpdateColumns
+func TestBuildRowMeta_UpdateColumns_InsertOnly(t *testing.T) {
+	type Row struct {
+		ID        int64 `qqm:"pk;auto"`
+		Name      string
+		CreatedAt string `qqm:"insert"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+	cols := rm.UpdateColumns()
+
+	assert.Contains(t, cols, "name", "regular field should be in UpdateColumns")
+	for _, col := range cols {
+		assert.NotEqual(t, "created_at", col, "insert field should not be in UpdateColumns")
+	}
+}

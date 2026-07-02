@@ -19,4 +19,6 @@ type FieldMeta struct {
 	SortPosition  int          // Позиция поля в сортировке (0 если не задана). / EN: Field position in ordering (0 if not set).
 	SortDirection string       // Направление сортировки: "ASC" или "DESC". / EN: Sort direction: "ASC" or "DESC".
 	CreateClause  string       // Строка для колонки в CREATE TABLE (из тега create=...). / EN: Column definition string in CREATE TABLE (from create=... tag).
+	IsInsert      bool         // Участвует в INSERT, исключается из UPDATE (из тега insert).
+	// EN: Participates in INSERT, excluded from UPDATE (from insert tag).
 }

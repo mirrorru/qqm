@@ -115,6 +115,7 @@ type Query[QROW any] struct {
 | `omit` | Полностью исключается из SQL |
 | `prefix=...` на embedded struct | Колонки с префиксом |
 | `prefix=...` на именованной struct | Колонки с префиксом (новая возможность) |
+| `insert` | Только в INSERT, исключается из UPDATE |
 
 ### 5. Генерация SQL (query.go)
 

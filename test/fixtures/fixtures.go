@@ -223,3 +223,10 @@ type RowWithCreate struct {
 	Status string `qqm:"create=DEFAULT 'active'"`
 	Count  int    `qqm:"create=DEFAULT 0"`
 }
+
+// RowWithInsert — структура с insert флагом (поле участвует в INSERT, но исключается из UPDATE)
+type RowWithInsert struct {
+	ID        int64 `qqm:"pk;auto"`
+	Name      string
+	CreatedAt string `qqm:"insert"`
+}

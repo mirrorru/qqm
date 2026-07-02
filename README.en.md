@@ -96,7 +96,7 @@ func Example() {
 
 ## Column Configuration via Tags
 
-Tag format: `qqm:"col=name;pk;ref=table.col;update;auto;omit;prefix=...;join=TYPE;table=...;primary;sort=<pos>[,dir];create=..."`
+Tag format: `qqm:"col=name;pk;ref=table.col;update;auto;omit;prefix=...;join=TYPE;table=...;primary;sort=<pos>[,dir];create=...;insert"`
 
 | Option | Description |
 |--------|-------------|
@@ -112,6 +112,7 @@ Tag format: `qqm:"col=name;pk;ref=table.col;update;auto;omit;prefix=...;join=TYP
 | `primary` | Explicit primary table marker in Query |
 | `sort=<pos>[,dir]` | Position in ORDER BY for List() (1-based), direction ASC/DESC |
 | `create=...` | Column definition string in CREATE TABLE (DEFAULT, UNIQUE, etc.) |
+| `insert` | Participates in INSERT, excluded from UPDATE |
 
 ### Prefix for Named Struct Fields
 
