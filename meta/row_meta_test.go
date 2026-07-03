@@ -653,3 +653,143 @@ func TestBuildRowMeta_NestedAnonymousInheritedUpdate(t *testing.T) {
 		}
 	}
 }
+
+// TestBuildRowMeta_AnonymousStructWithCol проверяет, что col= на анонимной структуре обрывает рекурсию
+// и создаёт одно поле с указанным именем колонки.
+func TestBuildRowMeta_AnonymousStructWithCol(t *testing.T) {
+	type Address struct {
+		City   string
+		Street string
+	}
+	type Row struct {
+		ID      int64 `qqm:"pk"`
+		Address `qqm:"col=full_address"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	// Должна быть колонка full_address, но не поля city/street
+	assert.Contains(t, rm.Columns, "full_address")
+	assert.NotContains(t, rm.Columns, "city")
+	assert.NotContains(t, rm.Columns, "street")
+
+	// Адрес должен быть одним полем
+	var addrField *FieldMeta
+	for _, fm := range rm.Fields {
+		if fm.Name == "Address" {
+			addrField = fm
+			break
+		}
+	}
+	require.NotNil(t, addrField, "Address field should exist")
+	assert.Equal(t, "full_address", addrField.Column)
+}
+
+// TestBuildRowMeta_AnonymousStructWithColAndPK проверяет col= + pk на анонимной структуре.
+func TestBuildRowMeta_AnonymousStructWithColAndPK(t *testing.T) {
+	type CompositeKey struct {
+		OrgID  int64
+		UserID int64
+	}
+	type Row struct {
+		CompositeKey `qqm:"col=key;pk"`
+		Name         string
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	require.Len(t, rm.PKFields, 1)
+	assert.Equal(t, "key", rm.PKFields[0].Column)
+	assert.Equal(t, 1, rm.PKFields[0].PkOrder)
+}
+
+// TestBuildRowMeta_AnonymousStructWithColStopsNested проверяет, что col= останавливает рекурсию
+// даже при наличии вложенных структур внутри.
+func TestBuildRowMeta_AnonymousStructWithColStopsNested(t *testing.T) {
+	type Inner struct {
+		Value string
+	}
+	type Middle struct {
+		Inner
+	}
+	type Row struct {
+		ID     int64 `qqm:"pk"`
+		Middle `qqm:"col=middle_data"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	assert.Contains(t, rm.Columns, "middle_data")
+	assert.NotContains(t, rm.Columns, "value", "nested fields should not be expanded when col= is set")
+}
+
+// TestBuildRowMeta_AnonymousStructColWithInheritedFlags проверяет, что col= + унаследованные флаги работают.
+func TestBuildRowMeta_AnonymousStructColWithInheritedFlags(t *testing.T) {
+	type Inner struct {
+		Value string
+	}
+	type Middle struct {
+		Inner `qqm:"col=inner_data"`
+	}
+	type Row struct {
+		ID     int64 `qqm:"pk"`
+		Middle `qqm:"auto;insert"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	// Middle с col=inner_data должен быть одним полем
+	assert.Contains(t, rm.Columns, "inner_data")
+	assert.NotContains(t, rm.Columns, "value")
+
+	// Флаги auto и insert от Middle должны быть унаследованы Inner
+	var innerField *FieldMeta
+	for _, fm := range rm.Fields {
+		if fm.Name == "Inner" {
+			innerField = fm
+			break
+		}
+	}
+	require.NotNil(t, innerField, "Inner field should exist")
+	assert.True(t, innerField.IsAuto, "Inner should inherit auto from Middle")
+	assert.True(t, innerField.IsInsert, "Inner should inherit insert from Middle")
+}
+
+// TestBuildRowMeta_AnonymousStructWithoutColStillExpands проверяет, что без col= анонимная структура
+// по-прежнему разворачивается рекурсивно.
+func TestBuildRowMeta_AnonymousStructWithoutColStillExpands(t *testing.T) {
+	type Address struct {
+		City   string
+		Street string
+	}
+	type Row struct {
+		ID      int64 `qqm:"pk"`
+		Address // без col=
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	assert.Contains(t, rm.Columns, "city")
+	assert.Contains(t, rm.Columns, "street")
+	assert.NotContains(t, rm.Columns, "address")
+}
+
+// TestBuildRowMeta_AnonymousStructColWithPrefix проверяет col= у внутренней анонимной структуры
+// при наличии префикса у внешней.
+func TestBuildRowMeta_AnonymousStructColWithPrefix(t *testing.T) {
+	type Inner struct {
+		Value string
+	}
+	type Outer struct {
+		Inner `qqm:"col=data"`
+	}
+	type Row struct {
+		ID    int64 `qqm:"pk"`
+		Outer `qqm:"prefix=outer_"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	assert.Contains(t, rm.Columns, "outer_data")
+	assert.NotContains(t, rm.Columns, "value")
+}

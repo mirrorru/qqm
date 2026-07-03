@@ -146,6 +146,48 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 				tagRaw := sf.Tag.Get(TagName)
 				opts := ParseTag(tagRaw)
 				mergeInherited(&opts, inherited)
+
+				// Если указан col=, обрабатываем как обычное поле, обрывая рекурсию.
+				// EN: If col= is set, treat as regular field, stopping recursion.
+				if opts.Col != "" {
+					col := prefix + opts.Col
+
+					pkOrder := 0
+					if opts.IsPK {
+						pkOrder = *pkCounter
+						*pkCounter++
+					}
+
+					fm := &FieldMeta{
+						Name:          sf.Name,
+						Column:        col,
+						Index:         idx,
+						GoType:        sf.Type,
+						IsPK:          opts.IsPK,
+						PkOrder:       pkOrder,
+						IsAuto:        opts.Auto,
+						IsUpdate:      opts.Update,
+						RefTable:      opts.RefTable,
+						RefColumn:     opts.RefCol,
+						IsOmit:        opts.Omit,
+						SortPosition:  opts.Sort,
+						SortDirection: opts.SortDir,
+						CreateClause:  opts.Create,
+						IsInsert:      opts.Insert,
+					}
+					rm.Fields = append(rm.Fields, fm)
+					if fm.IsPK {
+						rm.PKFields = append(rm.PKFields, fm)
+					}
+					if !fm.IsOmit {
+						rm.Columns = append(rm.Columns, fm.Column)
+					}
+					if fm.SortPosition > 0 {
+						rm.SortFields = append(rm.SortFields, fm)
+					}
+					continue
+				}
+
 				childPrefix := prefix + opts.Prefix
 				rm.walkFields(ft, idx, childPrefix, pkCounter, opts)
 				continue
