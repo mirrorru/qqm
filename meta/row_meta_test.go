@@ -493,3 +493,163 @@ func TestBuildRowMeta_InheritedFlagChildTagOverrides(t *testing.T) {
 		}
 	}
 }
+
+// TestBuildRowMeta_NestedAnonymousInheritedPK проверяет наследование pk через вложенные анонимные структуры.
+func TestBuildRowMeta_NestedAnonymousInheritedPK(t *testing.T) {
+	type InnerKey struct {
+		Val int64
+	}
+	type MiddleEmbed struct {
+		InnerKey
+	}
+	type Row struct {
+		MiddleEmbed `qqm:"pk"`
+		Name        string
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	require.Len(t, rm.PKFields, 1)
+	assert.Equal(t, "val", rm.PKFields[0].Column)
+	assert.Equal(t, 1, rm.PKFields[0].PkOrder)
+	assert.True(t, rm.PKFields[0].IsPK)
+}
+
+// TestBuildRowMeta_NestedAnonymousInheritedAuto проверяет наследование auto через вложенные анонимные структуры.
+func TestBuildRowMeta_NestedAnonymousInheritedAuto(t *testing.T) {
+	type Inner struct {
+		CreatedAt string
+	}
+	type Middle struct {
+		Inner
+	}
+	type Row struct {
+		ID     int64 `qqm:"pk"`
+		Middle `qqm:"auto"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	for _, fm := range rm.Fields {
+		if fm.Name == "CreatedAt" {
+			assert.True(t, fm.IsAuto, "CreatedAt should inherit auto through nested anonymous")
+		}
+	}
+}
+
+// TestBuildRowMeta_NestedAnonymousInheritedOmit проверяет наследование omit через вложенные анонимные структуры.
+func TestBuildRowMeta_NestedAnonymousInheritedOmit(t *testing.T) {
+	type Inner struct {
+		Value string
+	}
+	type Middle struct {
+		Inner
+	}
+	type Row struct {
+		ID     int64 `qqm:"pk"`
+		Middle `qqm:"omit"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	for _, col := range rm.Columns {
+		assert.NotEqual(t, "value", col, "value should be omitted through nested anonymous")
+	}
+}
+
+// TestBuildRowMeta_NestedAnonymousInheritedInsert проверяет наследование insert через вложенные анонимные структуры.
+func TestBuildRowMeta_NestedAnonymousInheritedInsert(t *testing.T) {
+	type Inner struct {
+		CreatedAt string
+	}
+	type Middle struct {
+		Inner
+	}
+	type Row struct {
+		ID     int64 `qqm:"pk;auto"`
+		Name   string
+		Middle `qqm:"insert"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	for _, fm := range rm.Fields {
+		if fm.Name == "CreatedAt" {
+			assert.True(t, fm.IsInsert, "CreatedAt should inherit insert through nested anonymous")
+		}
+	}
+}
+
+// TestBuildRowMeta_NestedAnonymousMixedFlags проверяет комбинацию флагов: внешний — pk, внутренний — auto.
+func TestBuildRowMeta_NestedAnonymousMixedFlags(t *testing.T) {
+	type Timestamps struct {
+		CreatedAt string
+		UpdatedAt string
+	}
+	type CompoundEmbed struct {
+		Timestamps `qqm:"auto"`
+	}
+	type Row struct {
+		ID            int64 `qqm:"pk"`
+		Name          string
+		CompoundEmbed `qqm:"insert"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	for _, fm := range rm.Fields {
+		if fm.Name == "CreatedAt" || fm.Name == "UpdatedAt" {
+			assert.True(t, fm.IsAuto, "%s should inherit auto from Timestamps", fm.Name)
+			assert.True(t, fm.IsInsert, "%s should inherit insert from CompoundEmbed", fm.Name)
+		}
+	}
+}
+
+// TestBuildRowMeta_NestedAnonymousDeepThreeLevels проверяет тройную вложенность анонимных структур.
+func TestBuildRowMeta_NestedAnonymousDeepThreeLevels(t *testing.T) {
+	type L1 struct {
+		Value string
+	}
+	type L2 struct {
+		L1
+	}
+	type L3 struct {
+		L2
+	}
+	type Row struct {
+		ID int64 `qqm:"pk"`
+		L3 `qqm:"auto;insert"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	for _, fm := range rm.Fields {
+		if fm.Name == "Value" {
+			assert.True(t, fm.IsAuto, "Value should inherit auto through 3 levels")
+			assert.True(t, fm.IsInsert, "Value should inherit insert through 3 levels")
+		}
+	}
+}
+
+// TestBuildRowMeta_NestedAnonymousInheritedUpdate проверяет наследование update через вложенные анонимные структуры.
+func TestBuildRowMeta_NestedAnonymousInheritedUpdate(t *testing.T) {
+	type Inner struct {
+		Value string
+	}
+	type Middle struct {
+		Inner
+	}
+	type Row struct {
+		ID     int64 `qqm:"pk"`
+		Middle `qqm:"auto;update"`
+	}
+
+	rm := BuildRowMeta(reflect.TypeOf(Row{}), "test")
+
+	for _, fm := range rm.Fields {
+		if fm.Name == "Value" {
+			assert.True(t, fm.IsAuto, "Value should inherit auto through nested anonymous")
+			assert.True(t, fm.IsUpdate, "Value should inherit update through nested anonymous")
+		}
+	}
+}

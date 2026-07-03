@@ -145,6 +145,7 @@ func (rm *RowMeta) walkFields(t reflect.Type, parentIndex []int, prefix string, 
 				// EN: Read anonymous struct tag to get prefix and flags.
 				tagRaw := sf.Tag.Get(TagName)
 				opts := ParseTag(tagRaw)
+				mergeInherited(&opts, inherited)
 				childPrefix := prefix + opts.Prefix
 				rm.walkFields(ft, idx, childPrefix, pkCounter, opts)
 				continue

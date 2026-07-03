@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  TEST_PG_HOST: '{{.TEST_PG_HOST | default "host.docker.internal:5432"}}'
+  TEST_PG_HOST: '{{.TEST_PG_HOST | default "localhost:5432"}}'
   TEST_PG_USER: '{{.TEST_PG_USER | default "postgres"}}'
   TEST_PG_PASSWORD: '{{.TEST_PG_PASSWORD | default "postgres"}}'
   TEST_PG_DB: '{{.TEST_PG_DB | default "qqm-test"}}'
