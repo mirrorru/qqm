@@ -240,7 +240,7 @@ func TestFunctional_MultiQuery_One_INNER_PostgreSQL(t *testing.T) {
 	_, err = userTbl.Insert(ctx, ex, &fixtures.User{Name: "Bob", Email: "bob@test.com"})
 	require.NoError(t, err)
 
-	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 150.0})
+	order, err := orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 150.0})
 	require.NoError(t, err)
 
 	q, err := qqm.NewQuery[fixtures.UserWithOrder](dialect.PostgreSQLDialect{})
@@ -252,7 +252,7 @@ func TestFunctional_MultiQuery_One_INNER_PostgreSQL(t *testing.T) {
 		require.NotNil(t, row)
 		assert.Equal(t, alice.ID, row.User.ID)
 		assert.Equal(t, "Alice", row.User.Name)
-		assert.Equal(t, int64(1), row.Order.ID)
+		assert.Equal(t, order.ID, row.Order.ID)
 		assert.Equal(t, 150.0, row.Order.Amount)
 	})
 

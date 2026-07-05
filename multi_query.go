@@ -25,6 +25,14 @@ type Query[QROW any] struct {
 // EN: NewQuery creates a Query[QROW] for the specified dialect.
 // QROW must be a struct with at least one struct field.
 func NewQuery[QROW any](d dialect.DialectProvider) (*Query[QROW], error) {
+	query, err := NewQueryVal[QROW](d)
+	if err != nil {
+		return nil, err
+	}
+	return new(query), nil
+}
+
+func NewQueryVal[QROW any](d dialect.DialectProvider) (Query[QROW], error) {
 	var zero QROW
 	rt := reflect.TypeOf(zero)
 	for rt.Kind() == reflect.Pointer {
@@ -33,12 +41,12 @@ func NewQuery[QROW any](d dialect.DialectProvider) (*Query[QROW], error) {
 
 	qmeta, err := buildQueryMeta[QROW]()
 	if err != nil {
-		return nil, err
+		return Query[QROW]{}, err
 	}
 
 	qmeta.listSQL = buildQueryListSQL(d, qmeta)
 
-	return &Query[QROW]{
+	return Query[QROW]{
 		dialect:      d,
 		qmeta:        qmeta,
 		qrowType:     rt,
