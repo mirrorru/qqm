@@ -199,3 +199,168 @@ func TestSmoke_MultiQuery_ThreeTableJoin(t *testing.T) {
 		require.NotNil(t, r.OrderItem)
 	}
 }
+
+func TestSmoke_MultiQuery_One_INNER(t *testing.T) {
+	t.Parallel()
+	db, err := sql.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	_, err = db.Exec(`
+		CREATE TABLE users (
+			id INTEGER PRIMARY KEY,
+			name TEXT NOT NULL,
+			email TEXT NOT NULL
+		);
+		CREATE TABLE orders (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL REFERENCES users(id),
+			amount REAL NOT NULL
+		)
+	`)
+	require.NoError(t, err)
+
+	ex := qqm.NewDBAdapterVal(db)
+	ctx := context.Background()
+
+	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := qqm.NewTable[fixtures.Order](dialect.SQLiteDialect{})
+
+	alice, err := userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
+	require.NoError(t, err)
+	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 2, Name: "Bob", Email: "bob@test.com"})
+	require.NoError(t, err)
+
+	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 150.0})
+	require.NoError(t, err)
+
+	q, err := qqm.NewQuery[fixtures.UserWithOrder](dialect.SQLiteDialect{})
+	require.NoError(t, err)
+
+	t.Run("One returns single row by primary table PK", func(t *testing.T) {
+		row, err := q.One(ctx, ex, int64(1))
+		require.NoError(t, err)
+		require.NotNil(t, row)
+		assert.Equal(t, int64(1), row.User.ID)
+		assert.Equal(t, "Alice", row.User.Name)
+		assert.Equal(t, int64(1), row.Order.UserID)
+		assert.Equal(t, 150.0, row.Order.Amount)
+	})
+
+	t.Run("One returns error when no rows match", func(t *testing.T) {
+		_, err := q.One(ctx, ex, int64(999))
+		require.Error(t, err)
+	})
+}
+
+func TestSmoke_MultiQuery_One_LEFT(t *testing.T) {
+	t.Parallel()
+	db, err := sql.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	_, err = db.Exec(`
+		CREATE TABLE users (
+			id INTEGER PRIMARY KEY,
+			name TEXT NOT NULL,
+			email TEXT NOT NULL
+		);
+		CREATE TABLE orders (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL REFERENCES users(id),
+			amount REAL NOT NULL
+		)
+	`)
+	require.NoError(t, err)
+
+	ex := qqm.NewDBAdapterVal(db)
+	ctx := context.Background()
+
+	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := qqm.NewTable[fixtures.Order](dialect.SQLiteDialect{})
+
+	alice, err := userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
+	require.NoError(t, err)
+	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 2, Name: "Bob", Email: "bob@test.com"})
+	require.NoError(t, err)
+
+	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 150.0})
+	require.NoError(t, err)
+
+	q, err := qqm.NewQuery[fixtures.UserWithOrderPtr](dialect.SQLiteDialect{})
+	require.NoError(t, err)
+
+	t.Run("One with LEFT JOIN returns user with order", func(t *testing.T) {
+		row, err := q.One(ctx, ex, int64(1))
+		require.NoError(t, err)
+		require.NotNil(t, row)
+		assert.Equal(t, "Alice", row.User.Name)
+		require.NotNil(t, row.Order)
+		assert.Equal(t, 150.0, row.Order.Amount)
+	})
+
+	t.Run("One with LEFT JOIN returns user without order as nil", func(t *testing.T) {
+		row, err := q.One(ctx, ex, int64(2))
+		require.NoError(t, err)
+		require.NotNil(t, row)
+		assert.Equal(t, "Bob", row.User.Name)
+		assert.Nil(t, row.Order)
+	})
+}
+
+func TestSmoke_MultiQuery_One_ThreeTables(t *testing.T) {
+	t.Parallel()
+	db, err := sql.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	_, err = db.Exec(`
+		CREATE TABLE users (
+			id INTEGER PRIMARY KEY,
+			name TEXT NOT NULL,
+			email TEXT NOT NULL
+		);
+		CREATE TABLE orders (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL REFERENCES users(id),
+			amount REAL NOT NULL
+		);
+		CREATE TABLE order_items (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			order_id INTEGER NOT NULL REFERENCES orders(id),
+			quantity INTEGER NOT NULL,
+			price REAL NOT NULL
+		)
+	`)
+	require.NoError(t, err)
+
+	ex := qqm.NewDBAdapterVal(db)
+	ctx := context.Background()
+
+	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := qqm.NewTable[fixtures.Order](dialect.SQLiteDialect{})
+	itemTbl := qqm.NewTable[fixtures.OrderItem](dialect.SQLiteDialect{})
+
+	_, err = userTbl.Insert(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
+	require.NoError(t, err)
+
+	insertedOrder, err := orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: 1, Amount: 100.0})
+	require.NoError(t, err)
+
+	_, err = itemTbl.Insert(ctx, ex, &fixtures.OrderItem{OrderID: insertedOrder.ID, Quantity: 3, Price: 30.0})
+	require.NoError(t, err)
+
+	q, err := qqm.NewQuery[fixtures.UserOrderItem](dialect.SQLiteDialect{})
+	require.NoError(t, err)
+
+	row, err := q.One(ctx, ex, int64(1))
+	require.NoError(t, err)
+	require.NotNil(t, row)
+	assert.Equal(t, int64(1), row.User.ID)
+	assert.Equal(t, "Alice", row.User.Name)
+	assert.Equal(t, int64(1), row.Order.UserID)
+	assert.Equal(t, 100.0, row.Order.Amount)
+	require.NotNil(t, row.OrderItem)
+	assert.Equal(t, int64(1), row.OrderItem.ID)
+	assert.Equal(t, 30.0, row.OrderItem.Price)
+}

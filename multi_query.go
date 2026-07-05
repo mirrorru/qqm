@@ -3,6 +3,7 @@ package qqm
 import (
 	"context"
 	"reflect"
+	"strings"
 
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/meta"
@@ -89,6 +90,37 @@ func (q *Query[QROW]) List(ctx context.Context, ex Executor, filters ...Filter) 
 	}
 
 	return result, nil
+}
+
+// One возвращает одну строку по первичному ключу основной таблицы.
+// Основная таблица — первая запись в QROW (алиас t1).
+// EN: One returns a single row by the primary key of the main table.
+// The main table is the first entry in QROW (alias t1).
+func (q *Query[QROW]) One(ctx context.Context, ex Executor, keys ...any) (*QROW, error) {
+	primary := q.qmeta.entries[0]
+	pkFields := primary.RowMeta.PKFields
+
+	whereClauses := make([]string, len(pkFields))
+	for i, pk := range pkFields {
+		whereClauses[i] = q.dialect.QuoteIdent(primary.Alias) + "." + q.dialect.QuoteIdent(pk.Column) + sqlEquals + q.dialect.Placeholder(i+1)
+	}
+
+	query := q.qmeta.listSQL + sqlWhere + strings.Join(whereClauses, sqlAnd)
+
+	row := ex.QueryRowContext(ctx, query, keys...)
+
+	buf := new(QROW)
+	qrowVal := reflect.ValueOf(buf).Elem()
+	q.scanTemplate.resetForRow(qrowVal)
+	dest := q.scanTemplate.dest
+
+	if err := row.Scan(dest...); err != nil {
+		return nil, err
+	}
+
+	q.scanTemplate.apply(q.qmeta, qrowVal)
+
+	return buf, nil
 }
 
 // scanContext хранит подготовленные dest для много-табличного сканирования.

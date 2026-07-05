@@ -1,6 +1,8 @@
 package qqm
 
 import (
+	"context"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -335,6 +337,196 @@ func TestMultiWhere_BuildWhereSQL(t *testing.T) {
 }
 
 func TestClearMetaCache(t *testing.T) {
-	// Clear cache to ensure clean state for other tests
 	meta.ClearCache()
+}
+
+type mockOneRow struct {
+	data []any
+}
+
+func (m *mockOneRow) Scan(dest ...any) error {
+	for i, d := range dest {
+		if i >= len(m.data) {
+			break
+		}
+		if m.data[i] == nil {
+			continue
+		}
+		v := reflect.ValueOf(d)
+		if v.Kind() == reflect.Pointer && !v.IsNil() {
+			elem := v.Elem()
+			srcVal := reflect.ValueOf(m.data[i])
+			if srcVal.Type().AssignableTo(elem.Type()) {
+				elem.Set(srcVal)
+			}
+		}
+	}
+	return nil
+}
+
+type mockOneEx struct {
+	query string
+	args  []any
+	row   *mockOneRow
+}
+
+func (m *mockOneEx) ExecContext(_ context.Context, _ string, _ ...any) (Result, error) {
+	return mockResult{}, nil
+}
+
+func (m *mockOneEx) QueryContext(_ context.Context, query string, args ...any) (Rows, error) {
+	m.query = query
+	m.args = args
+	return nil, nil //nolint:nilnil
+}
+
+func (m *mockOneEx) QueryRowContext(_ context.Context, query string, args ...any) Row {
+	m.query = query
+	m.args = args
+	return m.row
+}
+
+func TestQuery_One_INNER_JOIN(t *testing.T) {
+	q, err := NewQuery[fixtures.UserWithOrder](dialect.SQLiteDialect{})
+	require.NoError(t, err)
+
+	mock := &mockOneEx{
+		row: &mockOneRow{
+			data: []any{int64(1), "Alice", "alice@test.com", int64(1), int64(1), 150.0},
+		},
+	}
+
+	row, err := q.One(context.Background(), mock, int64(1))
+	require.NoError(t, err)
+	require.NotNil(t, row)
+	assert.Equal(t, int64(1), row.User.ID)
+	assert.Equal(t, "Alice", row.User.Name)
+	assert.Equal(t, "alice@test.com", row.User.Email)
+	assert.Equal(t, int64(1), row.Order.ID)
+	assert.Equal(t, int64(1), row.Order.UserID)
+	assert.InEpsilon(t, 150.0, row.Order.Amount, 0)
+
+	assert.Contains(t, mock.query, "WHERE")
+	assert.Contains(t, mock.query, "t1.id = ?")
+	assert.Equal(t, []any{int64(1)}, mock.args)
+}
+
+func TestQuery_One_LEFT_JOIN(t *testing.T) {
+	q, err := NewQuery[fixtures.UserWithOrderPtr](dialect.SQLiteDialect{})
+	require.NoError(t, err)
+
+	mock := &mockOneEx{
+		row: &mockOneRow{
+			data: []any{int64(1), "Alice", "alice@test.com", int64(1), int64(1), 150.0},
+		},
+	}
+
+	row, err := q.One(context.Background(), mock, int64(1))
+	require.NoError(t, err)
+	require.NotNil(t, row)
+	assert.Equal(t, int64(1), row.User.ID)
+	assert.Equal(t, "Alice", row.User.Name)
+	require.NotNil(t, row.Order)
+	assert.InEpsilon(t, 150.0, row.Order.Amount, 0)
+
+	assert.Contains(t, mock.query, "WHERE")
+	assert.Contains(t, mock.query, "t1.id = ?")
+}
+
+func TestQuery_One_LEFT_JOIN_NoOrder(t *testing.T) {
+	q, err := NewQuery[fixtures.UserWithOrderPtr](dialect.SQLiteDialect{})
+	require.NoError(t, err)
+
+	mock := &mockOneEx{
+		row: &mockOneRow{
+			data: []any{int64(2), "Bob", "bob@test.com", nil, nil, nil},
+		},
+	}
+
+	row, err := q.One(context.Background(), mock, int64(2))
+	require.NoError(t, err)
+	require.NotNil(t, row)
+	assert.Equal(t, int64(2), row.User.ID)
+	assert.Equal(t, "Bob", row.User.Name)
+	assert.Nil(t, row.Order)
+}
+
+func TestQuery_One_ThreeTableJoin(t *testing.T) {
+	q, err := NewQuery[fixtures.UserOrderItem](dialect.SQLiteDialect{})
+	require.NoError(t, err)
+
+	mock := &mockOneEx{
+		row: &mockOneRow{
+			data: []any{
+				int64(1), "Alice", "alice@test.com",
+				int64(1), int64(1), 100.0,
+				int64(1), int64(1), 2, 25.0,
+			},
+		},
+	}
+
+	row, err := q.One(context.Background(), mock, int64(1))
+	require.NoError(t, err)
+	require.NotNil(t, row)
+	assert.Equal(t, int64(1), row.User.ID)
+	assert.Equal(t, "Alice", row.User.Name)
+	assert.Equal(t, int64(1), row.Order.ID)
+	require.NotNil(t, row.OrderItem)
+	assert.Equal(t, 2, row.OrderItem.Quantity)
+	assert.InEpsilon(t, 25.0, row.OrderItem.Price, 0)
+}
+
+func TestQuery_One_CompositePK(t *testing.T) {
+	type RefA struct {
+		UID int64 `qqm:"pk"`
+	}
+	type RefB struct {
+		OrgID  int64 `qqm:"pk;col=org"`
+		UserID int64 `qqm:"pk;col=user"`
+		RefAID int64 `qqm:"ref=ref_a.uid"`
+		Value  string
+	}
+	type CompositeQuery struct {
+		A RefA
+		B RefB
+	}
+
+	q, err := NewQuery[CompositeQuery](dialect.SQLiteDialect{})
+	require.NoError(t, err)
+
+	mock := &mockOneEx{
+		row: &mockOneRow{
+			data: []any{int64(1), int64(10), int64(100), int64(1), "value"},
+		},
+	}
+
+	row, err := q.One(context.Background(), mock, int64(1))
+	require.NoError(t, err)
+	require.NotNil(t, row)
+	assert.Equal(t, int64(1), row.A.UID)
+	assert.Equal(t, int64(10), row.B.OrgID)
+	assert.Equal(t, int64(100), row.B.UserID)
+
+	assert.Contains(t, mock.query, "WHERE")
+	assert.Contains(t, mock.query, "t1.uid = ?")
+	assert.Equal(t, []any{int64(1)}, mock.args)
+}
+
+func TestQuery_One_PostgreSQLPlaceholders(t *testing.T) {
+	q, err := NewQuery[fixtures.UserWithOrder](dialect.PostgreSQLDialect{})
+	require.NoError(t, err)
+
+	mock := &mockOneEx{
+		row: &mockOneRow{
+			data: []any{int64(1), "Alice", "alice@test.com", int64(1), int64(1), 150.0},
+		},
+	}
+
+	row, err := q.One(context.Background(), mock, int64(1))
+	require.NoError(t, err)
+	require.NotNil(t, row)
+
+	assert.Contains(t, mock.query, "WHERE")
+	assert.Contains(t, mock.query, "t1.id = $1")
+	assert.Equal(t, []any{int64(1)}, mock.args)
 }
