@@ -33,6 +33,12 @@ func TestParseTag_Ref_NoColumn(t *testing.T) {
 	assert.Equal(t, "", opts.RefCol)
 }
 
+func TestParseTag_Ref_WithSchema(t *testing.T) {
+	opts := ParseTag("ref=myschema.users.id")
+	assert.Equal(t, "myschema.users", opts.RefTable)
+	assert.Equal(t, "id", opts.RefCol)
+}
+
 func TestParseTag_Prefix(t *testing.T) {
 	opts := ParseTag("prefix=audit_")
 	assert.Equal(t, "audit_", opts.Prefix)
