@@ -143,7 +143,7 @@ func ParseTag(raw string) TagOptions {
 			opts.IsPK = true
 		case len(seg) > 4 && seg[:4] == tagRef:
 			ref := seg[4:]
-			if dot := indexByte(ref, '.'); dot >= 0 {
+			if dot := lastIndexByte(ref, '.'); dot >= 0 {
 				opts.RefTable = ref[:dot]
 				opts.RefCol = ref[dot+1:]
 			} else {
@@ -229,6 +229,17 @@ func atoi(s string) int {
 // EN: indexByte — strings.IndexByte equivalent without importing strings.
 func indexByte(s string, c byte) int {
 	for i := 0; i < len(s); i++ {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
+}
+
+// lastIndexByte — аналог strings.LastIndexByte без импорта strings.
+// EN: lastIndexByte — strings.LastIndexByte equivalent without importing strings.
+func lastIndexByte(s string, c byte) int {
+	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] == c {
 			return i
 		}
