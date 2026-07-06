@@ -89,7 +89,6 @@ func (q *Query[QROW]) List(ctx context.Context, ex Executor, filters ...Filter) 
 	q.scanTemplate.resetForRow(qrowVal)
 	dest := q.scanTemplate.dest
 	for rows.Next() {
-
 		if err := rows.Scan(dest...); err != nil {
 			return nil, err
 		}
@@ -208,7 +207,9 @@ func buildScanTemplate(qm *queryMeta) *scanContext {
 }
 
 // resetForRow обновляет dest-ы для нового значения QROW.
+// Для pointer-полей переиспользует уже аллоцированные структуры из result slice.
 // EN: resetForRow updates dests for a new QROW value.
+// For pointer fields, reuses already allocated structs from result slice.
 func (sc *scanContext) resetForRow(qrow reflect.Value) {
 	for ei := range sc.entries {
 		ec := &sc.entries[ei]
@@ -252,8 +253,13 @@ func (sc *scanContext) apply(qm *queryMeta, qrow reflect.Value) {
 			for fi, fm := range ec.applyFields {
 				dst := allocated.FieldByIndex(fm.Index)
 				srcVal := reflect.ValueOf(ec.tempAny[fi])
-				if srcVal.IsValid() && srcVal.Type().AssignableTo(dst.Type()) {
+				if !srcVal.IsValid() {
+					continue
+				}
+				if srcVal.Type().AssignableTo(dst.Type()) {
 					dst.Set(srcVal)
+				} else if srcVal.Type().ConvertibleTo(dst.Type()) {
+					dst.Set(srcVal.Convert(dst.Type()))
 				}
 			}
 			ptrField := qrow.Field(entry.FieldIndex)
