@@ -54,6 +54,10 @@ func NewQueryVal[QROW any](d dialect.DialectProvider) (Query[QROW], error) {
 	}, nil
 }
 
+func (q *Query[QROW]) Internals() *queryMeta {
+	return q.qmeta
+}
+
 // List выполняет много-табличный запрос и возвращает строки.
 // EN: List executes a multi-table query and returns rows.
 func (q *Query[QROW]) List(ctx context.Context, ex Executor, filters ...Filter) ([]*QROW, error) {

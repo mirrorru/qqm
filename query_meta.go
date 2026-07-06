@@ -39,6 +39,10 @@ type queryMeta struct {
 	entryByName map[string]*queryTableEntry // Индекс по имени поля. / EN: Index by field name.
 }
 
+func (qm *queryMeta) ListSQL() string {
+	return qm.listSQL
+}
+
 // resolveQueryFieldTableName определяет имя таблицы для поля QROW.
 // Приоритет: тег `table=` > SQLNamer > snake_case(TypeName).
 // EN: resolveQueryFieldTableName determines the table name for a QROW field.
