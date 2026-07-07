@@ -15,12 +15,11 @@ type queryTableEntry struct {
 	FieldName  string        // Имя поля в QROW (например, "Order"). / EN: Field name in QROW (e.g. "Order").
 	FieldIndex int           // Индекс поля в QROW-структуре. / EN: Field index in QROW struct.
 	RowMeta    *meta.RowMeta // Метаданные ROW-типа. / EN: ROW type metadata.
-	RowType    reflect.Type  // Базовый struct-тип (без указателя). / EN: Base struct type (without pointer).
-	IsPointer  bool          // true, если поле — указатель (*ROW). / EN: true if field is a pointer (*ROW).
+	RowType    reflect.Type  // Базовый struct-тип. / EN: Base struct type.
 	JoinType   string        // Тип JOIN: INNER, LEFT, RIGHT, FULL.
 	TableName  string        // Итоговое имя таблицы (с учётом override). / EN: Final table name (with override).
 	OnClause   string        // Условие JOIN (авто или явное). / EN: JOIN condition (auto or explicit).
-	Alias      string        // Алиас таблицы (t1, t2, ...). / EN: Table alias (t1, t2, ...).
+	Alias      string        // Алиас таблицы (из тега или t1, t2, ...). / EN: Table alias (from tag or t1, t2, ...).
 }
 
 // qualifiedColumn содержит колонку с алиасом таблицы для SELECT.
@@ -91,16 +90,12 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 			continue
 		}
 
-		// Только struct или *struct.
-		// EN: Only struct or *struct.
 		ft := sf.Type
-		isPtr := false
-		if ft.Kind() == reflect.Pointer {
-			isPtr = true
-			ft = ft.Elem()
+		for ft.Kind() == reflect.Pointer {
+			return nil, fmt.Errorf("qqm: QROW field %q must be a struct, not a pointer", sf.Name)
 		}
 		if ft.Kind() != reflect.Struct {
-			continue
+			return nil, fmt.Errorf("qqm: QROW field %q must be a struct", sf.Name)
 		}
 
 		tagRaw := sf.Tag.Get(meta.TagName)
@@ -111,15 +106,11 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 
 		joinType := opts.JoinType
 		if joinType == "" {
-			if isPtr {
-				joinType = "LEFT"
-			} else {
-				joinType = "INNER"
-			}
+			joinType = "INNER"
 		}
 
 		isPrimary := opts.IsPrimary
-		if !isPrimary && !primaryFound && !isPtr {
+		if !isPrimary && !primaryFound {
 			isPrimary = true
 		}
 
@@ -128,9 +119,10 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 			FieldIndex: i,
 			RowMeta:    rowMeta,
 			RowType:    ft,
-			IsPointer:  isPtr,
 			JoinType:   joinType,
 			TableName:  tableName,
+			Alias:      opts.Alias,
+			OnClause:   opts.OnCondition,
 		}
 		entries = append(entries, entry)
 
@@ -146,11 +138,14 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 	// Первая запись — primary, если не отмечено явно.
 	// EN: First entry is primary if not explicitly marked.
 	if !primaryFound && len(entries) > 0 {
-		for i := range entries {
-			if !entries[i].IsPointer {
-				entries[i].JoinType = "INNER"
-				break
-			}
+		entries[0].JoinType = "INNER"
+	}
+
+	// Назначаем алиасы таблиц.
+	// EN: Assign table aliases.
+	for i := range entries {
+		if entries[i].Alias == "" {
+			entries[i].Alias = fmt.Sprintf("t%d", i+1)
 		}
 	}
 
@@ -161,7 +156,7 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 			continue
 		}
 
-		onClause, err := buildJoinOnClause(&entries[i], entries[:i], i+1)
+		onClause, err := buildJoinOnClause(&entries[i], entries[:i])
 		if err != nil {
 			return nil, err
 		}
@@ -170,12 +165,6 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 
 	qm := &queryMeta{
 		entries: entries,
-	}
-
-	// Назначаем алиасы таблиц.
-	// EN: Assign table aliases.
-	for i := range qm.entries {
-		qm.entries[i].Alias = fmt.Sprintf("t%d", i+1)
 	}
 
 	qm.columns = buildQualifiedColumns(qm)
@@ -190,12 +179,14 @@ func buildQueryMeta[QROW any]() (*queryMeta, error) {
 }
 
 // buildJoinOnClause автоматически строит ON-условие для entry.
-// currentAlias — алиас текущей таблицы (t1, t2, ...).
-// prevEntries — уже добавленные таблицы (их алиасы t1, t2, ..., tN).
+// prevEntries — уже добавленные таблицы.
 // EN: buildJoinOnClause automatically builds the ON condition for entry.
-// currentAlias — alias of the current table (t1, t2, ...).
-// prevEntries — already added tables (their aliases t1, t2, ..., tN).
-func buildJoinOnClause(entry *queryTableEntry, prevEntries []queryTableEntry, currentAlias int) (string, error) {
+// prevEntries — already added tables.
+func buildJoinOnClause(entry *queryTableEntry, prevEntries []queryTableEntry) (string, error) {
+	if entry.OnClause != "" {
+		return entry.OnClause, nil
+	}
+
 	var conditions []string
 
 	// Прямое направление: поля entry ссылаются на prevEntries.
@@ -204,14 +195,14 @@ func buildJoinOnClause(entry *queryTableEntry, prevEntries []queryTableEntry, cu
 		if fm.RefTable == "" || fm.IsOmit {
 			continue
 		}
-		for pi, pe := range prevEntries {
+		for _, pe := range prevEntries {
 			if pe.TableName == fm.RefTable {
 				refCol := fm.RefColumn
 				if refCol == "" {
 					refCol = "id"
 				}
-				leftAlias := fmt.Sprintf("t%d", currentAlias)
-				rightAlias := fmt.Sprintf("t%d", pi+1)
+				leftAlias := entry.Alias
+				rightAlias := pe.Alias
 				conditions = append(conditions,
 					fmt.Sprintf("%s.%s = %s.%s",
 						leftAlias, fm.Column,
@@ -222,7 +213,7 @@ func buildJoinOnClause(entry *queryTableEntry, prevEntries []queryTableEntry, cu
 
 	// Обратное направление: поля prevEntries ссылаются на entry.
 	// EN: Reverse direction: prevEntries fields reference entry.
-	for pi, pe := range prevEntries {
+	for _, pe := range prevEntries {
 		for _, fm := range pe.RowMeta.Fields {
 			if fm.RefTable == "" || fm.IsOmit {
 				continue
@@ -232,8 +223,8 @@ func buildJoinOnClause(entry *queryTableEntry, prevEntries []queryTableEntry, cu
 				if refCol == "" {
 					refCol = "id"
 				}
-				leftAlias := fmt.Sprintf("t%d", currentAlias)
-				rightAlias := fmt.Sprintf("t%d", pi+1)
+				leftAlias := entry.Alias
+				rightAlias := pe.Alias
 				conditions = append(conditions,
 					fmt.Sprintf("%s.%s = %s.%s",
 						leftAlias, refCol,
@@ -257,30 +248,28 @@ func buildQueryListSQL(d dialect.DialectProvider, qm *queryMeta) string {
 	}
 
 	var selectCols []string
-	for i, entry := range qm.entries {
-		alias := fmt.Sprintf("t%d", i+1)
+	for _, entry := range qm.entries {
 		for _, col := range entry.RowMeta.Columns {
-			selectCols = append(selectCols, d.QuoteIdent(alias)+"."+d.QuoteIdent(col))
+			selectCols = append(selectCols, d.QuoteIdent(entry.Alias)+"."+d.QuoteIdent(col))
 		}
 	}
 
-	primaryAlias := "t1"
+	primaryAlias := qm.entries[0].Alias
 	sql := sqlSelect + strings.Join(selectCols, sqlCommaSpace) +
 		sqlFrom + d.QuoteIdent(qm.entries[0].TableName) + " AS " + primaryAlias
 
 	for i := 1; i < len(qm.entries); i++ {
 		entry := qm.entries[i]
-		alias := fmt.Sprintf("t%d", i+1)
 		joinType := entry.JoinType
 		if joinType == "" {
 			joinType = "INNER"
 		}
 		sql += fmt.Sprintf(" %s JOIN %s AS %s ON %s",
-			joinType, d.QuoteIdent(entry.TableName), alias, entry.OnClause)
+			joinType, d.QuoteIdent(entry.TableName), entry.Alias, entry.OnClause)
 	}
 
 	if len(qm.entries[0].RowMeta.SortFields) > 0 {
-		sql += buildOrderByClause(d, qm.entries[0].RowMeta, "t1")
+		sql += buildOrderByClause(d, qm.entries[0].RowMeta, qm.entries[0].Alias)
 	}
 
 	return sql
@@ -290,14 +279,13 @@ func buildQueryListSQL(d dialect.DialectProvider, qm *queryMeta) string {
 // EN: buildQualifiedColumns builds the mapping of SELECT columns to QROW fields.
 func buildQualifiedColumns(qm *queryMeta) []qualifiedColumn {
 	var cols []qualifiedColumn
-	for i, entry := range qm.entries {
-		alias := fmt.Sprintf("t%d", i+1)
+	for _, entry := range qm.entries {
 		for _, fm := range entry.RowMeta.Fields {
 			if fm.IsOmit {
 				continue
 			}
 			cols = append(cols, qualifiedColumn{
-				TableAlias: alias,
+				TableAlias: entry.Alias,
 				Column:     fm.Column,
 			})
 		}

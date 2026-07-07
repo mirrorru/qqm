@@ -116,7 +116,7 @@ func TestSmoke_MultiQuery_LEFT_JOIN(t *testing.T) {
 	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: 1, Amount: 150.0})
 	require.NoError(t, err)
 
-	q, err := qqm.NewQuery[fixtures.UserWithOrderPtr](dialect.SQLiteDialect{})
+	q, err := qqm.NewQuery[fixtures.UserWithOrderLeft](dialect.SQLiteDialect{})
 	require.NoError(t, err)
 
 	results, err := q.List(ctx, ex)
@@ -124,19 +124,18 @@ func TestSmoke_MultiQuery_LEFT_JOIN(t *testing.T) {
 	assert.Len(t, results, 2)
 
 	// Map results by user name for order-independent assertions
-	byName := make(map[string]fixtures.UserWithOrderPtr)
+	byName := make(map[string]fixtures.UserWithOrderLeft)
 	for _, r := range results {
 		byName[r.User.Name] = *r
 	}
 
 	alice, ok := byName["Alice"]
 	require.True(t, ok)
-	require.NotNil(t, alice.Order)
 	assert.Equal(t, 150.0, alice.Order.Amount)
 
 	bob, ok := byName["Bob"]
 	require.True(t, ok)
-	assert.Nil(t, bob.Order)
+	assert.Equal(t, float64(0), bob.Order.Amount)
 }
 
 func TestSmoke_MultiQuery_ThreeTableJoin(t *testing.T) {
@@ -287,7 +286,7 @@ func TestSmoke_MultiQuery_One_LEFT(t *testing.T) {
 	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 150.0})
 	require.NoError(t, err)
 
-	q, err := qqm.NewQuery[fixtures.UserWithOrderPtr](dialect.SQLiteDialect{})
+	q, err := qqm.NewQuery[fixtures.UserWithOrderLeft](dialect.SQLiteDialect{})
 	require.NoError(t, err)
 
 	t.Run("One with LEFT JOIN returns user with order", func(t *testing.T) {
@@ -295,16 +294,16 @@ func TestSmoke_MultiQuery_One_LEFT(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, row)
 		assert.Equal(t, "Alice", row.User.Name)
-		require.NotNil(t, row.Order)
 		assert.Equal(t, 150.0, row.Order.Amount)
 	})
 
-	t.Run("One with LEFT JOIN returns user without order as nil", func(t *testing.T) {
+	t.Run("One with LEFT JOIN returns user without order as zero value", func(t *testing.T) {
 		row, err := q.One(ctx, ex, int64(2))
 		require.NoError(t, err)
 		require.NotNil(t, row)
 		assert.Equal(t, "Bob", row.User.Name)
-		assert.Nil(t, row.Order)
+		assert.Equal(t, int64(0), row.Order.ID)
+		assert.Equal(t, float64(0), row.Order.Amount)
 	})
 }
 

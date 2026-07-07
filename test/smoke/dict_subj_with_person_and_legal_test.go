@@ -89,21 +89,17 @@ func TestSmoke_MultiQuery_DictSubjWithPersonAndLegal(t *testing.T) {
 
 		subj1Row := byName["Subject 1"]
 		assert.Equal(t, subj1.ID, subj1Row.Subj.ID)
-		require.NotNil(t, subj1Row.Person, "Person should not be nil when record exists")
 		assert.Equal(t, fixtures.SomeVal(100), subj1Row.Person.Val)
-		require.NotNil(t, subj1Row.Legal, "Legal should not be nil when record exists")
 		assert.Equal(t, fixtures.SubjINN("INN-001"), subj1Row.Legal.INN)
 
 		subj2Row := byName["Subject 2"]
 		assert.Equal(t, subj2.ID, subj2Row.Subj.ID)
-		require.NotNil(t, subj2Row.Person, "Person should not be nil when record exists")
 		assert.Equal(t, fixtures.SomeVal(200), subj2Row.Person.Val)
-		assert.Nil(t, subj2Row.Legal, "Legal should be nil when no record exists")
+		assert.Equal(t, fixtures.SubjINN(""), subj2Row.Legal.INN)
 
 		subj3Row := byName["Subject 3"]
 		assert.Equal(t, subj3.ID, subj3Row.Subj.ID)
-		assert.Nil(t, subj3Row.Person, "Person should be nil when no record exists")
-		require.NotNil(t, subj3Row.Legal, "Legal should not be nil when record exists")
+		assert.Equal(t, fixtures.SomeVal(0), subj3Row.Person.Val)
 		assert.Equal(t, fixtures.SubjINN("INN-003"), subj3Row.Legal.INN)
 	})
 
@@ -113,9 +109,7 @@ func TestSmoke_MultiQuery_DictSubjWithPersonAndLegal(t *testing.T) {
 		require.NotNil(t, row)
 		assert.Equal(t, subj1.ID, row.Subj.ID)
 		assert.Equal(t, "Subject 1", string(row.Subj.Name))
-		require.NotNil(t, row.Person, "Person should not be nil")
 		assert.Equal(t, fixtures.SomeVal(100), row.Person.Val)
-		require.NotNil(t, row.Legal, "Legal should not be nil")
 		assert.Equal(t, fixtures.SubjINN("INN-001"), row.Legal.INN)
 	})
 
@@ -124,9 +118,8 @@ func TestSmoke_MultiQuery_DictSubjWithPersonAndLegal(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, row)
 		assert.Equal(t, subj2.ID, row.Subj.ID)
-		require.NotNil(t, row.Person, "Person should not be nil")
 		assert.Equal(t, fixtures.SomeVal(200), row.Person.Val)
-		assert.Nil(t, row.Legal, "Legal should be nil")
+		assert.Equal(t, fixtures.SubjINN(""), row.Legal.INN)
 	})
 
 	t.Run("One returns subject with Legal only", func(t *testing.T) {
@@ -134,8 +127,7 @@ func TestSmoke_MultiQuery_DictSubjWithPersonAndLegal(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, row)
 		assert.Equal(t, subj3.ID, row.Subj.ID)
-		assert.Nil(t, row.Person, "Person should be nil")
-		require.NotNil(t, row.Legal, "Legal should not be nil")
+		assert.Equal(t, fixtures.SomeVal(0), row.Person.Val)
 		assert.Equal(t, fixtures.SubjINN("INN-003"), row.Legal.INN)
 	})
 }
