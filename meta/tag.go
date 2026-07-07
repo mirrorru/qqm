@@ -66,6 +66,14 @@ const (
 	// EN: tagInsert — field participates in INSERT but is excluded from UPDATE.
 	// Example: `qqm:"insert"`. Analog: created_at — set on create, not changed on update.
 	tagInsert = "insert"
+
+	// tagAlias — алиас таблицы в SQL. Пример: `qqm:"alias=orders"`.
+	// EN: tagAlias — table alias in SQL. Example: `qqm:"alias=orders"`.
+	tagAlias = "alias="
+
+	// tagOn — явное условие JOIN. Пример: `qqm:"on=t1.user_id = t3.manager_id"`.
+	// EN: tagOn — explicit JOIN condition. Example: `qqm:"on=t1.user_id = t3.manager_id"`.
+	tagOn = "on="
 )
 
 // TagName содержит имя тега для метаданных.
@@ -75,28 +83,30 @@ var TagName = "qqm"
 // TagOptions содержит разобранные опции тега qqm.
 // EN: TagOptions holds parsed options of the qqm tag.
 type TagOptions struct {
-	Col       string // Имя колонки (из col=). / EN: Column name (from col=).
-	IsPK      bool   // Является ли первичным ключом. / EN: Is primary key.
-	RefTable  string // Таблица для FK (из ref=). / EN: Table for FK (from ref=).
-	RefCol    string // Колонка для FK. / EN: Column for FK.
-	Prefix    string // Префикс колонок (из prefix=). / EN: Column prefix (from prefix=).
-	Update    bool   // Разрешает UPDATE для auto-полей. / EN: Allows UPDATE for auto fields.
-	Auto      bool   // Автогенерируемое поле. / EN: Auto-generated field.
-	Omit      bool   // Пропустить при генерации SQL. / EN: Skip during SQL generation.
-	JoinType  string // Тип JOIN (из join=). / EN: JOIN type (from join=).
-	IsPrimary bool   // Явно помечена как первичная. / EN: Explicitly marked as primary.
-	TableName string // Переопределённое имя таблицы (из table=). / EN: Overridden table name (from table=).
-	Sort      int    // Позиция в сортировке (0 если не задана). / EN: Position in ordering (0 if not set).
-	SortDir   string // Направление: "ASC" (по умолчанию) или "DESC". / EN: Sort direction: "ASC" (default) or "DESC".
-	Create    string // Строка для CREATE TABLE (из create=...). / EN: Column definition for CREATE TABLE (from create=...).
-	Insert    bool   // Участвует в INSERT, исключается из UPDATE. / EN: Participates in INSERT, excluded from UPDATE.
+	Col         string // Имя колонки (из col=). / EN: Column name (from col=).
+	IsPK        bool   // Является ли первичным ключом. / EN: Is primary key.
+	RefTable    string // Таблица для FK (из ref=). / EN: Table for FK (from ref=).
+	RefCol      string // Колонка для FK. / EN: Column for FK.
+	Prefix      string // Префикс колонок (из prefix=). / EN: Column prefix (from prefix=).
+	Update      bool   // Разрешает UPDATE для auto-полей. / EN: Allows UPDATE for auto fields.
+	Auto        bool   // Автогенерируемое поле. / EN: Auto-generated field.
+	Omit        bool   // Пропустить при генерации SQL. / EN: Skip during SQL generation.
+	JoinType    string // Тип JOIN (из join=). / EN: JOIN type (from join=).
+	IsPrimary   bool   // Явно помечена как первичная. / EN: Explicitly marked as primary.
+	TableName   string // Переопределённое имя таблицы (из table=). / EN: Overridden table name (from table=).
+	Sort        int    // Позиция в сортировке (0 если не задана). / EN: Position in ordering (0 if not set).
+	SortDir     string // Направление: "ASC" (по умолчанию) или "DESC". / EN: Sort direction: "ASC" (default) or "DESC".
+	Create      string // Строка для CREATE TABLE (из create=...). / EN: Column definition for CREATE TABLE (from create=...).
+	Insert      bool   // Участвует в INSERT, исключается из UPDATE. / EN: Participates in INSERT, excluded from UPDATE.
+	Alias       string // Алиас таблицы (из alias=). / EN: Table alias (from alias=).
+	OnCondition string // Явное условие JOIN (из on=). / EN: Explicit JOIN condition (from on=).
 }
 
 // ParseTag разбирает строку тега qqm в TagOptions.
-// Формат: "col=name;pk;ref=users.id;prefix=audit_;update;auto;omit;join=LEFT;primary;insert"
+// Формат: "col=name;pk;ref=users.id;prefix=audit_;update;auto;omit;join=LEFT;primary;insert;alias=orders;on=t1.id=t2.ref_id"
 // Разделитель — точка с запятой (;). Тег "pk" — флаг, порядок определяется объявлением в структуре.
 // EN: ParseTag parses the qqm tag string into TagOptions.
-// Format: "col=name;pk;ref=users.id;prefix=audit_;update;auto;omit;join=LEFT;primary;insert"
+// Format: "col=name;pk;ref=users.id;prefix=audit_;update;auto;omit;join=LEFT;primary;insert;alias=orders;on=t1.id=t2.ref_id"
 // Separator — semicolon (;). "pk" tag is a flag; order is by struct declaration.
 func ParseTag(raw string) TagOptions {
 	var opts TagOptions
@@ -169,6 +179,10 @@ func ParseTag(raw string) TagOptions {
 			opts.Create = seg[7:]
 		case seg == tagInsert:
 			opts.Insert = true
+		case len(seg) > 6 && seg[:6] == tagAlias:
+			opts.Alias = seg[6:]
+		case len(seg) > 3 && seg[:3] == tagOn:
+			opts.OnCondition = seg[3:]
 		}
 
 		if i < n {

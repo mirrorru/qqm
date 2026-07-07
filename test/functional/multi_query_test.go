@@ -88,26 +88,25 @@ func TestFunctional_MultiQuery_LEFT_JOIN_PostgreSQL(t *testing.T) {
 	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 150.0})
 	require.NoError(t, err)
 
-	q, err := qqm.NewQuery[fixtures.UserWithOrderPtr](dialect.PostgreSQLDialect{})
+	q, err := qqm.NewQuery[fixtures.UserWithOrderLeft](dialect.PostgreSQLDialect{})
 	require.NoError(t, err)
 
 	results, err := q.List(ctx, ex)
 	require.NoError(t, err)
 	assert.Len(t, results, 2)
 
-	byName := make(map[string]fixtures.UserWithOrderPtr)
+	byName := make(map[string]fixtures.UserWithOrderLeft)
 	for _, r := range results {
 		byName[r.User.Name] = *r
 	}
 
 	aliceRow, ok := byName["Alice"]
 	require.True(t, ok)
-	require.NotNil(t, aliceRow.Order)
 	assert.Equal(t, 150.0, aliceRow.Order.Amount)
 
 	bobRow, ok := byName["Bob"]
 	require.True(t, ok)
-	assert.Nil(t, bobRow.Order)
+	assert.Equal(t, float64(0), bobRow.Order.Amount)
 }
 
 func TestFunctional_MultiQuery_ThreeTableJoin_PostgreSQL(t *testing.T) {
@@ -143,7 +142,7 @@ func TestFunctional_MultiQuery_ThreeTableJoin_PostgreSQL(t *testing.T) {
 		assert.Equal(t, alice.ID, r.User.ID)
 		assert.Equal(t, "Alice", r.User.Name)
 		assert.Equal(t, insertedOrder.ID, r.Order.ID)
-		require.NotNil(t, r.OrderItem)
+		assert.Equal(t, insertedOrder.ID, r.OrderItem.OrderID)
 	}
 }
 
@@ -163,7 +162,7 @@ func TestFunctional_MultiQuery_FilterOnlyPrimary_PostgreSQL(t *testing.T) {
 	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 100.0})
 	require.NoError(t, err)
 
-	q, err := qqm.NewQuery[fixtures.UserWithOrderPtr](dialect.PostgreSQLDialect{})
+	q, err := qqm.NewQuery[fixtures.UserWithOrderLeft](dialect.PostgreSQLDialect{})
 	require.NoError(t, err)
 
 	t.Run("Gt filter on primary table only", func(t *testing.T) {
@@ -173,7 +172,7 @@ func TestFunctional_MultiQuery_FilterOnlyPrimary_PostgreSQL(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, results, 1)
 		assert.Equal(t, "Bob", results[0].User.Name)
-		assert.Nil(t, results[0].Order)
+		assert.Equal(t, float64(0), results[0].Order.Amount)
 	})
 
 	t.Run("Eq filter on primary table only", func(t *testing.T) {
@@ -183,7 +182,7 @@ func TestFunctional_MultiQuery_FilterOnlyPrimary_PostgreSQL(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, results, 1)
 		assert.Equal(t, "Alice", results[0].User.Name)
-		require.NotNil(t, results[0].Order)
+		assert.Equal(t, float64(100.0), results[0].Order.Amount)
 	})
 }
 
@@ -278,7 +277,7 @@ func TestFunctional_MultiQuery_One_LEFT_PostgreSQL(t *testing.T) {
 	_, err = orderTbl.Insert(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 150.0})
 	require.NoError(t, err)
 
-	q, err := qqm.NewQuery[fixtures.UserWithOrderPtr](dialect.PostgreSQLDialect{})
+	q, err := qqm.NewQuery[fixtures.UserWithOrderLeft](dialect.PostgreSQLDialect{})
 	require.NoError(t, err)
 
 	t.Run("One returns user with order", func(t *testing.T) {
@@ -286,16 +285,15 @@ func TestFunctional_MultiQuery_One_LEFT_PostgreSQL(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, row)
 		assert.Equal(t, "Alice", row.User.Name)
-		require.NotNil(t, row.Order)
 		assert.Equal(t, 150.0, row.Order.Amount)
 	})
 
-	t.Run("One returns user without order as nil", func(t *testing.T) {
+	t.Run("One returns user without order as zero value", func(t *testing.T) {
 		row, err := q.One(ctx, ex, bob.ID)
 		require.NoError(t, err)
 		require.NotNil(t, row)
 		assert.Equal(t, "Bob", row.User.Name)
-		assert.Nil(t, row.Order)
+		assert.Equal(t, float64(0), row.Order.Amount)
 	})
 }
 

@@ -174,17 +174,24 @@ type UserWithOrder struct {
 	Order Order
 }
 
-// UserWithOrderPtr — Query-структура: User + *Order (LEFT JOIN по умолчанию для указателя)
+// UserWithOrderPtr — Query-структура: User + Order (LEFT JOIN для поддержки NULL)
+// Deprecated: Use UserWithOrderLeft instead.
 type UserWithOrderPtr struct {
 	User  User
-	Order *Order
+	Order Order
+}
+
+// UserWithOrderLeft — Query-структура: User + Order (LEFT JOIN для поддержки NULL)
+type UserWithOrderLeft struct {
+	User  User
+	Order Order `qqm:"join=LEFT"`
 }
 
 // UserOrderItem — Query-структура с тремя таблицами: User + Order + OrderItem
 type UserOrderItem struct {
 	User      User
 	Order     Order
-	OrderItem *OrderItem
+	OrderItem OrderItem
 }
 
 // UserWithSort — структура с sort-тегами

@@ -3,9 +3,9 @@ package fixtures
 import "time"
 
 type DictSubjWithPersonAndLegal struct {
-	Subj   DictsSubjTableRowShort   `qqm:"primary"`
-	Person *DictsSubjPersonRowShort `qqm:"join=LEFT"`
-	Legal  *DictsSubjLegalRowShort  `qqm:"join=LEFT"`
+	Subj   DictsSubjTableRowShort  `qqm:"primary"`
+	Person DictsSubjPersonRowShort `qqm:"join=LEFT"`
+	Legal  DictsSubjLegalRowShort  `qqm:"join=LEFT"`
 }
 
 type dictsSubjTableMarker struct{}

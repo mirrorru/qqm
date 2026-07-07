@@ -144,60 +144,36 @@ type scanContext struct {
 // entryScanCtx содержит контекст для сканирования одной таблицы в Query.
 // EN: entryScanCtx holds scan context for one table in Query.
 type entryScanCtx struct {
-	isPointer    bool
 	fieldStart   int
-	pkFieldIdx   []int
-	tempAny      []any
-	rowMeta      *meta.RowMeta
 	fieldIndexes [][]int
-	applyFields  []*meta.FieldMeta
+	tempAny      []any
 }
 
 // buildScanTemplate создаёт шаблон для сканирования строк результата.
 // Обрабатывает как обычные поля, так и указатели (*ROW).
 // EN: buildScanTemplate creates a template for scanning result rows.
-// Handles both regular fields and pointers (*ROW).
 func buildScanTemplate(qm *queryMeta) *scanContext {
 	sc := &scanContext{}
 
 	for _, entry := range qm.entries {
 		ec := entryScanCtx{
-			isPointer:  entry.IsPointer,
 			fieldStart: len(sc.dest),
-			rowMeta:    entry.RowMeta,
 		}
 
-		if !entry.IsPointer {
-			for _, fm := range entry.RowMeta.Fields {
-				if fm.IsOmit {
-					continue
-				}
-				combinedIdx := make([]int, 0, len(fm.Index)+1)
-				combinedIdx = append(combinedIdx, entry.FieldIndex)
-				combinedIdx = append(combinedIdx, fm.Index...)
-				ec.fieldIndexes = append(ec.fieldIndexes, combinedIdx)
+		nonOmitCount := countNonOmitFields(entry.RowMeta)
+		ec.tempAny = make([]any, nonOmitCount)
+		for i := 0; i < nonOmitCount; i++ {
+			sc.dest = append(sc.dest, &ec.tempAny[i])
+		}
 
-				sc.dest = append(sc.dest, nil)
-				if fm.IsPK {
-					ec.pkFieldIdx = append(ec.pkFieldIdx, len(sc.dest)-1-ec.fieldStart)
-				}
+		for _, fm := range entry.RowMeta.Fields {
+			if fm.IsOmit {
+				continue
 			}
-		} else {
-			nonOmitCount := countNonOmitFields(entry.RowMeta)
-			ec.tempAny = make([]any, nonOmitCount)
-			for i := 0; i < nonOmitCount; i++ {
-				sc.dest = append(sc.dest, &ec.tempAny[i])
-			}
-
-			for _, fm := range entry.RowMeta.Fields {
-				if fm.IsOmit {
-					continue
-				}
-				ec.applyFields = append(ec.applyFields, fm)
-				if fm.IsPK {
-					ec.pkFieldIdx = append(ec.pkFieldIdx, len(ec.applyFields)-1)
-				}
-			}
+			combinedIdx := make([]int, 0, len(fm.Index)+1)
+			combinedIdx = append(combinedIdx, entry.FieldIndex)
+			combinedIdx = append(combinedIdx, fm.Index...)
+			ec.fieldIndexes = append(ec.fieldIndexes, combinedIdx)
 		}
 
 		sc.entries = append(sc.entries, ec)
@@ -209,66 +185,55 @@ func buildScanTemplate(qm *queryMeta) *scanContext {
 // resetForRow обновляет dest-ы для нового значения QROW.
 // Для pointer-полей переиспользует уже аллоцированные структуры из result slice.
 // EN: resetForRow updates dests for a new QROW value.
-// For pointer fields, reuses already allocated structs from result slice.
 func (sc *scanContext) resetForRow(qrow reflect.Value) {
 	for ei := range sc.entries {
 		ec := &sc.entries[ei]
-		if ec.isPointer {
-			for i := range ec.tempAny {
-				ec.tempAny[i] = nil
-			}
-		} else {
-			for fi := range ec.fieldIndexes {
-				fv := qrow.FieldByIndex(ec.fieldIndexes[fi])
-				sc.dest[ec.fieldStart+fi] = fv.Addr().Interface()
-			}
+		for i := range ec.tempAny {
+			ec.tempAny[i] = nil
 		}
 	}
 }
 
-// apply копирует данные из tempAny в QROW для указательных полей.
-// Обрабатывает случай NULL: если все PK-значения nil, поле остаётся nil.
-// EN: apply copies data from tempAny into QROW for pointer fields.
-// Handles NULL case: if all PK values are nil, the field remains nil.
+// apply handles NULL detection for outer joins and copies data to struct fields.
+// For outer join entries: if all scanned values are NULL (nil), struct is set to zero value.
+// Otherwise: copies data from tempAny to struct fields via fieldIndexes.
+// EN: apply handles NULL detection and data copying for each entry.
 func (sc *scanContext) apply(qm *queryMeta, qrow reflect.Value) {
 	for ei, entry := range qm.entries {
 		ec := sc.entries[ei]
-		if !ec.isPointer {
-			continue
-		}
 
-		allPKNull := true
-		for _, pkIdx := range ec.pkFieldIdx {
-			if ec.tempAny[pkIdx] != nil {
-				allPKNull = false
+		isOuterJoin := entry.JoinType == "LEFT" || entry.JoinType == "RIGHT" || entry.JoinType == "FULL"
+
+		allNull := true
+		for _, v := range ec.tempAny {
+			if v != nil {
+				allNull = false
 				break
 			}
 		}
 
-		if allPKNull {
+		if allNull && isOuterJoin {
 			ptrField := qrow.Field(entry.FieldIndex)
 			ptrField.Set(reflect.Zero(ptrField.Type()))
-		} else {
-			allocated := reflect.New(entry.RowType).Elem()
-			for fi, fm := range ec.applyFields {
-				dst := allocated.FieldByIndex(fm.Index)
-				srcVal := reflect.ValueOf(ec.tempAny[fi])
-				if !srcVal.IsValid() {
-					continue
-				}
-				if srcVal.Type().AssignableTo(dst.Type()) {
-					dst.Set(srcVal)
-				} else if srcVal.Type().ConvertibleTo(dst.Type()) {
-					dst.Set(srcVal.Convert(dst.Type()))
-				}
+			continue
+		}
+
+		for fi, idx := range ec.fieldIndexes {
+			fv := qrow.FieldByIndex(idx)
+			srcVal := reflect.ValueOf(ec.tempAny[fi])
+			if !srcVal.IsValid() {
+				continue
 			}
-			ptrField := qrow.Field(entry.FieldIndex)
-			ptrField.Set(allocated.Addr())
+			if srcVal.Type().AssignableTo(fv.Type()) {
+				fv.Set(srcVal)
+			} else if srcVal.Type().ConvertibleTo(fv.Type()) {
+				fv.Set(srcVal.Convert(fv.Type()))
+			}
 		}
 	}
 }
 
-// countNonOmitFields считает количество не-omit полей в RowMeta.
+// countNonOmitFields counts non-omit fields in RowMeta.
 // EN: countNonOmitFields counts non-omit fields in RowMeta.
 func countNonOmitFields(rm *meta.RowMeta) int {
 	count := 0

@@ -20,13 +20,13 @@ func TestNewQuery_InvalidType(t *testing.T) {
 		assert.Contains(t, err.Error(), "QROW must be a struct")
 	})
 
-	t.Run("no struct fields", func(t *testing.T) {
-		type Empty struct {
+	t.Run("non-struct field in QROW", func(t *testing.T) {
+		type NotAStruct struct {
 			Name string
 		}
-		_, err := NewQuery[Empty](dialect.SQLiteDialect{})
+		_, err := NewQuery[NotAStruct](dialect.SQLiteDialect{})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "at least one struct field")
+		assert.Contains(t, err.Error(), "must be a struct")
 	})
 }
 
@@ -37,21 +37,19 @@ func TestNewQuery_Metadata(t *testing.T) {
 		require.Len(t, q.qmeta.entries, 2)
 	})
 
-	t.Run("primary is first non-pointer field", func(t *testing.T) {
+	t.Run("primary is first field", func(t *testing.T) {
 		q, err := NewQuery[fixtures.UserWithOrder](dialect.SQLiteDialect{})
 		require.NoError(t, err)
 
 		assert.Equal(t, "User", q.qmeta.entries[0].FieldName)
 		assert.Equal(t, "INNER", q.qmeta.entries[0].JoinType)
-		assert.False(t, q.qmeta.entries[0].IsPointer)
 
 		assert.Equal(t, "Order", q.qmeta.entries[1].FieldName)
 		assert.Equal(t, "INNER", q.qmeta.entries[1].JoinType)
-		assert.False(t, q.qmeta.entries[1].IsPointer)
 	})
 
-	t.Run("UserWithOrderPtr has LEFT JOIN for pointer", func(t *testing.T) {
-		q, err := NewQuery[fixtures.UserWithOrderPtr](dialect.SQLiteDialect{})
+	t.Run("UserWithOrderPtr has LEFT JOIN", func(t *testing.T) {
+		q, err := NewQuery[fixtures.UserWithOrderLeft](dialect.SQLiteDialect{})
 		require.NoError(t, err)
 
 		assert.Equal(t, "User", q.qmeta.entries[0].FieldName)
@@ -59,7 +57,6 @@ func TestNewQuery_Metadata(t *testing.T) {
 
 		assert.Equal(t, "Order", q.qmeta.entries[1].FieldName)
 		assert.Equal(t, "LEFT", q.qmeta.entries[1].JoinType)
-		assert.True(t, q.qmeta.entries[1].IsPointer)
 	})
 
 	t.Run("UserOrderItem has three entries", func(t *testing.T) {
@@ -70,7 +67,6 @@ func TestNewQuery_Metadata(t *testing.T) {
 		assert.Equal(t, "User", q.qmeta.entries[0].FieldName)
 		assert.Equal(t, "Order", q.qmeta.entries[1].FieldName)
 		assert.Equal(t, "OrderItem", q.qmeta.entries[2].FieldName)
-		assert.True(t, q.qmeta.entries[2].IsPointer)
 	})
 }
 
@@ -86,8 +82,8 @@ func TestNewQuery_JOINSQL(t *testing.T) {
 		assert.Contains(t, sql, "t2.user_id = t1.id")
 	})
 
-	t.Run("UserWithOrderPtr SQL has LEFT JOIN", func(t *testing.T) {
-		q, err := NewQuery[fixtures.UserWithOrderPtr](dialect.SQLiteDialect{})
+	t.Run("UserWithOrderLeft SQL has LEFT JOIN", func(t *testing.T) {
+		q, err := NewQuery[fixtures.UserWithOrderLeft](dialect.SQLiteDialect{})
 		require.NoError(t, err)
 
 		sql := q.qmeta.listSQL
@@ -349,16 +345,22 @@ func (m *mockOneRow) Scan(dest ...any) error {
 		if i >= len(m.data) {
 			break
 		}
-		if m.data[i] == nil {
+		v := reflect.ValueOf(d)
+		if v.Kind() != reflect.Pointer || v.IsNil() {
 			continue
 		}
-		v := reflect.ValueOf(d)
-		if v.Kind() == reflect.Pointer && !v.IsNil() {
-			elem := v.Elem()
-			srcVal := reflect.ValueOf(m.data[i])
-			if srcVal.Type().AssignableTo(elem.Type()) {
-				elem.Set(srcVal)
+		elem := v.Elem()
+		if m.data[i] == nil {
+			if elem.CanSet() {
+				elem.Set(reflect.Zero(elem.Type()))
 			}
+			continue
+		}
+		srcVal := reflect.ValueOf(m.data[i])
+		if srcVal.Type().AssignableTo(elem.Type()) {
+			elem.Set(srcVal)
+		} else if srcVal.Type().ConvertibleTo(elem.Type()) {
+			elem.Set(srcVal.Convert(elem.Type()))
 		}
 	}
 	return nil
@@ -412,7 +414,7 @@ func TestQuery_One_INNER_JOIN(t *testing.T) {
 }
 
 func TestQuery_One_LEFT_JOIN(t *testing.T) {
-	q, err := NewQuery[fixtures.UserWithOrderPtr](dialect.SQLiteDialect{})
+	q, err := NewQuery[fixtures.UserWithOrderLeft](dialect.SQLiteDialect{})
 	require.NoError(t, err)
 
 	mock := &mockOneEx{
@@ -426,7 +428,7 @@ func TestQuery_One_LEFT_JOIN(t *testing.T) {
 	require.NotNil(t, row)
 	assert.Equal(t, int64(1), row.User.ID)
 	assert.Equal(t, "Alice", row.User.Name)
-	require.NotNil(t, row.Order)
+	assert.Equal(t, int64(1), row.Order.ID)
 	assert.InEpsilon(t, 150.0, row.Order.Amount, 0)
 
 	assert.Contains(t, mock.query, "WHERE")
@@ -434,7 +436,7 @@ func TestQuery_One_LEFT_JOIN(t *testing.T) {
 }
 
 func TestQuery_One_LEFT_JOIN_NoOrder(t *testing.T) {
-	q, err := NewQuery[fixtures.UserWithOrderPtr](dialect.SQLiteDialect{})
+	q, err := NewQuery[fixtures.UserWithOrderLeft](dialect.SQLiteDialect{})
 	require.NoError(t, err)
 
 	mock := &mockOneEx{
@@ -448,7 +450,8 @@ func TestQuery_One_LEFT_JOIN_NoOrder(t *testing.T) {
 	require.NotNil(t, row)
 	assert.Equal(t, int64(2), row.User.ID)
 	assert.Equal(t, "Bob", row.User.Name)
-	assert.Nil(t, row.Order)
+	assert.Equal(t, int64(0), row.Order.ID)
+	assert.Equal(t, float64(0), row.Order.Amount)
 }
 
 func TestQuery_One_ThreeTableJoin(t *testing.T) {
@@ -471,7 +474,6 @@ func TestQuery_One_ThreeTableJoin(t *testing.T) {
 	assert.Equal(t, int64(1), row.User.ID)
 	assert.Equal(t, "Alice", row.User.Name)
 	assert.Equal(t, int64(1), row.Order.ID)
-	require.NotNil(t, row.OrderItem)
 	assert.Equal(t, 2, row.OrderItem.Quantity)
 	assert.InEpsilon(t, 25.0, row.OrderItem.Price, 0)
 }
