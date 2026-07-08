@@ -1,6 +1,7 @@
 package field_info
 
 import (
+	"context"
 	"reflect"
 	"strings"
 
@@ -23,9 +24,21 @@ type Table[ROW any] struct {
 	DeleteSQL     string
 }
 type TableDefinition struct {
-	TableName string
-	Fields    TableFields
-	Dialect   dialect.DialectProvider
+	TableName  string
+	Fields     TableFields
+	Dialect    dialect.DialectProvider
+	FieldNames map[string]int
+	Indexes    fieldsIndexes
+	SQL        sqlTexts
+}
+
+type sqlTexts struct {
+	InsertCmd      string
+	UpdateCmd      string
+	DeleteCmd      string
+	GetOneCmd      string
+	ListCmdStart   string
+	ListSortString string
 }
 
 func NewTable[ROW any](dialect dialect.DialectProvider) *Table[ROW] {
@@ -44,36 +57,76 @@ func NewTable[ROW any](dialect dialect.DialectProvider) *Table[ROW] {
 	}
 
 	fields := dot.MustMake(CollectTableFields(rowType))
-
+	names := make(map[string]int, len(fields))
 	for idx := range fields {
 		fields[idx].SQLName = dialect.QuoteIdent(fields[idx].SQLName)
+		names[fields[idx].SQLName] = idx
 	}
+	tableDef := TableDefinition{
+		TableName:  sqlName,
+		Fields:     fields,
+		Dialect:    dialect,
+		Indexes:    fields.allIndexes(),
+		FieldNames: names,
+	}
+	tableDef.makeSQLs()
 	result := &Table[ROW]{
-		tableDef: TableDefinition{
-			TableName: sqlName,
-			Fields:    fields,
-			Dialect:   dialect,
-		},
+		tableDef: tableDef,
 	}
-	result.InsertSQL = buildInsertSQL(&result.tableDef)
 
 	return result
+}
+
+type TX interface{}
+type Filter interface{}
+
+func (t *Table[ROW]) Defs() TableDefinition {
+	return t.tableDef
+}
+
+func (t *Table[ROW]) Ins(ctx context.Context, tx TX, row *ROW) (*ROW, error) {
+	return nil, nil
+}
+
+func (t *Table[ROW]) Upd(ctx context.Context, tx TX, row *ROW) (*ROW, error) {
+	return nil, nil
+}
+
+func (t *Table[ROW]) One(ctx context.Context, tx TX, keys ...any) (*ROW, error) {
+	return nil, nil
+}
+
+func (t *Table[ROW]) Del(ctx context.Context, tx TX, keys ...any) (*ROW, error) {
+	return nil, nil
+}
+
+func (t *Table[ROW]) Many(ctx context.Context, tx TX, filter Filter) (*ROW, error) {
+	return nil, nil
+}
+
+func (td *TableDefinition) makeSQLs() {
+	td.SQL = sqlTexts{
+		InsertCmd:      buildInsertSQL(td),
+		UpdateCmd:      buildUpdateSQL(td),
+		DeleteCmd:      buildDeleteSQL(td),
+		GetOneCmd:      buildGetOneSQL(td),
+		ListCmdStart:   buildListSQL(td),
+		ListSortString: buildOrderByClause(td),
+	}
 }
 
 // buildInsertSQL формирует SQL INSERT с учётом диалекта и метаданных.
 // EN: buildInsertSQL builds INSERT SQL accounting for dialect and metadata.
 func buildInsertSQL(td *TableDefinition) string {
-	insCols := td.Fields.InsertingColsIdx()
-	if len(insCols) == 0 {
+	if len(td.Indexes.InsertIdx) == 0 {
 		return ""
 	}
 
-	d := td.Dialect
-	colNames := make([]string, len(insCols))
-	placeholders := make([]string, len(insCols))
-	for i := range insCols {
+	colNames := make([]string, len(td.Indexes.InsertIdx))
+	placeholders := make([]string, len(td.Indexes.InsertIdx))
+	for i := range td.Indexes.InsertIdx {
 		colNames[i] = td.Fields[i].SQLName
-		placeholders[i] = d.Placeholder(i + 1)
+		placeholders[i] = td.Dialect.Placeholder(i + 1)
 	}
 
 	var sb strings.Builder
@@ -81,134 +134,160 @@ func buildInsertSQL(td *TableDefinition) string {
 	sb.WriteString(defs.SQLInsertInto)
 	sb.WriteString(td.Dialect.QuoteIdent(td.TableName))
 	sb.WriteString(defs.SQLOpenParen)
-	sb.WriteString(strings.Join(colNames, defs.SQLCommaSpace))
+	for pos, idx := range td.Indexes.InsertIdx {
+		if pos > 0 {
+			sb.WriteString(defs.SQLCommaSpace)
+		}
+		sb.WriteString(td.Fields[idx].SQLName)
+	}
 	sb.WriteString(defs.SQLCloseParen)
 	sb.WriteString(defs.SQLValues)
 	sb.WriteString(defs.SQLOpenParen)
-	sb.WriteString(strings.Join(placeholders, defs.SQLCommaSpace))
+	for pos := range td.Indexes.InsertIdx {
+		if pos > 0 {
+			sb.WriteString(defs.SQLCommaSpace)
+		}
+		sb.WriteString(td.Dialect.Placeholder(pos + 1))
+	}
 	sb.WriteString(defs.SQLCloseParen)
 
-	if d.SupportsReturning() {
-		retIdx := td.Fields.SelectingColsIdx()
-		allCols := make([]string, len(retIdx))
-		for i := range retIdx {
-			allCols[i] = td.Fields[retIdx[i]].SQLName
-		}
-		sb.WriteString(defs.SQLReturning)
-		sb.WriteString(strings.Join(allCols, defs.SQLCommaSpace))
+	if td.Dialect.SupportsReturning() {
+		writeReturning(td, &sb)
 	}
 
 	return sb.String()
 }
 
-//// buildUpdateSQL формирует SQL UPDATE с учётом диалекта и метаданных.
-//// EN: buildUpdateSQL builds UPDATE SQL accounting for dialect and metadata.
-//func buildUpdateSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-//	cols := m.UpdateColumns()
-//	if len(cols) == 0 || len(m.PKFields) == 0 {
-//		return ""
-//	}
-//
-//	setClauses := make([]string, len(cols))
-//	for i, col := range cols {
-//		setClauses[i] = d.QuoteIdent(col) + defs.SQLEquals + d.Placeholder(i+1)
-//	}
-//
-//	whereClauses := buildWhereClauses(d, m, len(cols))
-//
-//	sql := defs.SQLUpdate + d.QuoteIdent(m.TableName) +
-//		sqlSet + strings.Join(setClauses, defs.SQLCommaSpace) +
-//		sqlWhere + strings.Join(whereClauses, defs.SQLAnd)
-//
-//	if d.SupportsReturning() {
-//		allCols := make([]string, len(m.Columns))
-//		for i, col := range m.Columns {
-//			allCols[i] = d.QuoteIdent(col)
-//		}
-//		sql += defs.SQLReturning + strings.Join(allCols, defs.SQLCommaSpace)
-//	}
-//
-//	return defs.SQL
-//}
-//
-//// buildSelectSQL формирует SQL SELECT по PK с учётом диалекта и метаданных.
-//// EN: buildSelectSQL builds SELECT by PK SQL accounting for dialect and metadata.
-//func buildSelectSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-//	if len(m.PKFields) == 0 {
-//		return ""
-//	}
-//
-//	allCols := make([]string, len(m.Columns))
-//	for i, col := range m.Columns {
-//		allCols[i] = d.QuoteIdent(col)
-//	}
-//
-//	whereClauses := buildWhereClauses(d, m, 0)
-//
-//	return defs.SQLSelect + strings.Join(allCols, defs.SQLCommaSpace) +
-//		sqlFrom + d.QuoteIdent(m.TableName) +
-//		sqlWhere + strings.Join(whereClauses, defs.SQLAnd)
-//}
-//
-//// buildDeleteSQL формирует SQL DELETE по PK с учётом диалекта и метаданных.
-//// EN: buildDeleteSQL builds DELETE by PK SQL accounting for dialect and metadata.
-//func buildDeleteSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-//	if len(m.PKFields) == 0 {
-//		return ""
-//	}
-//
-//	whereClauses := buildWhereClauses(d, m, 0)
-//
-//	return defs.SQLDelete + d.QuoteIdent(m.TableName) +
-//		sqlWhere + strings.Join(whereClauses, defs.SQLAnd)
-//}
-//
-//// buildListSQL формирует SQL SELECT ALL с учётом диалекта, метаданных и сортировки.
-//// EN: buildListSQL builds SELECT ALL SQL accounting for dialect, metadata and sort.
-//func buildListSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-//	allCols := make([]string, len(m.Columns))
-//	for i, col := range m.Columns {
-//		allCols[i] = d.QuoteIdent(col)
-//	}
-//
-//	sql := defs.SQLSelect + strings.Join(allCols, defs.SQLCommaSpace) +
-//		sqlFrom + d.QuoteIdent(m.TableName)
-//
-//	if len(m.SortFields) > 0 {
-//		sql += buildOrderByClause(d, m, "")
-//	}
-//
-//	return defs.SQL
-//}
-//
-//// buildOrderByClause строит "ORDER BY col1 ASC, col2 DESC" из SortFields.
-//// tableAlias — алиас таблицы (например, "t1") для квалифицированных имён в Query; пустая строка для простой таблицы.
-//// EN: buildOrderByClause builds "ORDER BY col1 ASC, col2 DESC" from SortFields.
-//// tableAlias — table alias (e.g. "t1") for qualified names in Query; empty string for a simple table.
-//func buildOrderByClause(d dialect.DialectProvider, m *meta.RowMeta, tableAlias string) string {
-//	parts := make([]string, len(m.SortFields))
-//	for i, sf := range m.SortFields {
-//		dir := defs.SQLAsc
-//		if sf.SortDirection == "DESC" {
-//			dir = defs.SQLDesc
-//		}
-//		col := d.QuoteIdent(sf.Column)
-//		if tableAlias != "" {
-//			col = d.QuoteIdent(tableAlias) + "." + col
-//		}
-//		parts[i] = col + dir
-//	}
-//	return defs.SQLOrderBy + strings.Join(parts, defs.SQLCommaSpace)
-//}
-//
-//// buildWhereClauses формирует условия WHERE для PK-полей.
-//// offset добавляется к индексу плейсхолдеров.
-//// EN: buildWhereClauses builds WHERE conditions for PK fields.
-//// offset is added to placeholder index.
-//func buildWhereClauses(d dialect.DialectProvider, m *meta.RowMeta, offset int) []string {
-//	whereClauses := make([]string, len(m.PKFields))
-//	for i, pk := range m.PKFields {
-//		whereClauses[i] = d.QuoteIdent(pk.Column) + defs.SQLEquals + d.Placeholder(offset+i+1)
-//	}
-//	return whereClauses
-//}
+// buildUpdateSQL формирует SQL UPDATE с учётом диалекта и метаданных.
+// EN: buildUpdateSQL builds UPDATE SQL accounting for dialect and metadata.
+func buildUpdateSQL(td *TableDefinition) string {
+	if len(td.Indexes.UpdateIdx) == 0 || len(td.Indexes.PKIdx) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.Grow(len(td.Indexes.UpdateIdx) * 50)
+	sb.WriteString(defs.SQLUpdate)
+	sb.WriteString(td.TableName)
+	sb.WriteString(defs.SQLSet)
+	for pos, idx := range td.Indexes.UpdateIdx {
+		if pos > 0 {
+			sb.WriteString(defs.SQLCommaSpace)
+		}
+		sb.WriteString(td.Fields[idx].SQLName)
+		sb.WriteString(defs.SQLEquals)
+		sb.WriteString(td.Dialect.Placeholder(pos + 1))
+	}
+	writeWhereClauses(td, len(td.Indexes.UpdateIdx), &sb)
+	if td.Dialect.SupportsReturning() {
+		writeReturning(td, &sb)
+	}
+
+	return sb.String()
+}
+
+// buildGetOneSQL формирует SQL SELECT по PK с учётом диалекта и метаданных.
+// EN: buildGetOneSQL builds SELECT by PK SQL accounting for dialect and metadata.
+func buildGetOneSQL(td *TableDefinition) string {
+	if len(td.Indexes.SelectIdx) == 0 || len(td.Indexes.PKIdx) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.Grow(len(td.Indexes.SelectIdx) * 25)
+	sb.WriteString(defs.SQLSelect)
+	for pos, idx := range td.Indexes.SelectIdx {
+		if pos > 0 {
+			sb.WriteString(defs.SQLCommaSpace)
+		}
+		sb.WriteString(td.Fields[idx].SQLName)
+	}
+	sb.WriteString(defs.SQLFrom)
+	sb.WriteString(td.TableName)
+	writeWhereClauses(td, len(td.Indexes.SelectIdx), &sb)
+	return sb.String()
+}
+
+// buildDeleteSQL формирует SQL DELETE по PK с учётом диалекта и метаданных.
+// EN: buildDeleteSQL builds DELETE by PK SQL accounting for dialect and metadata.
+
+func buildDeleteSQL(td *TableDefinition) string {
+	if len(td.Indexes.PKIdx) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.Grow(150)
+	sb.WriteString(defs.SQLDelete)
+	sb.WriteString(td.TableName)
+	writeWhereClauses(td, 0, &sb)
+	return sb.String()
+}
+
+// buildListSQL формирует SQL SELECT ALL с учётом диалекта, метаданных и сортировки.
+// EN: buildListSQL builds SELECT ALL SQL accounting for dialect, metadata and sort.
+
+func buildListSQL(td *TableDefinition) string {
+	if len(td.Indexes.SelectIdx) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.Grow(len(td.Indexes.SelectIdx) * 25)
+	sb.WriteString(defs.SQLSelect)
+	for pos, idx := range td.Indexes.SelectIdx {
+		if pos > 0 {
+			sb.WriteString(defs.SQLCommaSpace)
+		}
+		sb.WriteString(td.Fields[idx].SQLName)
+	}
+	sb.WriteString(defs.SQLFrom)
+	sb.WriteString(td.TableName)
+	return sb.String()
+}
+
+// buildOrderByClause строит "ORDER BY col1 ASC, col2 DESC" из SortFields.
+// tableAlias — алиас таблицы (например, "t1") для квалифицированных имён в Query; пустая строка для простой таблицы.
+// EN: buildOrderByClause builds "ORDER BY col1 ASC, col2 DESC" from SortFields.
+// tableAlias — table alias (e.g. "t1") for qualified names in Query; empty string for a simple table.
+
+func buildOrderByClause(td *TableDefinition) string {
+	var sb strings.Builder
+	sb.Grow(len(td.Indexes.SelectIdx) * 15)
+	sb.WriteString(defs.SQLOrderBy)
+	for pos, idx := range td.Indexes.SortingIdx {
+		if pos > 0 {
+			sb.WriteString(defs.SQLCommaSpace)
+		}
+		sb.WriteString(td.Fields[idx].SQLName)
+		if td.Fields[idx].Flags.SortBackward {
+			sb.WriteString(defs.SQLDesc)
+		}
+	}
+	return sb.String()
+}
+
+// writeWhereClauses формирует условия WHERE для PK-полей.
+// offset добавляется к индексу плейсхолдеров.
+// EN: writeWhereClauses builds WHERE conditions for PK fields.
+// offset is added to placeholder index.
+func writeWhereClauses(td *TableDefinition, offset int, sb *strings.Builder) {
+	sb.WriteString(defs.SQLWhere)
+	for pos, idx := range td.Indexes.PKIdx {
+		if pos > 0 {
+			sb.WriteString(defs.SQLAnd)
+		}
+		sb.WriteString(td.Fields[idx].SQLName)
+		sb.WriteString(defs.SQLEquals)
+		sb.WriteString(td.Dialect.Placeholder(offset + pos + 1))
+	}
+}
+
+func writeReturning(td *TableDefinition, sb *strings.Builder) {
+	allCols := make([]string, len(td.Indexes.SelectIdx))
+	for i := range td.Indexes.SelectIdx {
+		allCols[i] = td.Fields[td.Indexes.SelectIdx[i]].SQLName
+	}
+	sb.WriteString(defs.SQLReturning)
+	sb.WriteString(strings.Join(allCols, defs.SQLCommaSpace))
+}

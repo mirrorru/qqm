@@ -2,13 +2,13 @@ package defs
 
 const (
 	SQLInsertInto = "INSERT INTO "
-	SQLValues     = " VALUES "
-	SQLReturning  = " RETURNING "
+	SQLValues     = "\nVALUES "
+	SQLReturning  = "\nRETURNING "
 	SQLUpdate     = "UPDATE "
 	SQLSet        = " SET "
 	SQLSelect     = "SELECT "
 	SQLFrom       = " FROM "
-	SQLWhere      = " WHERE "
+	SQLWhere      = "\nWHERE "
 	SQLDelete     = "DELETE FROM "
 	SQLAnd        = " AND "
 	SQLEquals     = " = "
@@ -17,7 +17,7 @@ const (
 	SQLOpenParen  = " ( "
 	SQLCloseParen = " ) "
 	SQLIn         = " IN "
-	SQLOrderBy    = " ORDER BY "
+	SQLOrderBy    = "\nORDER BY "
 	SQLAsc        = " ASC"
 	SQLDesc       = " DESC"
 
