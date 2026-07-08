@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/mirrorru/qqm/defs"
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/meta"
 )
@@ -113,10 +114,10 @@ func (q *Query[QROW]) One(ctx context.Context, ex Executor, keys ...any) (*QROW,
 
 	whereClauses := make([]string, len(pkFields))
 	for i, pk := range pkFields {
-		whereClauses[i] = q.dialect.QuoteIdent(primary.Alias) + "." + q.dialect.QuoteIdent(pk.Column) + sqlEquals + q.dialect.Placeholder(i+1)
+		whereClauses[i] = q.dialect.QuoteIdent(primary.Alias) + "." + q.dialect.QuoteIdent(pk.Column) + defs.sqlEquals + q.dialect.Placeholder(i+1)
 	}
 
-	query := q.qmeta.listSQL + sqlWhere + strings.Join(whereClauses, sqlAnd)
+	query := q.qmeta.listSQL + defs.sqlWhere + strings.Join(whereClauses, defs.sqlAnd)
 
 	row := ex.QueryRowContext(ctx, query, keys...)
 

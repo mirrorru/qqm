@@ -5,36 +5,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/mirrorru/qqm/defs"
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/meta"
-)
-
-const (
-	sqlInsertInto = "INSERT INTO "
-	sqlValues     = " VALUES "
-	sqlReturning  = " RETURNING "
-	sqlUpdate     = "UPDATE "
-	sqlSet        = " SET "
-	sqlSelect     = "SELECT "
-	sqlFrom       = " FROM "
-	sqlWhere      = " WHERE "
-	sqlDelete     = "DELETE FROM "
-	sqlAnd        = " AND "
-	sqlEquals     = " = "
-	sqlCommaSpace = ", "
-	sqlSpace      = " "
-	sqlOpenParen  = "("
-	sqlCloseParen = ")"
-	sqlIn         = " IN "
-	sqlOrderBy    = " ORDER BY "
-	sqlAsc        = " ASC"
-	sqlDesc       = " DESC"
-
-	sqlCreateTable   = "CREATE TABLE "
-	sqlNotNull       = " NOT NULL"
-	sqlPrimaryKey    = " PRIMARY KEY"
-	sqlReferences    = " REFERENCES "
-	sqlAutoincrement = " AUTOINCREMENT"
 )
 
 // queryBuilder кэширует SQL-запросы для таблицы.
@@ -132,16 +105,16 @@ func buildInsertSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 		placeholders[i] = d.Placeholder(i + 1)
 	}
 
-	sql := sqlInsertInto + d.QuoteIdent(m.TableName) + sqlSpace +
-		sqlOpenParen + strings.Join(quotedCols, sqlCommaSpace) + sqlCloseParen +
-		sqlValues + sqlOpenParen + strings.Join(placeholders, sqlCommaSpace) + sqlCloseParen
+	sql := defs.SQLInsertInto + d.QuoteIdent(m.TableName) + defs.SQLSpace +
+		defs.SQLOpenParen + strings.Join(quotedCols, defs.SQLCommaSpace) + defs.SQLCloseParen +
+		defs.SQLValues + defs.SQLOpenParen + strings.Join(placeholders, defs.SQLCommaSpace) + defs.SQLCloseParen
 
 	if d.SupportsReturning() {
 		allCols := make([]string, len(m.Columns))
 		for i, col := range m.Columns {
 			allCols[i] = d.QuoteIdent(col)
 		}
-		sql += sqlReturning + strings.Join(allCols, sqlCommaSpace)
+		sql += defs.SQLReturning + strings.Join(allCols, defs.SQLCommaSpace)
 	}
 
 	return sql
@@ -157,21 +130,21 @@ func buildUpdateSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 
 	setClauses := make([]string, len(cols))
 	for i, col := range cols {
-		setClauses[i] = d.QuoteIdent(col) + sqlEquals + d.Placeholder(i+1)
+		setClauses[i] = d.QuoteIdent(col) + defs.SQLEquals + d.Placeholder(i+1)
 	}
 
 	whereClauses := buildWhereClauses(d, m, len(cols))
 
-	sql := sqlUpdate + d.QuoteIdent(m.TableName) +
-		sqlSet + strings.Join(setClauses, sqlCommaSpace) +
-		sqlWhere + strings.Join(whereClauses, sqlAnd)
+	sql := defs.SQLUpdate + d.QuoteIdent(m.TableName) +
+		defs.SQLSet + strings.Join(setClauses, defs.SQLCommaSpace) +
+		defs.SQLWhere + strings.Join(whereClauses, defs.SQLAnd)
 
 	if d.SupportsReturning() {
 		allCols := make([]string, len(m.Columns))
 		for i, col := range m.Columns {
 			allCols[i] = d.QuoteIdent(col)
 		}
-		sql += sqlReturning + strings.Join(allCols, sqlCommaSpace)
+		sql += defs.SQLReturning + strings.Join(allCols, defs.SQLCommaSpace)
 	}
 
 	return sql
@@ -191,9 +164,9 @@ func buildSelectSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 
 	whereClauses := buildWhereClauses(d, m, 0)
 
-	return sqlSelect + strings.Join(allCols, sqlCommaSpace) +
-		sqlFrom + d.QuoteIdent(m.TableName) +
-		sqlWhere + strings.Join(whereClauses, sqlAnd)
+	return defs.SQLSelect + strings.Join(allCols, defs.SQLCommaSpace) +
+		defs.SQLFrom + d.QuoteIdent(m.TableName) +
+		defs.SQLWhere + strings.Join(whereClauses, defs.SQLAnd)
 }
 
 // buildDeleteSQL формирует SQL DELETE по PK с учётом диалекта и метаданных.
@@ -205,8 +178,8 @@ func buildDeleteSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 
 	whereClauses := buildWhereClauses(d, m, 0)
 
-	return sqlDelete + d.QuoteIdent(m.TableName) +
-		sqlWhere + strings.Join(whereClauses, sqlAnd)
+	return defs.SQLDelete + d.QuoteIdent(m.TableName) +
+		defs.SQLWhere + strings.Join(whereClauses, defs.SQLAnd)
 }
 
 // buildListSQL формирует SQL SELECT ALL с учётом диалекта, метаданных и сортировки.
@@ -217,8 +190,8 @@ func buildListSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 		allCols[i] = d.QuoteIdent(col)
 	}
 
-	sql := sqlSelect + strings.Join(allCols, sqlCommaSpace) +
-		sqlFrom + d.QuoteIdent(m.TableName)
+	sql := defs.SQLSelect + strings.Join(allCols, defs.SQLCommaSpace) +
+		defs.SQLFrom + d.QuoteIdent(m.TableName)
 
 	if len(m.SortFields) > 0 {
 		sql += buildOrderByClause(d, m, "")
@@ -234,9 +207,9 @@ func buildListSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 func buildOrderByClause(d dialect.DialectProvider, m *meta.RowMeta, tableAlias string) string {
 	parts := make([]string, len(m.SortFields))
 	for i, sf := range m.SortFields {
-		dir := sqlAsc
+		dir := defs.SQLAsc
 		if sf.SortDirection == "DESC" {
-			dir = sqlDesc
+			dir = defs.SQLDesc
 		}
 		col := d.QuoteIdent(sf.Column)
 		if tableAlias != "" {
@@ -244,7 +217,7 @@ func buildOrderByClause(d dialect.DialectProvider, m *meta.RowMeta, tableAlias s
 		}
 		parts[i] = col + dir
 	}
-	return sqlOrderBy + strings.Join(parts, sqlCommaSpace)
+	return defs.SQLOrderBy + strings.Join(parts, defs.SQLCommaSpace)
 }
 
 // buildWhereClauses формирует условия WHERE для PK-полей.
@@ -254,7 +227,7 @@ func buildOrderByClause(d dialect.DialectProvider, m *meta.RowMeta, tableAlias s
 func buildWhereClauses(d dialect.DialectProvider, m *meta.RowMeta, offset int) []string {
 	whereClauses := make([]string, len(m.PKFields))
 	for i, pk := range m.PKFields {
-		whereClauses[i] = d.QuoteIdent(pk.Column) + sqlEquals + d.Placeholder(offset+i+1)
+		whereClauses[i] = d.QuoteIdent(pk.Column) + defs.SQLEquals + d.Placeholder(offset+i+1)
 	}
 	return whereClauses
 }
@@ -263,7 +236,7 @@ func buildWhereClauses(d dialect.DialectProvider, m *meta.RowMeta, offset int) [
 // EN: buildCreateTableSQL builds CREATE TABLE accounting for pk, default= and ref=.
 func buildCreateTableSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 	var b strings.Builder
-	b.WriteString(sqlCreateTable)
+	b.WriteString(defs.SQLCreateTable)
 	b.WriteString(d.QuoteIdent(m.TableName))
 	b.WriteString(" (\n")
 
@@ -282,7 +255,7 @@ func buildCreateTableSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 
 		b.WriteString("\t")
 		b.WriteString(d.QuoteIdent(fm.Column))
-		b.WriteString(sqlSpace)
+		b.WriteString(defs.SQLSpace)
 
 		sqlType := goTypeToSQL(fm.GoType)
 		if fm.IsPK && fm.IsAuto && d.Name() == "sqlite" {
@@ -291,39 +264,39 @@ func buildCreateTableSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
 		b.WriteString(sqlType)
 
 		if fm.IsPK && fm.IsAuto {
-			b.WriteString(sqlPrimaryKey)
+			b.WriteString(defs.SQLPrimaryKey)
 			if d.Name() == "sqlite" {
-				b.WriteString(sqlAutoincrement)
+				b.WriteString(defs.SQLAutoincrement)
 			}
 		} else if fm.IsPK {
 			pkCols = append(pkCols, d.QuoteIdent(fm.Column))
 		} else {
-			b.WriteString(sqlNotNull)
+			b.WriteString(defs.SQLNotNull)
 		}
 
 		if fm.CreateClause != "" {
-			b.WriteString(sqlSpace)
+			b.WriteString(defs.SQLSpace)
 			b.WriteString(fm.CreateClause)
 		}
 
 		if fm.RefTable != "" {
-			b.WriteString(sqlReferences)
+			b.WriteString(defs.SQLReferences)
 			b.WriteString(d.QuoteIdent(fm.RefTable))
 			refCol := fm.RefColumn
 			if refCol == "" {
 				refCol = "id"
 			}
-			b.WriteString(sqlOpenParen)
+			b.WriteString(defs.SQLOpenParen)
 			b.WriteString(d.QuoteIdent(refCol))
-			b.WriteString(sqlCloseParen)
+			b.WriteString(defs.SQLCloseParen)
 		}
 	}
 
 	if len(pkCols) > 0 {
 		b.WriteString(",\n\t")
-		b.WriteString(sqlPrimaryKey)
+		b.WriteString(defs.SQLPrimaryKey)
 		b.WriteString(" (")
-		b.WriteString(strings.Join(pkCols, sqlCommaSpace))
+		b.WriteString(strings.Join(pkCols, defs.SQLCommaSpace))
 		b.WriteString(")")
 	}
 
