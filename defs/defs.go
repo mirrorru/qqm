@@ -5,7 +5,7 @@ const (
 	SQLValues     = "\nVALUES "
 	SQLReturning  = "\nRETURNING "
 	SQLUpdate     = "UPDATE "
-	SQLSet        = " SET "
+	SQLSet        = "\nSET "
 	SQLSelect     = "SELECT "
 	SQLFrom       = " FROM "
 	SQLWhere      = "\nWHERE "
