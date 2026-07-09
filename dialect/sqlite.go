@@ -26,6 +26,12 @@ func (SQLiteDialect) Placeholder(_ int) string { return "?" }
 // EN: SupportsReturning reports whether the dialect supports RETURNING.
 func (SQLiteDialect) SupportsReturning() bool { return true }
 
+// ILIKE эмулирует регистронезависимый LIKE через LOWER().
+// EN: ILIKE emulates case-insensitive LIKE via LOWER().
+func (SQLiteDialect) ILIKE(col string, placeholder string) string {
+	return "LOWER(" + col + ") LIKE LOWER(" + placeholder + ")"
+}
+
 func (SQLiteDialect) OffsetAndLimit(offset, limit uint32) string {
 	if limit == 0 && offset == 0 {
 		return ""
