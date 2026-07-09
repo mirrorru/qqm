@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/mirrorru/qqm"
+	"github.com/mirrorru/qqm/txproc"
 	"github.com/stretchr/testify/require"
 
 	"github.com/mirrorru/qqm/dialect"
@@ -29,7 +30,7 @@ func TestSmoke_DataRace_ConcurrentCRUDAndList(t *testing.T) {
 	db.SetMaxOpenConns(1)
 
 	ctx := context.Background()
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	tbl := qqm.NewTable[fixtures.Rooms](dialect.SQLiteDialect{})
 
 	_, err = db.Exec(`

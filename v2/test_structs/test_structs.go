@@ -10,6 +10,21 @@ type SimpleRow struct {
 	FreeFld   int
 }
 
+func (SimpleRow) SQLName() string {
+	return "simple_row2"
+}
+
+var CreateSimpleTable = `
+		CREATE TABLE simple_row (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			ins_fld INTEGER,
+			read_fld INTEGER,
+			upd_fld INTEGER,
+			secret_fld INTEGER,
+			free_fld INTEGER
+		)
+	`
+
 type ComplexRow struct {
 	mustIgnorePrivateInt int      `tbl:"pk"`
 	IntPKLvl1            int64    `tbl:"pk;auto"`

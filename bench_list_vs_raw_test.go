@@ -10,6 +10,7 @@ import (
 
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/test/fixtures"
+	"github.com/mirrorru/qqm/txproc"
 	_ "modernc.org/sqlite"
 )
 
@@ -80,7 +81,7 @@ func BenchmarkListVsRawSQL_5_Fld(b *testing.B) {
 				}
 			}
 
-			ex := NewDBAdapterVal(db)
+			ex := txproc.NewDBAdapterVal(db)
 			ctx := context.Background()
 			tbl := NewTable[user5](dialect.SQLiteDialect{})
 
@@ -176,7 +177,7 @@ func BenchmarkListVsRawSQL_25_Fld(b *testing.B) {
 				}
 			}
 
-			ex := NewDBAdapterVal(db)
+			ex := txproc.NewDBAdapterVal(db)
 			ctx := context.Background()
 			tbl := NewTable[user25](dialect.SQLiteDialect{})
 

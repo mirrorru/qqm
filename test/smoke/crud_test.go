@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mirrorru/qqm"
+	"github.com/mirrorru/qqm/txproc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -22,7 +23,7 @@ func TestSmoke_CRUD_Rooms(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	_, err = db.Exec(`
@@ -91,7 +92,7 @@ func TestSmoke_CRUD_RoomMapping(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	_, err = db.Exec(`
@@ -164,7 +165,7 @@ func TestSmoke_ListWithFilters(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 	tbl := qqm.NewTable[fixtures.UserWithAge](dialect.SQLiteDialect{})
 
@@ -276,7 +277,7 @@ func TestSmoke_CRUD_FullRoomMapping(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	_, err = db.Exec(`
@@ -360,7 +361,7 @@ func TestSmoke_CRUD_WithTx(t *testing.T) {
 		tx, err := db.BeginTx(ctx, nil)
 		require.NoError(t, err)
 
-		ex := qqm.NewTxAdapterVal(tx)
+		ex := txproc.NewTxAdapterVal(tx)
 
 		inserted, err := tbl.Insert(ctx, ex, &fixtures.Rooms{
 			Name:   "Tx Room",
@@ -372,7 +373,7 @@ func TestSmoke_CRUD_WithTx(t *testing.T) {
 		err = tx.Commit()
 		require.NoError(t, err)
 
-		fetched, err := tbl.GetByPK(ctx, qqm.NewDBAdapterVal(db), inserted.ID)
+		fetched, err := tbl.GetByPK(ctx, txproc.NewDBAdapterVal(db), inserted.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "Tx Room", fetched.Name)
 	})
@@ -381,7 +382,7 @@ func TestSmoke_CRUD_WithTx(t *testing.T) {
 		tx, err := db.BeginTx(ctx, nil)
 		require.NoError(t, err)
 
-		ex := qqm.NewTxAdapterVal(tx)
+		ex := txproc.NewTxAdapterVal(tx)
 
 		inserted, err := tbl.Insert(ctx, ex, &fixtures.Rooms{
 			Name:   "Rollback Room",
@@ -393,12 +394,12 @@ func TestSmoke_CRUD_WithTx(t *testing.T) {
 		err = tx.Rollback()
 		require.NoError(t, err)
 
-		_, err = tbl.GetByPK(ctx, qqm.NewDBAdapterVal(db), inserted.ID)
+		_, err = tbl.GetByPK(ctx, txproc.NewDBAdapterVal(db), inserted.ID)
 		assert.Error(t, err, "should not find rolled-back row")
 	})
 
 	t.Run("GetByKey within transaction", func(t *testing.T) {
-		ex := qqm.NewDBAdapterVal(db)
+		ex := txproc.NewDBAdapterVal(db)
 		inserted, err := tbl.Insert(ctx, ex, &fixtures.Rooms{
 			Name:   "Tx GetByKey",
 			Square: 300.0,
@@ -408,7 +409,7 @@ func TestSmoke_CRUD_WithTx(t *testing.T) {
 		tx, err := db.BeginTx(ctx, nil)
 		require.NoError(t, err)
 
-		txEx := qqm.NewTxAdapterVal(tx)
+		txEx := txproc.NewTxAdapterVal(tx)
 		fetched, err := tbl.GetByPK(ctx, txEx, inserted.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "Tx GetByKey", fetched.Name)

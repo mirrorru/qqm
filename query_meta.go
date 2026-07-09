@@ -266,8 +266,8 @@ func buildQueryListSQL(d dialect.DialectProvider, qm *queryMeta) string {
 	}
 
 	primaryAlias := "t1"
-	sql := defs.sqlSelect + strings.Join(selectCols, defs.sqlCommaSpace) +
-		defs.sqlFrom + d.QuoteIdent(qm.entries[0].TableName) + " AS " + primaryAlias
+	sql := defs.SQLSelect + strings.Join(selectCols, defs.SQLCommaSpace) +
+		defs.SQLFrom + d.QuoteIdent(qm.entries[0].TableName) + " AS " + primaryAlias
 
 	for i := 1; i < len(qm.entries); i++ {
 		entry := qm.entries[i]

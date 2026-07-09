@@ -235,7 +235,7 @@ func (wb *whereBuilder) buildConditionSQL(column string, cond Condition, argIdx 
 			placeholders[i] = wb.dialect.Placeholder(*argIdx)
 			*argIdx++
 		}
-		return col + defs.sqlIn + defs.sqlOpenParen + joinStrings(placeholders, defs.sqlCommaSpace) + defs.sqlCloseParen, vals, nil
+		return col + defs.SQLIn + defs.SQLOpenParen + joinStrings(placeholders, defs.SQLCommaSpace) + defs.SQLCloseParen, vals, nil
 
 	default:
 		p := wb.dialect.Placeholder(*argIdx)
@@ -290,7 +290,7 @@ func (wb *whereBuilder) buildFieldFilterSQL(ff FieldFilter, argIdx *int) (string
 
 	joinOp := filterOpJoin(ff.Op)
 	combined := joinStrings(clauses, joinOp)
-	return defs.sqlOpenParen + combined + defs.sqlCloseParen, args, nil
+	return defs.SQLOpenParen + combined + defs.SQLCloseParen, args, nil
 }
 
 // buildWhereClause формирует WHERE-условие и аргументы из фильтров.
@@ -324,7 +324,7 @@ func (wb *whereBuilder) buildWhereClause(filters []Filter) (string, []any, error
 
 	joinOp := filterOpJoin(filters[0].Op)
 	combined := joinStrings(allClauses, joinOp)
-	return defs.sqlWhere + combined, allArgs, nil
+	return defs.SQLWhere + combined, allArgs, nil
 }
 
 // multiWhereBuilder строит WHERE для multi-табличных запросов с квалифицированными именами.
@@ -396,7 +396,7 @@ func (wb *multiWhereBuilder) buildConditionSQL(alias, column string, cond Condit
 			placeholders[i] = wb.dialect.Placeholder(*argIdx)
 			*argIdx++
 		}
-		return col + defs.sqlIn + defs.sqlOpenParen + joinStrings(placeholders, defs.sqlCommaSpace) + defs.sqlCloseParen, vals, nil
+		return col + defs.SQLIn + defs.SQLOpenParen + joinStrings(placeholders, defs.SQLCommaSpace) + defs.SQLCloseParen, vals, nil
 
 	default:
 		p := wb.dialect.Placeholder(*argIdx)
@@ -431,7 +431,7 @@ func (wb *multiWhereBuilder) buildFieldFilterSQL(ff FieldFilter, argIdx *int) (s
 
 	joinOp := filterOpJoin(ff.Op)
 	combined := joinStrings(clauses, joinOp)
-	return defs.sqlOpenParen + combined + defs.sqlCloseParen, args, nil
+	return defs.SQLOpenParen + combined + defs.SQLCloseParen, args, nil
 }
 
 // buildWhereClause формирует WHERE-условие для много-табличных запросов.
@@ -465,5 +465,5 @@ func (wb *multiWhereBuilder) buildWhereClause(filters []Filter) (string, []any, 
 
 	joinOp := filterOpJoin(filters[0].Op)
 	combined := joinStrings(allClauses, joinOp)
-	return defs.sqlWhere + combined, allArgs, nil
+	return defs.SQLWhere + combined, allArgs, nil
 }

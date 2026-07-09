@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/mirrorru/qqm/txproc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -56,17 +57,17 @@ type mockExecutor struct {
 	rows  *mockRows
 }
 
-func (m *mockExecutor) ExecContext(_ context.Context, _ string, _ ...any) (Result, error) {
+func (m *mockExecutor) ExecContext(_ context.Context, _ string, _ ...any) (txproc.Result, error) {
 	return mockResult{}, nil
 }
 
-func (m *mockExecutor) QueryContext(_ context.Context, query string, args ...any) (Rows, error) {
+func (m *mockExecutor) QueryContext(_ context.Context, query string, args ...any) (txproc.Rows, error) {
 	m.query = query
 	m.args = args
 	return m.rows, nil
 }
 
-func (m *mockExecutor) QueryRowContext(_ context.Context, _ string, _ ...any) Row {
+func (m *mockExecutor) QueryRowContext(_ context.Context, _ string, _ ...any) txproc.Row {
 	return m.rows
 }
 

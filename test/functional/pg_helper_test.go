@@ -10,7 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	_ "github.com/lib/pq"
-	"github.com/mirrorru/qqm"
+	"github.com/mirrorru/qqm/txproc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,7 +49,7 @@ func openTestPG(t *testing.T) *sql.DB {
 // REPEATABLE READ и регистрирует rollback + закрытие в t.Cleanup.
 // Каждый тест получает изолированное состояние БД,
 // не затирая данные параллельных тестов.
-func beginTxPG(t *testing.T) (*sql.Tx, qqm.Executor) {
+func beginTxPG(t *testing.T) (*sql.Tx, txproc.TxProcessor) {
 	t.Helper()
 	db := openTestPG(t)
 	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
@@ -58,7 +58,7 @@ func beginTxPG(t *testing.T) (*sql.Tx, qqm.Executor) {
 		_ = tx.Rollback()
 		_ = db.Close()
 	})
-	return tx, qqm.NewTxAdapterVal(tx)
+	return tx, txproc.NewTxAdapterVal(tx)
 }
 
 // openTestPGX открывает подключение к тестовой БД PostgreSQL через pgx/v5.
@@ -74,7 +74,7 @@ func openTestPGX(t *testing.T) *pgx.Conn {
 
 // beginTxPGX открывает pgx-подключение, начинает транзакцию с уровнем
 // изоляции REPEATABLE READ и регистрирует rollback + закрытие в t.Cleanup.
-func beginTxPGX(t *testing.T) (pgx.Tx, qqm.Executor) {
+func beginTxPGX(t *testing.T) (pgx.Tx, txproc.TxProcessor) {
 	t.Helper()
 	conn := openTestPGX(t)
 	ctx := context.Background()
@@ -84,5 +84,5 @@ func beginTxPGX(t *testing.T) (pgx.Tx, qqm.Executor) {
 		_ = tx.Rollback(ctx)
 		_ = conn.Close(ctx)
 	})
-	return tx, qqm.NewPGXTxAdapterVal(tx)
+	return tx, txproc.NewPGXTxAdapterVal(tx)
 }

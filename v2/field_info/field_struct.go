@@ -173,7 +173,7 @@ func (tf *FieldFlags) canSelect() bool {
 	return !tf.SkipReading
 }
 
-func (tfs TableFields) insertingColsIdx() []int {
+func (tfs TableFields) insertingCols() []int {
 	result := make([]int, 0, len(tfs))
 	for idx := range tfs {
 		if tfs[idx].Flags.canInsert() {
@@ -183,7 +183,7 @@ func (tfs TableFields) insertingColsIdx() []int {
 	return result
 }
 
-func (tfs TableFields) updatingColsIdx() []int {
+func (tfs TableFields) updatingCols() []int {
 	result := make([]int, 0, len(tfs))
 	for idx := range tfs {
 		if tfs[idx].Flags.canUpdate() {
@@ -193,7 +193,7 @@ func (tfs TableFields) updatingColsIdx() []int {
 	return result
 }
 
-func (tfs TableFields) selectingColsIdx() []int {
+func (tfs TableFields) selectingCols() []int {
 	result := make([]int, 0, len(tfs))
 	for idx := range tfs {
 		if tfs[idx].Flags.canSelect() {
@@ -203,7 +203,7 @@ func (tfs TableFields) selectingColsIdx() []int {
 	return result
 }
 
-func (tfs TableFields) pkColsIdx() []int {
+func (tfs TableFields) pkCols() []int {
 	result := make([]int, 0, 2)
 	for idx := range tfs {
 		if tfs[idx].Flags.IsPK {
@@ -213,7 +213,7 @@ func (tfs TableFields) pkColsIdx() []int {
 	return result
 }
 
-func (tfs TableFields) sortingFields() []int {
+func (tfs TableFields) sortingCols() []int {
 	result := make([]int, 0, len(tfs)/2)
 	for idx := range tfs {
 		if tfs[idx].Flags.SortPos != 0 {
@@ -227,20 +227,32 @@ func (tfs TableFields) sortingFields() []int {
 	return result
 }
 
+func (tfs TableFields) refCols() []int {
+	result := make([]int, 0, 2)
+	for idx := range tfs {
+		if tfs[idx].Flags.Ref != "" {
+			result = append(result, idx)
+		}
+	}
+	return result
+}
+
 type fieldsIndexes struct {
-	PKIdx      []int
-	SelectIdx  []int
-	InsertIdx  []int
-	UpdateIdx  []int
-	SortingIdx []int
+	PKCols      []int
+	SelectCols  []int
+	InsertCols  []int
+	UpdateCols  []int
+	SortingCols []int
+	RefCols     []int
 }
 
 func (tfs TableFields) allIndexes() fieldsIndexes {
 	return fieldsIndexes{
-		PKIdx:      tfs.pkColsIdx(),
-		SelectIdx:  tfs.selectingColsIdx(),
-		InsertIdx:  tfs.insertingColsIdx(),
-		UpdateIdx:  tfs.updatingColsIdx(),
-		SortingIdx: tfs.sortingFields(),
+		PKCols:      tfs.pkCols(),
+		SelectCols:  tfs.selectingCols(),
+		InsertCols:  tfs.insertingCols(),
+		UpdateCols:  tfs.updatingCols(),
+		SortingCols: tfs.sortingCols(),
+		RefCols:     tfs.refCols(),
 	}
 }

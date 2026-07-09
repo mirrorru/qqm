@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/mirrorru/qqm/txproc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -22,7 +23,7 @@ func TestSmoke_CreateTable_CreateClause(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	tbl := qqm.NewTable[fixtures.RowWithCreate](dialect.SQLiteDialect{})
@@ -77,7 +78,7 @@ func TestSmoke_CreateTable_RefFK(t *testing.T) {
 	_, err = db.Exec(`PRAGMA foreign_keys = ON`)
 	require.NoError(t, err)
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	// создаём таблицу users (родитель)
@@ -120,7 +121,7 @@ func TestSmoke_CreateTable_CompositePK(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	tbl := qqm.NewTable[fixtures.OrgUser](dialect.SQLiteDialect{})
@@ -163,7 +164,7 @@ func TestSmoke_CreateTable_CreateClauseAndSort(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	type sortCreateRow struct {
