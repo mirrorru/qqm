@@ -26,3 +26,8 @@ func getTableName(t reflect.Type) string {
 	}
 	return meta.ToSnakeCase(t.Name())
 }
+
+func isKey(key, val string) bool {
+	l := len(key)
+	return len(val) >= l && val[:l] == key
+}

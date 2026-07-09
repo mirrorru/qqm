@@ -29,6 +29,7 @@ const (
 )
 const keySeparator = ";"
 const inKeySeparator = ","
+const inKVSeparator = ":"
 
 type FieldFlags struct {
 	IsPK         bool // keyPK
@@ -63,10 +64,6 @@ func (f *FieldFlags) Merge(parent FieldFlags) {
 }
 
 func parseFieldTag(tag string) (result FieldFlags, ok bool) {
-	isKey := func(key, val string) bool {
-		l := len(key)
-		return len(val) >= l && val[:l] == key
-	}
 	keys := strings.Split(tag, keySeparator)
 	for _, key := range keys {
 		switch {
