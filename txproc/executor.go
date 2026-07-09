@@ -1,12 +1,12 @@
-package qqm
+package txproc
 
 import "context"
 
-// Executor описывает интерфейс выполнения SQL-запросов.
+// TxProcessor описывает интерфейс выполнения SQL-запросов.
 // Абстрагирует database/sql.DB, database/sql.Tx, pgx.Conn, pgx.Tx.
-// EN: Executor describes the SQL execution interface.
+// EN: TxProcessor describes the SQL execution interface.
 // Abstracts database/sql.DB, database/sql.Tx, pgx.Conn, pgx.Tx.
-type Executor interface {
+type TxProcessor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) Row
@@ -31,4 +31,5 @@ type Rows interface {
 	Next() bool
 	Scan(dest ...any) error
 	Close() error
+	Err() error
 }

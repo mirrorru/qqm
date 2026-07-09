@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mirrorru/qqm"
+	"github.com/mirrorru/qqm/txproc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -30,7 +31,7 @@ func TestSmoke_List_SortAsc(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	_, err = db.Exec(`
@@ -70,7 +71,7 @@ func TestSmoke_List_SortDesc(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	_, err = db.Exec(`
@@ -112,7 +113,7 @@ func TestSmoke_List_SortNoTags(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	_, err = db.Exec(`

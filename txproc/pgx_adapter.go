@@ -1,4 +1,4 @@
-package qqm
+package txproc
 
 import (
 	"context"
@@ -7,14 +7,14 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// PGXAdapter адаптирует *pgx.Conn к интерфейсу Executor.
-// EN: PGXAdapter adapts *pgx.Conn to the Executor interface.
+// PGXAdapter адаптирует *pgx.Conn к интерфейсу TxProcessor.
+// EN: PGXAdapter adapts *pgx.Conn to the TxProcessor interface.
 type PGXAdapter struct {
 	conn *pgx.Conn
 }
 
-// NewPGXAdapterVal создаёт адаптер для *pgx.Conn к интерфейсу Executor.
-// EN: NewPGXAdapterVal creates an adapter from *pgx.Conn to the Executor interface.
+// NewPGXAdapterVal создаёт адаптер для *pgx.Conn к интерфейсу TxProcessor.
+// EN: NewPGXAdapterVal creates an adapter from *pgx.Conn to the TxProcessor interface.
 func NewPGXAdapterVal(conn *pgx.Conn) PGXAdapter {
 	return PGXAdapter{conn: conn}
 }
@@ -45,14 +45,14 @@ func (a PGXAdapter) QueryRowContext(ctx context.Context, query string, args ...a
 	return a.conn.QueryRow(ctx, query, args...)
 }
 
-// PGXTxAdapter адаптирует pgx.Tx к интерфейсу Executor.
-// EN: PGXTxAdapter adapts pgx.Tx to the Executor interface.
+// PGXTxAdapter адаптирует pgx.Tx к интерфейсу TxProcessor.
+// EN: PGXTxAdapter adapts pgx.Tx to the TxProcessor interface.
 type PGXTxAdapter struct {
 	tx pgx.Tx
 }
 
-// NewPGXTxAdapterVal создаёт адаптер для pgx.Tx к интерфейсу Executor.
-// EN: NewPGXTxAdapterVal creates an adapter from pgx.Tx to the Executor interface.
+// NewPGXTxAdapterVal создаёт адаптер для pgx.Tx к интерфейсу TxProcessor.
+// EN: NewPGXTxAdapterVal creates an adapter from pgx.Tx to the TxProcessor interface.
 func NewPGXTxAdapterVal(tx pgx.Tx) PGXTxAdapter {
 	return PGXTxAdapter{tx: tx}
 }
@@ -124,4 +124,8 @@ func (r *PgxRows) Scan(dest ...any) error {
 func (r *PgxRows) Close() error {
 	r.rows.Close()
 	return nil
+}
+
+func (r *PgxRows) Err() error {
+	return r.rows.Err()
 }

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/mirrorru/qqm/defs"
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/meta"
 )
@@ -265,8 +266,8 @@ func buildQueryListSQL(d dialect.DialectProvider, qm *queryMeta) string {
 	}
 
 	primaryAlias := "t1"
-	sql := sqlSelect + strings.Join(selectCols, sqlCommaSpace) +
-		sqlFrom + d.QuoteIdent(qm.entries[0].TableName) + " AS " + primaryAlias
+	sql := defs.SQLSelect + strings.Join(selectCols, defs.SQLCommaSpace) +
+		defs.SQLFrom + d.QuoteIdent(qm.entries[0].TableName) + " AS " + primaryAlias
 
 	for i := 1; i < len(qm.entries); i++ {
 		entry := qm.entries[i]

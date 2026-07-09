@@ -1,18 +1,18 @@
-package qqm
+package txproc
 
 import (
 	"context"
 	"database/sql"
 )
 
-// DBAdapter адаптирует *sql.DB к интерфейсу Executor.
-// EN: DBAdapter adapts *sql.DB to the Executor interface.
+// DBAdapter адаптирует *sql.DB к интерфейсу TxProcessor.
+// EN: DBAdapter adapts *sql.DB to the TxProcessor interface.
 type DBAdapter struct {
 	db *sql.DB
 }
 
-// NewDBAdapterVal создаёт адаптер для *sql.DB к интерфейсу Executor.
-// EN: NewDBAdapterVal creates an adapter from *sql.DB to the Executor interface.
+// NewDBAdapterVal создаёт адаптер для *sql.DB к интерфейсу TxProcessor.
+// EN: NewDBAdapterVal creates an adapter from *sql.DB to the TxProcessor interface.
 func NewDBAdapterVal(db *sql.DB) DBAdapter {
 	return DBAdapter{db: db}
 }
@@ -35,14 +35,14 @@ func (a DBAdapter) QueryRowContext(ctx context.Context, query string, args ...an
 	return a.db.QueryRowContext(ctx, query, args...)
 }
 
-// TxAdapter адаптирует *sql.Tx к интерфейсу Executor.
-// EN: TxAdapter adapts *sql.Tx to the Executor interface.
+// TxAdapter адаптирует *sql.Tx к интерфейсу TxProcessor.
+// EN: TxAdapter adapts *sql.Tx to the TxProcessor interface.
 type TxAdapter struct {
 	tx *sql.Tx
 }
 
-// NewTxAdapterVal создаёт адаптер для *sql.Tx к интерфейсу Executor.
-// EN: NewTxAdapterVal creates an adapter from *sql.Tx to the Executor interface.
+// NewTxAdapterVal создаёт адаптер для *sql.Tx к интерфейсу TxProcessor.
+// EN: NewTxAdapterVal creates an adapter from *sql.Tx to the TxProcessor interface.
 func NewTxAdapterVal(tx *sql.Tx) TxAdapter {
 	return TxAdapter{tx: tx}
 }

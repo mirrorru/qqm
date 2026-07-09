@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mirrorru/qqm"
+	"github.com/mirrorru/qqm/txproc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -36,7 +37,7 @@ func TestSmoke_MultiQuery_INNER_JOIN(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
@@ -102,7 +103,7 @@ func TestSmoke_MultiQuery_LEFT_JOIN(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
@@ -165,7 +166,7 @@ func TestSmoke_MultiQuery_ThreeTableJoin(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
@@ -220,7 +221,7 @@ func TestSmoke_MultiQuery_One_INNER(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
@@ -273,7 +274,7 @@ func TestSmoke_MultiQuery_One_LEFT(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
@@ -334,7 +335,7 @@ func TestSmoke_MultiQuery_One_ThreeTables(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})

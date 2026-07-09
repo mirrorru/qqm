@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mirrorru/qqm"
+	"github.com/mirrorru/qqm/txproc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -39,7 +40,7 @@ func TestSmoke_MultiQuery_DictSubjWithPersonAndLegal(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	ex := qqm.NewDBAdapterVal(db)
+	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
 	subjTbl := qqm.NewTable[fixtures.DictsSubjTableRowShort](dialect.SQLiteDialect{})

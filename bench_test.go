@@ -12,6 +12,7 @@ import (
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/meta"
 	"github.com/mirrorru/qqm/test/fixtures"
+	"github.com/mirrorru/qqm/txproc"
 )
 
 var (
@@ -56,16 +57,16 @@ type benchExecutor struct {
 	sql string
 }
 
-func (e *benchExecutor) ExecContext(_ context.Context, _ string, _ ...any) (Result, error) {
+func (e *benchExecutor) ExecContext(_ context.Context, _ string, _ ...any) (txproc.Result, error) {
 	return mockResult{}, nil
 }
 
-func (e *benchExecutor) QueryContext(_ context.Context, query string, _ ...any) (Rows, error) {
+func (e *benchExecutor) QueryContext(_ context.Context, query string, _ ...any) (txproc.Rows, error) {
 	e.sql = query
 	return &benchRows{count: 10}, nil
 }
 
-func (e *benchExecutor) QueryRowContext(_ context.Context, _ string, _ ...any) Row {
+func (e *benchExecutor) QueryRowContext(_ context.Context, _ string, _ ...any) txproc.Row {
 	return &benchRows{count: 1}
 }
 

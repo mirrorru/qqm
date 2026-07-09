@@ -5,8 +5,10 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/mirrorru/qqm/defs"
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/meta"
+	"github.com/mirrorru/qqm/txproc"
 )
 
 // Query represents a multi-table query.
@@ -60,7 +62,7 @@ func (q *Query[QROW]) Internals() *queryMeta {
 
 // List выполняет много-табличный запрос и возвращает строки.
 // EN: List executes a multi-table query and returns rows.
-func (q *Query[QROW]) List(ctx context.Context, ex Executor, filters ...Filter) ([]*QROW, error) {
+func (q *Query[QROW]) List(ctx context.Context, ex txproc.TxProcessor, filters ...Filter) ([]*QROW, error) {
 	query := q.qmeta.listSQL
 
 	var args []any
@@ -107,16 +109,16 @@ func (q *Query[QROW]) List(ctx context.Context, ex Executor, filters ...Filter) 
 // Основная таблица — первая запись в QROW (алиас t1).
 // EN: One returns a single row by the primary key of the main table.
 // The main table is the first entry in QROW (alias t1).
-func (q *Query[QROW]) One(ctx context.Context, ex Executor, keys ...any) (*QROW, error) {
+func (q *Query[QROW]) One(ctx context.Context, ex txproc.TxProcessor, keys ...any) (*QROW, error) {
 	primary := q.qmeta.entries[0]
 	pkFields := primary.RowMeta.PKFields
 
 	whereClauses := make([]string, len(pkFields))
 	for i, pk := range pkFields {
-		whereClauses[i] = q.dialect.QuoteIdent(primary.Alias) + "." + q.dialect.QuoteIdent(pk.Column) + sqlEquals + q.dialect.Placeholder(i+1)
+		whereClauses[i] = q.dialect.QuoteIdent(primary.Alias) + "." + q.dialect.QuoteIdent(pk.Column) + defs.SQLEquals + q.dialect.Placeholder(i+1)
 	}
 
-	query := q.qmeta.listSQL + sqlWhere + strings.Join(whereClauses, sqlAnd)
+	query := q.qmeta.listSQL + defs.SQLWhere + strings.Join(whereClauses, defs.SQLAnd)
 
 	row := ex.QueryRowContext(ctx, query, keys...)
 

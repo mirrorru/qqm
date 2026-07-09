@@ -6,6 +6,7 @@ import (
 
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/meta"
+	"github.com/mirrorru/qqm/txproc"
 )
 
 // SQLNamer описывает интерфейс для получения имени таблицы из структуры.
@@ -21,11 +22,11 @@ type SQLNamer interface {
 type CRUD[ROW any] interface {
 	Internals() *tableInternals
 
-	Insert(ctx context.Context, ex Executor, src *ROW) (*ROW, error)
-	Update(ctx context.Context, ex Executor, src *ROW) (*ROW, error)
-	GetByPK(ctx context.Context, ex Executor, keys ...any) (*ROW, error)
-	Delete(ctx context.Context, ex Executor, keys ...any) error
-	List(ctx context.Context, ex Executor, filters ...Filter) ([]*ROW, error)
+	Insert(ctx context.Context, ex txproc.TxProcessor, src *ROW) (*ROW, error)
+	Update(ctx context.Context, ex txproc.TxProcessor, src *ROW) (*ROW, error)
+	GetByPK(ctx context.Context, ex txproc.TxProcessor, keys ...any) (*ROW, error)
+	Delete(ctx context.Context, ex txproc.TxProcessor, keys ...any) error
+	List(ctx context.Context, ex txproc.TxProcessor, filters ...Filter) ([]*ROW, error)
 }
 
 // tableInternals содержит внутренние данные таблицы для реализации CRUD.
@@ -204,7 +205,7 @@ func (i *tableInternals) CreateTableSQL() string {
 
 // Insert вставляет новую строку и возвращает её (с заполненными автогенерируемыми полями).
 // EN: Insert inserts a new row and returns it (with auto-generated fields populated).
-func (t *Table[ROW]) Insert(ctx context.Context, ex Executor, src *ROW) (*ROW, error) {
+func (t *Table[ROW]) Insert(ctx context.Context, ex txproc.TxProcessor, src *ROW) (*ROW, error) {
 	args := t.internal.meta.InsertValues(src)
 
 	if t.internal.dialect.SupportsReturning() {
@@ -230,7 +231,7 @@ func (t *Table[ROW]) Insert(ctx context.Context, ex Executor, src *ROW) (*ROW, e
 
 // Update обновляет существующую строку и возвращает её.
 // EN: Update updates an existing row and returns it.
-func (t *Table[ROW]) Update(ctx context.Context, ex Executor, src *ROW) (*ROW, error) {
+func (t *Table[ROW]) Update(ctx context.Context, ex txproc.TxProcessor, src *ROW) (*ROW, error) {
 	updateVals := t.internal.meta.UpdateValues(src)
 	pkVals := t.internal.meta.PKFieldValues(src)
 	args := append(updateVals, pkVals...)
@@ -258,7 +259,7 @@ func (t *Table[ROW]) Update(ctx context.Context, ex Executor, src *ROW) (*ROW, e
 
 // GetByPK находит строку по первичному ключу.
 // EN: GetByPK finds a row by primary key.
-func (t *Table[ROW]) GetByPK(ctx context.Context, ex Executor, keys ...any) (*ROW, error) {
+func (t *Table[ROW]) GetByPK(ctx context.Context, ex txproc.TxProcessor, keys ...any) (*ROW, error) {
 	row := ex.QueryRowContext(ctx, t.internal.SelectSQL(), keys...)
 
 	buf := new(ROW)
@@ -269,14 +270,14 @@ func (t *Table[ROW]) GetByPK(ctx context.Context, ex Executor, keys ...any) (*RO
 
 // Delete удаляет строку по первичному ключу.
 // EN: Delete deletes a row by primary key.
-func (t *Table[ROW]) Delete(ctx context.Context, ex Executor, keys ...any) error {
+func (t *Table[ROW]) Delete(ctx context.Context, ex txproc.TxProcessor, keys ...any) error {
 	_, err := ex.ExecContext(ctx, t.internal.DeleteSQL(), keys...)
 	return err
 }
 
 // List возвращает все строки таблицы (с необязательными фильтрами).
 // EN: List returns all rows from the table (with optional filters).
-func (t *Table[ROW]) List(ctx context.Context, ex Executor, filters ...Filter) ([]*ROW, error) {
+func (t *Table[ROW]) List(ctx context.Context, ex txproc.TxProcessor, filters ...Filter) ([]*ROW, error) {
 	if len(filters) == 0 {
 		rows, err := ex.QueryContext(ctx, t.internal.ListSQL())
 		if err != nil {
