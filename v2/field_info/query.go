@@ -31,7 +31,11 @@ func NewQuery[QROW any]() *Query[QROW] {
 		sqlName := getTableName(sf.Type)
 		names = append(names, sqlName)
 
-		_ = dot.MustMake(CollectTableFields(t.Field(idx).Type))
+		tables = append(tables, TableDefinition{
+			TableName: sqlName,
+			Fields:    dot.MustMake(CollectTableFields(t.Field(idx).Type)),
+		})
+		_ = sf.Tag.Get(tagName)
 	}
 	return &Query[QROW]{
 		tables: tables,

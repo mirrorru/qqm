@@ -83,13 +83,6 @@ func (td *TableDefinition) buildInsertSQL(dlct dialect.DialectProvider) string {
 		return ""
 	}
 
-	colNames := make([]string, len(td.Indexes.InsertCols))
-	placeholders := make([]string, len(td.Indexes.InsertCols))
-	for i := range td.Indexes.InsertCols {
-		colNames[i] = td.Fields[i].SQLName
-		placeholders[i] = dlct.Placeholder(i + 1)
-	}
-
 	var sb strings.Builder
 	sb.Grow(len(td.Fields) * 50)
 	sb.WriteString(defs.SQLInsertInto)

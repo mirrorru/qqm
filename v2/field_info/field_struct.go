@@ -62,7 +62,7 @@ func (f *FieldFlags) Merge(parent FieldFlags) {
 	}
 }
 
-func parseTag(tag string) (result FieldFlags, ok bool) {
+func parseFieldTag(tag string) (result FieldFlags, ok bool) {
 	isKey := func(key, val string) bool {
 		l := len(key)
 		return len(val) >= l && val[:l] == key
@@ -79,7 +79,7 @@ func parseTag(tag string) (result FieldFlags, ok bool) {
 		case key == keyEmbed:
 			result.Embed = true
 		case isKey(keyOmit, key):
-			return result, false
+			return result, false // return false !!!
 		case key == keyInsert:
 			result.ForceInsert = true
 		case key == keyUpdate:
@@ -130,12 +130,13 @@ func collectFieldInfo(fld reflect.StructField, parentFlags FieldFlags) []TableFi
 		return nil
 	}
 
-	flags, processable := parseTag(fld.Tag.Get(tagName))
+	flags, processable := parseFieldTag(fld.Tag.Get(tagName))
 	if !processable {
 		return nil
 	}
+	flags.Merge(parentFlags)
 
-	if fld.Type.Kind() == reflect.Struct && (fld.Anonymous || flags.Embed) {
+	if fld.Type.Kind() == reflect.Struct && (fld.Anonymous || flags.Embed || flags.Prefix != "") {
 		result := make([]TableField, 0, fld.Type.NumField())
 		// Поле-структура требует "распаковки" на отдельные поля
 		subField := fld.Type
