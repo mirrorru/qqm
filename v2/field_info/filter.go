@@ -11,7 +11,7 @@ import (
 type CommandOp int32
 
 const (
-	CmdEq     CommandOp = iota
+	CmdEq CommandOp = iota
 	CmdNotEq
 	CmdGt
 	CmdGte
@@ -53,8 +53,16 @@ type GroupNode struct {
 	Children []FilterNode
 }
 
+func (f *Filter) BuildOffsetAndLimit(d dialect.DialectProvider) string {
+	if f == nil || (f.Offset == 0 && f.Limit == 0) {
+		return ""
+	}
+
+	return d.OffsetAndLimit(f.Offset, f.Limit)
+}
+
 func (f *Filter) BuildWhere(tf TableFields, d dialect.DialectProvider) (query string, args []any) {
-	if f.Range == nil {
+	if f == nil || f.Range == nil {
 		return "", nil
 	}
 	argIdx := 1
@@ -65,7 +73,7 @@ func (f *Filter) BuildWhere(tf TableFields, d dialect.DialectProvider) (query st
 	return defs.SQLWhere + clause, args
 }
 
-func (cn *ConditionNode) Build(tf TableFields, d dialect.DialectProvider, argIdx *int) (string, []any, error) {
+func (cn ConditionNode) Build(tf TableFields, d dialect.DialectProvider, argIdx *int) (string, []any, error) {
 	if cn.FieldIdx < 0 || cn.FieldIdx >= len(tf) {
 		return "", nil, fmt.Errorf("field_info: FieldIdx %d out of range [0, %d)", cn.FieldIdx, len(tf))
 	}
@@ -108,7 +116,7 @@ func (cn *ConditionNode) Build(tf TableFields, d dialect.DialectProvider, argIdx
 	return "", nil, fmt.Errorf("field_info: unknown CommandOp %d", cn.Op)
 }
 
-func (gn *GroupNode) Build(tf TableFields, d dialect.DialectProvider, argIdx *int) (string, []any, error) {
+func (gn GroupNode) Build(tf TableFields, d dialect.DialectProvider, argIdx *int) (string, []any, error) {
 	switch gn.Logic {
 	case LogicAnd, LogicOr:
 		sep := " AND "

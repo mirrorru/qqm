@@ -74,7 +74,13 @@ func main() {
 	fmt.Println("one2")
 	fmt.Println(tbl.One(ctx, tx, newRow2.ID))
 	fmt.Println("many")
-	list, err := tbl.Many(ctx, tx, nil)
+	list, err := tbl.Many(ctx, tx, &field_info.Filter{
+		Range: field_info.ConditionNode{
+			FieldIdx: tbl.Defs().FieldNames["upd_fld"],
+			Op:       field_info.CmdGt,
+			Value:    999_999_999,
+		},
+	})
 	if err != nil {
 		fmt.Println("many failed", err)
 		return
