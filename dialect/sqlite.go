@@ -1,5 +1,7 @@
 package dialect
 
+import "fmt"
+
 // SQLiteDialect реализует диалект SQLite.
 // EN: SQLiteDialect implements the SQLite dialect.
 type SQLiteDialect struct{}
@@ -23,3 +25,10 @@ func (SQLiteDialect) Placeholder(_ int) string { return "?" }
 // SupportsReturning сообщает, поддерживает ли диалект RETURNING.
 // EN: SupportsReturning reports whether the dialect supports RETURNING.
 func (SQLiteDialect) SupportsReturning() bool { return true }
+
+func (SQLiteDialect) OffsetAndLimit(offset, limit uint32) string {
+	if limit == 0 && offset == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" OFFSET %d LIMIT %d", offset, limit)
+}

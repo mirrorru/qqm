@@ -19,8 +19,6 @@ type sqlTexts struct {
 	ListSortString string
 }
 
-type Filter interface{}
-
 func getTableName(t reflect.Type) string {
 	zero := reflect.New(t).Interface()
 	if namer, ok := zero.(SQLNamer); ok {

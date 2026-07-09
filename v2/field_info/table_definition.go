@@ -178,6 +178,9 @@ func (td *TableDefinition) buildListSQL() string {
 // tableAlias — table alias (e.g. "t1") for qualified names in Query; empty string for a simple table.
 
 func (td *TableDefinition) buildOrderByClause() string {
+	if len(td.Indexes.SelectCols) == 0 {
+		return ""
+	}
 	var sb strings.Builder
 	sb.Grow(len(td.Indexes.SelectCols) * 15)
 	sb.WriteString(defs.SQLOrderBy)

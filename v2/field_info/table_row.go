@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 
 	"github.com/mirrorru/dot"
 	"github.com/mirrorru/qqm/dialect"
@@ -93,6 +94,14 @@ func (t *Table[ROW]) Del(ctx context.Context, tx txproc.TxProcessor, keys ...any
 }
 
 func (t *Table[ROW]) Many(ctx context.Context, tx txproc.TxProcessor, filter Filter) (result []*ROW, err error) {
+	var sb strings.Builder
+	sb.WriteString(t.sql.ListCmdStart)
+
+	sb.WriteString(t.sql.ListSortString)
+	if filter.Offset != 0 || filter.Limit != 0 {
+		sb.WriteString(t.dialect.OffsetAndLimit(filter.Offset, filter.Limit))
+	}
+
 	buf := new(ROW)
 	refs := t.tableDef.extractRefs(buf, t.tableDef.Indexes.SelectCols)
 	q := t.sql.ListCmdStart + t.sql.ListSortString
