@@ -17,13 +17,45 @@ issues:
   # Set to 0 to disable.
   # Default: 3
   max-same-issues: 50
-  exclusions:
-    paths:
-      - "^pkg/.*"
-      - "^main/.*"
-      - "^temp/.*"
-      - ".*_test.go"
-      - ".*_mock.go"
+
+exclusions:
+  paths:
+    - "^pkg/.*"
+    - "^main/.*"
+    - "^temp/.*"
+    - ".*_test.go"
+    - ".*_mock.go"
+  warn-unused: true
+  presets:
+    - std-error-handling
+    - common-false-positives
+  rules:
+    - source: "commentFormatting: put a space between"
+      linters: [gocritic]
+    - source: 'TODO'
+      linters: [ godot ]
+    - text: ' by other packages, and that stutters'
+      linters: [ revive ]
+    - text: 'should have a package comment'
+      linters: [ revive ]
+    - text: 'exported \S+ \S+ should have comment( \(or a comment on this block\))? or be unexported'
+      linters: [ revive ]
+    - text: 'package comment should be of the form ".+"'
+      source: '// ?(nolint|TODO)'
+      linters: [ revive ]
+    - text: 'comment on exported \S+ \S+ should be of the form ".+"'
+      source: '// ?(nolint|TODO)'
+      linters: [ revive, staticcheck ]
+    - path: '_test\.go'
+      linters:
+        - bodyclose
+        - dupl
+        - errcheck
+        - funlen
+        - goconst
+        - gosec
+        - noctx
+        - wrapcheck
 
 formatters:
   enable:
@@ -401,16 +433,10 @@ linters:
       patterns:
         - ".*"
     revive:
-      var-naming:
-        skip-package-name-checks: true
-        #      - name: var-naming
-        #        severity: warning
-        #        disabled: false
-        #        exclude: [""]
-        arguments:
-          #          - skip-initialism-name-checks: true
-          #          - upper-case-const: true
-          - skip-package-name-checks: true
+      rules:
+        - name: var-naming
+          arguments:
+            - skip-package-name-checks: true
     rowserrcheck:
       # database/sql is always checked.
       # Default: []
@@ -457,52 +483,3 @@ linters:
       # Default: false
       os-temp-dir: true
 
-  exclusions:
-    # Log a warning if an exclusion rule is unused.
-    # Default: false
-    warn-unused: true
-    # Predefined exclusion rules.
-    # Default: []
-    presets:
-      - std-error-handling
-      - common-false-positives
-    # Excluding configuration per-path, per-linter, per-text and per-source.
-    rules:
-      - source: "commentFormatting: put a space between"
-        linters: [gocritic]
-      - source: 'TODO'
-        linters: [ godot ]
-      #      - source: "forbidden by pattern"
-      #        linters: [forbidigo]
-      - text: ' by other packages, and that stutters'
-        linters: [ revive ]
-      - text: 'should have a package comment'
-        linters: [ revive ]
-      - text: 'exported \S+ \S+ should have comment( \(or a comment on this block\))? or be unexported'
-        linters: [ revive ]
-      - text: 'package comment should be of the form ".+"'
-        source: '// ?(nolint|TODO)'
-        linters: [ revive ]
-      - text: 'comment on exported \S+ \S+ should be of the form ".+"'
-        source: '// ?(nolint|TODO)'
-        linters: [ revive, staticcheck ]
-      - path: '_test\.go'
-        linters:
-          - bodyclose
-          - dupl
-          - errcheck
-          - funlen
-          - goconst
-          - gosec
-          - noctx
-          - wrapcheck
-    paths:
-      #      - test/testdata_etc # test files
-      #      - internal/go # extracted from Go code
-      #      - internal/x # extracted from x/tools code
-      #      - pkg/goformatters/gci/internal # extracted from gci code
-      #      - pkg/goanalysis/runner_checker.go # extracted from x/tools code
-      - tmp/.*
-      - pkg/.*
-      - .*_test.go
-      - .*_mock.go
