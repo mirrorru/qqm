@@ -1,0 +1,4 @@
+issues:
+  exclude-rules:
+    - path: _test\.go
+    - path: _mock\.go
