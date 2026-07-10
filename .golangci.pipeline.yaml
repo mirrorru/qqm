@@ -22,6 +22,8 @@ issues:
       - "^pkg/.*"
       - "^main/.*"
       - "^temp/.*"
+      - ".*_test.go"
+      - ".*_mock.go"
 
 formatters:
   enable:
@@ -502,5 +504,5 @@ linters:
       #      - pkg/goanalysis/runner_checker.go # extracted from x/tools code
       - tmp/.*
       - pkg/.*
+      - .*_test.go
       - .*_mock.go
-      - .*_mock_test.go

@@ -2,6 +2,8 @@ package meta
 
 // ToSnakeCase преобразует CamelCase в snake_case за один проход по байтам.
 // EN: ToSnakeCase converts CamelCase to snake_case in a single byte pass.
+//
+//nolint:gocognit, nestif
 func ToSnakeCase(s string) string {
 	if s == "" {
 		return ""
@@ -12,7 +14,7 @@ func ToSnakeCase(s string) string {
 	maxLen := len(s) + countUpperAfterLower(s)
 	buf := make([]byte, 0, maxLen)
 
-	for i := 0; i < len(s); i++ {
+	for i := range s {
 		c := s[i]
 		if c >= 'A' && c <= 'Z' {
 			if i > 0 {
