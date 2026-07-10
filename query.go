@@ -34,6 +34,12 @@ type scanState struct {
 	tempDests [][]any
 }
 
+// Query — типизированный multi-table SELECT с JOIN.
+// QROW — структура, поля которой — ROW-типы таблиц.
+// JOIN-условия выводятся автоматически из тегов ref= на полях ROW-структур.
+// EN: Query — typed multi-table SELECT with JOIN.
+// QROW — struct whose fields are ROW table types.
+// JOIN conditions are auto-inferred from ref= tags on ROW struct fields.
 type Query[QROW any] struct {
 	dialect    dialect.DialectProvider
 	tables     []queryTableEntry
@@ -44,6 +50,10 @@ type Query[QROW any] struct {
 	qrowType   reflect.Type
 }
 
+// NewQuery создаёт типизированный multi-table запрос для типа QROW.
+// Собирает метаданные всех таблиц, строит JOIN-условия и генерирует SQL.
+// EN: NewQuery creates a typed multi-table query for the QROW type.
+// Collects metadata for all tables, builds JOIN conditions and generates SQL.
 func NewQuery[QROW any](d dialect.DialectProvider) *Query[QROW] {
 	var ptr *QROW
 	t := reflect.TypeOf(ptr).Elem()
@@ -66,10 +76,16 @@ func NewQuery[QROW any](d dialect.DialectProvider) *Query[QROW] {
 	return q
 }
 
+// SQLs возвращает сгенерированные SQL-запросы (GetOneCmd, ListCmdStart, ListSortString).
+// EN: SQLs returns generated SQL queries (GetOneCmd, ListCmdStart, ListSortString).
 func (q *Query[QROW]) SQLs() sqlTexts {
 	return q.sql
 }
 
+// FlatFields возвращает плоский список всех selectable полей всех таблиц.
+// Используется для определения индексов полей в Cond().
+// EN: FlatFields returns the flat list of all selectable fields from all tables.
+// Used to determine field indices in Cond().
 func (q *Query[QROW]) FlatFields() TableFields {
 	return q.flatFields
 }
@@ -533,6 +549,10 @@ func (q *Query[QROW]) buildOrderByClause() string {
 	return sb.String()
 }
 
+// One возвращает одну строку Query по PK первичной таблицы (и таблиц с тегом pk).
+// Для LEFT JOIN без совпадений поля присоединённых таблиц обнуляются.
+// EN: One returns a single Query row by PK of the primary table (and tables with pk tag).
+// For LEFT JOIN with no match, joined table fields are zeroed.
 func (q *Query[QROW]) One(ctx context.Context, tx txproc.TxProcessor, keys ...any) (*QROW, error) {
 	buf := new(QROW)
 	ss := q.newScanState(buf)
@@ -544,6 +564,12 @@ func (q *Query[QROW]) One(ctx context.Context, tx txproc.TxProcessor, keys ...an
 	return buf, nil
 }
 
+// Many возвращает срез строк Query с JOIN, фильтрацией и сортировкой.
+// filter может быть nil — тогда возвращаются все строки с ORDER BY из sort-тегов.
+// Для LEFT JOIN без совпадений поля присоединённых таблиц обнуляются.
+// EN: Many returns a slice of Query rows with JOIN, filtering and sorting.
+// filter may be nil — then all rows are returned with ORDER BY from sort tags.
+// For LEFT JOIN with no match, joined table fields are zeroed.
 func (q *Query[QROW]) Many(ctx context.Context, tx txproc.TxProcessor, filter *Filter) (result []*QROW, err error) {
 	var sb strings.Builder
 	sb.WriteString(q.sql.ListCmdStart)
