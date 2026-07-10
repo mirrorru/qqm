@@ -112,6 +112,23 @@ func (td *TableDefinition) buildInsertSQL(dlct dialect.DialectProvider) string {
 	return sb.String()
 }
 
+// buildColumnList формирует список колонок, разделённых запятой.
+// EN: buildColumnList builds a comma-separated list of columns.
+func buildColumnList(td *TableDefinition, indexes []int) string {
+	if len(indexes) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.Grow(len(indexes) * 20)
+	for i, idx := range indexes {
+		if i > 0 {
+			sb.WriteString(defs.SQLCommaSpace)
+		}
+		sb.WriteString(td.Fields[idx].SQLName)
+	}
+	return sb.String()
+}
+
 // buildGetOneSQL формирует SQL SELECT по PK с учётом диалекта и метаданных.
 // EN: buildGetOneSQL builds SELECT by PK SQL accounting for dialect and metadata.
 func (td *TableDefinition) buildGetOneSQL(dlct dialect.DialectProvider) string {
@@ -122,12 +139,7 @@ func (td *TableDefinition) buildGetOneSQL(dlct dialect.DialectProvider) string {
 	var sb strings.Builder
 	sb.Grow(len(td.Indexes.SelectCols) * 25)
 	sb.WriteString(defs.SQLSelect)
-	for pos, idx := range td.Indexes.SelectCols {
-		if pos > 0 {
-			sb.WriteString(defs.SQLCommaSpace)
-		}
-		sb.WriteString(td.Fields[idx].SQLName)
-	}
+	sb.WriteString(buildColumnList(td, td.Indexes.SelectCols))
 	sb.WriteString(defs.SQLFrom)
 	sb.WriteString(td.TableName)
 	td.writeWhereClauses(dlct, 0, &sb)
@@ -161,12 +173,7 @@ func (td *TableDefinition) buildListSQL() string {
 	var sb strings.Builder
 	sb.Grow(len(td.Indexes.SelectCols) * 25)
 	sb.WriteString(defs.SQLSelect)
-	for pos, idx := range td.Indexes.SelectCols {
-		if pos > 0 {
-			sb.WriteString(defs.SQLCommaSpace)
-		}
-		sb.WriteString(td.Fields[idx].SQLName)
-	}
+	sb.WriteString(buildColumnList(td, td.Indexes.SelectCols))
 	sb.WriteString(defs.SQLFrom)
 	sb.WriteString(td.TableName)
 	return sb.String()

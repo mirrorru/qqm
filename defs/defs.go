@@ -20,6 +20,12 @@ const (
 	SQLOrderBy    = "\nORDER BY "
 	SQLAsc        = " ASC"
 	SQLDesc       = " DESC"
+	SQLOr         = " OR "
+	SQLNot        = "NOT "
+	SQLLike       = " LIKE "
+	SQLILike      = " ILIKE "
+	SQLIsNull     = " IS NULL"
+	SQLIsNotNull  = " IS NOT NULL"
 
 	SQLInnerJoin = " INNER JOIN "
 	SQLLeftJoin  = " LEFT JOIN "
@@ -27,10 +33,4 @@ const (
 	SQLJoin      = " JOIN "
 	SQLOn        = " ON "
 	SQLAs        = " AS "
-
-	SQLCreateTable   = "CREATE TABLE "
-	SQLNotNull       = " NOT NULL"
-	SQLPrimaryKey    = " PRIMARY KEY"
-	SQLReferences    = " REFERENCES "
-	SQLAutoincrement = " AUTOINCREMENT"
 )

@@ -20,7 +20,8 @@ func TestBuildWhere_NilRoot(t *testing.T) {
 
 	table := qqm.NewTable[filterTestRow](dialect.SQLiteDialect{})
 	f := qqm.Filter{Range: nil}
-	query, args := f.BuildWhere(table.Defs().Fields, dialect.SQLiteDialect{})
+	query, args, err := f.BuildWhere(table.Defs().Fields, dialect.SQLiteDialect{})
+	require.NoError(t, err)
 	assert.Empty(t, query)
 	assert.Nil(t, args)
 }
@@ -34,7 +35,8 @@ func TestBuildWhere_SingleCondition_SQLite(t *testing.T) {
 	root := qqm.Cond(1, qqm.CmdEq, "Alice")
 	f := qqm.Filter{Range: root}
 
-	query, args := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	query, args, err := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	require.NoError(t, err)
 	assert.Contains(t, query, "WHERE")
 	assert.Contains(t, query, "user_name")
 	assert.Contains(t, query, "= ?")
@@ -50,7 +52,8 @@ func TestBuildWhere_SingleCondition_PG(t *testing.T) {
 	root := qqm.Cond(1, qqm.CmdEq, "Alice")
 	f := qqm.Filter{Range: root}
 
-	query, args := f.BuildWhere(tf, dialect.PostgreSQLDialect{})
+	query, args, err := f.BuildWhere(tf, dialect.PostgreSQLDialect{})
+	require.NoError(t, err)
 	assert.Contains(t, query, "WHERE")
 	assert.Contains(t, query, "user_name")
 	assert.Contains(t, query, "= $1")
@@ -69,7 +72,8 @@ func TestBuildWhere_MultipleAND(t *testing.T) {
 	)
 	f := qqm.Filter{Range: root}
 
-	query, args := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	query, args, err := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	require.NoError(t, err)
 	assert.Contains(t, query, "WHERE")
 	assert.Contains(t, query, "user_name")
 	assert.Contains(t, query, "age")
@@ -89,7 +93,8 @@ func TestBuildWhere_OR(t *testing.T) {
 	)
 	f := qqm.Filter{Range: root}
 
-	query, args := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	query, args, err := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	require.NoError(t, err)
 	assert.Contains(t, query, "WHERE")
 	assert.Contains(t, query, " OR ")
 	assert.Equal(t, []any{"Alice", "Bob"}, args)
@@ -104,7 +109,8 @@ func TestBuildWhere_NOT(t *testing.T) {
 	root := qqm.Not(qqm.Cond(2, qqm.CmdEq, 18))
 	f := qqm.Filter{Range: root}
 
-	query, args := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	query, args, err := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	require.NoError(t, err)
 	assert.Contains(t, query, "WHERE")
 	assert.Contains(t, query, "NOT")
 	assert.Contains(t, query, "age")
@@ -126,7 +132,8 @@ func TestBuildWhere_Nested(t *testing.T) {
 	)
 	f := qqm.Filter{Range: root}
 
-	query, args := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	query, args, err := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	require.NoError(t, err)
 	assert.Contains(t, query, "WHERE")
 	assert.Contains(t, query, "user_name")
 	assert.Contains(t, query, "age")
@@ -163,7 +170,8 @@ func TestBuildWhere_Operators(t *testing.T) {
 			root := qqm.Cond(2, tt.op, tt.value)
 			f := qqm.Filter{Range: root}
 
-			query, args := f.BuildWhere(tf, dialect.SQLiteDialect{})
+			query, args, err := f.BuildWhere(tf, dialect.SQLiteDialect{})
+			require.NoError(t, err)
 			assert.Contains(t, query, tt.wantSQL)
 			assert.Equal(t, tt.wantArgs, args)
 		})
@@ -182,7 +190,8 @@ func TestBuildWhere_IsNull_IsNotNull(t *testing.T) {
 		root := qqm.Cond(1, qqm.CmdIsNull, nil)
 		f := qqm.Filter{Range: root}
 
-		query, args := f.BuildWhere(tf, dialect.SQLiteDialect{})
+		query, args, err := f.BuildWhere(tf, dialect.SQLiteDialect{})
+		require.NoError(t, err)
 		assert.Contains(t, query, "IS NULL")
 		assert.Nil(t, args)
 	})
@@ -196,7 +205,8 @@ func TestBuildWhere_IsNull_IsNotNull(t *testing.T) {
 		root := qqm.Cond(1, qqm.CmdIsNotNull, nil)
 		f := qqm.Filter{Range: root}
 
-		query, args := f.BuildWhere(tf, dialect.SQLiteDialect{})
+		query, args, err := f.BuildWhere(tf, dialect.SQLiteDialect{})
+		require.NoError(t, err)
 		assert.Contains(t, query, "IS NOT NULL")
 		assert.Nil(t, args)
 	})
@@ -211,7 +221,8 @@ func TestBuildWhere_Like(t *testing.T) {
 	root := qqm.Cond(1, qqm.CmdLike, "%Alice%")
 	f := qqm.Filter{Range: root}
 
-	query, args := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	query, args, err := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	require.NoError(t, err)
 	assert.Contains(t, query, "LIKE ?")
 	assert.Equal(t, []any{"%Alice%"}, args)
 }
@@ -225,7 +236,8 @@ func TestBuildWhere_ILike_PG(t *testing.T) {
 	root := qqm.Cond(1, qqm.CmdILike, "%Alice%")
 	f := qqm.Filter{Range: root}
 
-	query, args := f.BuildWhere(tf, dialect.PostgreSQLDialect{})
+	query, args, err := f.BuildWhere(tf, dialect.PostgreSQLDialect{})
+	require.NoError(t, err)
 	assert.Contains(t, query, "ILIKE")
 	assert.Equal(t, []any{"%Alice%"}, args)
 }
@@ -239,7 +251,8 @@ func TestBuildWhere_ILike_SQLite(t *testing.T) {
 	root := qqm.Cond(1, qqm.CmdILike, "%Alice%")
 	f := qqm.Filter{Range: root}
 
-	query, args := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	query, args, err := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	require.NoError(t, err)
 	assert.Contains(t, query, "LOWER(")
 	assert.Contains(t, query, ") LIKE LOWER(")
 	assert.Equal(t, []any{"%Alice%"}, args)
@@ -254,7 +267,8 @@ func TestBuildWhere_In(t *testing.T) {
 	root := qqm.Cond(2, qqm.CmdIn, []any{20, 30, 40})
 	f := qqm.Filter{Range: root}
 
-	query, args := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	query, args, err := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	require.NoError(t, err)
 	assert.Contains(t, query, "IN")
 	assert.Contains(t, query, "?, ?, ?")
 	assert.Equal(t, []any{20, 30, 40}, args)
@@ -273,7 +287,8 @@ func TestBuildWhere_PlaceholderContinuity(t *testing.T) {
 	)
 	f := qqm.Filter{Range: root}
 
-	query, args := f.BuildWhere(tf, dialect.PostgreSQLDialect{})
+	query, args, err := f.BuildWhere(tf, dialect.PostgreSQLDialect{})
+	require.NoError(t, err)
 	assert.Contains(t, query, "$1")
 	assert.Contains(t, query, "$2")
 	assert.Contains(t, query, "$3")
@@ -291,7 +306,8 @@ func TestBuildWhere_OutOfRange(t *testing.T) {
 	root := qqm.Cond(99, qqm.CmdEq, "test")
 	f := qqm.Filter{Range: root}
 
-	query, args := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	query, args, err := f.BuildWhere(tf, dialect.SQLiteDialect{})
+	require.Error(t, err)
 	assert.Empty(t, query)
 	assert.Nil(t, args)
 }

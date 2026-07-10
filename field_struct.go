@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/mirrorru/qqm/meta"
 )
@@ -109,16 +110,26 @@ type TableField struct {
 }
 type TableFields []TableField
 
+var collectTableFieldsCache sync.Map
+
 // CollectTableFields -
 func CollectTableFields(t reflect.Type) (TableFields, error) {
 	if t.Kind() != reflect.Struct {
 		return nil, errors.New("varPtr must be a pointer to struct")
 	}
-	result := make([]TableField, 0, t.NumField())
+
+	if v, ok := collectTableFieldsCache.Load(t); ok {
+		return v.(TableFields), nil //nolint:errcheck
+	}
+
+	result := make(TableFields, 0, t.NumField())
 	for idx := range t.NumField() {
 		newFields := collectFieldInfo(t.Field(idx), FieldFlags{})
 		result = append(result, newFields...)
 	}
+
+	collectTableFieldsCache.Store(t, result)
+
 	return result, nil
 }
 

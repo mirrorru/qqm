@@ -3,6 +3,8 @@ package dialect
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/mirrorru/qqm/defs"
 )
 
 // PostgreSQLDialect реализует диалект PostgreSQL.
@@ -32,7 +34,7 @@ func (PostgreSQLDialect) SupportsReturning() bool { return true }
 // ILIKE возвращает регистронезависимое LIKE-условие для PostgreSQL.
 // EN: ILIKE returns case-insensitive LIKE for PostgreSQL.
 func (PostgreSQLDialect) ILIKE(col string, placeholder string) string {
-	return col + " ILIKE " + placeholder
+	return col + defs.SQLILike + placeholder
 }
 
 func (PostgreSQLDialect) OffsetAndLimit(offset, limit uint32) string {
