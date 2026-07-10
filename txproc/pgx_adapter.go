@@ -123,7 +123,7 @@ func (r *PgxRows) Scan(dest ...any) error {
 // EN: Close closes the result cursor.
 func (r *PgxRows) Close() error {
 	r.rows.Close()
-	return nil
+	return r.rows.Err()
 }
 
 func (r *PgxRows) Err() error {

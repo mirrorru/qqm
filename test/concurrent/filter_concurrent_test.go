@@ -35,7 +35,8 @@ func TestConcurrent_FilterBuild_NoRace(t *testing.T) {
 					qqm.Cond(2, qqm.CmdGte, 25),
 				),
 			}
-			where, args := filter.BuildWhere(tf, dialect.SQLiteDialect{})
+			where, args, err := filter.BuildWhere(tf, dialect.SQLiteDialect{})
+			assert.NoError(t, err)
 			assert.NotEmpty(t, where)
 			assert.Len(t, args, 2)
 		}()
@@ -101,7 +102,8 @@ func TestConcurrent_GroupNodeBuild(t *testing.T) {
 					qqm.Cond(1, qqm.CmdLike, "%prefix%"),
 				),
 			}
-			where, args := andFilter.BuildWhere(tf, dialect.SQLiteDialect{})
+			where, args, err := andFilter.BuildWhere(tf, dialect.SQLiteDialect{})
+			assert.NoError(t, err)
 			assert.NotEmpty(t, where)
 			assert.Len(t, args, 2)
 
@@ -111,7 +113,8 @@ func TestConcurrent_GroupNodeBuild(t *testing.T) {
 					qqm.Cond(2, qqm.CmdEq, "pending"),
 				),
 			}
-			where2, args2 := orFilter.BuildWhere(tf, dialect.SQLiteDialect{})
+			where2, args2, err2 := orFilter.BuildWhere(tf, dialect.SQLiteDialect{})
+			assert.NoError(t, err2)
 			assert.NotEmpty(t, where2)
 			assert.Len(t, args2, 2)
 
@@ -120,7 +123,8 @@ func TestConcurrent_GroupNodeBuild(t *testing.T) {
 					qqm.Cond(0, qqm.CmdEq, 0),
 				),
 			}
-			where3, args3 := notFilter.BuildWhere(tf, dialect.SQLiteDialect{})
+			where3, args3, err3 := notFilter.BuildWhere(tf, dialect.SQLiteDialect{})
+			assert.NoError(t, err3)
 			assert.NotEmpty(t, where3)
 			assert.Len(t, args3, 1)
 		}()
@@ -194,7 +198,8 @@ func TestConcurrent_FilterCombinations(t *testing.T) {
 				),
 			}
 
-			where, args := complexFilter.BuildWhere(tf, dialect.SQLiteDialect{})
+			where, args, err := complexFilter.BuildWhere(tf, dialect.SQLiteDialect{})
+			assert.NoError(t, err)
 			assert.NotEmpty(t, where)
 			assert.Len(t, args, 4)
 

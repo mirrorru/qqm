@@ -91,7 +91,10 @@ func (t *Table[ROW]) Del(ctx context.Context, tx txproc.TxProcessor, keys ...any
 func (t *Table[ROW]) Many(ctx context.Context, tx txproc.TxProcessor, filter *Filter) (result []*ROW, err error) {
 	var sb strings.Builder
 	sb.WriteString(t.sql.ListCmdStart)
-	where, args := filter.BuildWhere(t.tableDef.Fields, t.dialect)
+	where, args, buildErr := filter.BuildWhere(t.tableDef.Fields, t.dialect)
+	if buildErr != nil {
+		return nil, buildErr
+	}
 	sb.WriteString(where)
 	sb.WriteString(t.sql.ListSortString)
 	sb.WriteString(filter.BuildOffsetAndLimit(t.dialect))

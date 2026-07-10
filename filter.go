@@ -61,16 +61,16 @@ func (f *Filter) BuildOffsetAndLimit(d dialect.DialectProvider) string {
 	return d.OffsetAndLimit(f.Offset, f.Limit)
 }
 
-func (f *Filter) BuildWhere(tf TableFields, d dialect.DialectProvider) (query string, args []any) {
+func (f *Filter) BuildWhere(tf TableFields, d dialect.DialectProvider) (query string, args []any, err error) {
 	if f == nil || f.Range == nil {
-		return "", nil
+		return "", nil, nil
 	}
 	argIdx := 1
 	clause, args, err := f.Range.Build(tf, d, &argIdx)
 	if err != nil || clause == "" {
-		return "", nil
+		return "", nil, err
 	}
-	return defs.SQLWhere + clause, args
+	return defs.SQLWhere + clause, args, nil
 }
 
 func (cn ConditionNode) Build(tf TableFields, d dialect.DialectProvider, argIdx *int) (string, []any, error) {
@@ -107,10 +107,10 @@ func (cn ConditionNode) Build(tf TableFields, d dialect.DialectProvider, argIdx 
 		return d.ILIKE(col, p), []any{cn.Value}, nil
 
 	case CmdIsNull:
-		return col + " IS NULL", nil, nil
+		return col + defs.SQLIsNull, nil, nil
 
 	case CmdIsNotNull:
-		return col + " IS NOT NULL", nil, nil
+		return col + defs.SQLIsNotNull, nil, nil
 	}
 
 	return "", nil, fmt.Errorf("qqm: unknown CommandOp %d", cn.Op)
@@ -119,9 +119,9 @@ func (cn ConditionNode) Build(tf TableFields, d dialect.DialectProvider, argIdx 
 func (gn GroupNode) Build(tf TableFields, d dialect.DialectProvider, argIdx *int) (string, []any, error) {
 	switch gn.Logic {
 	case LogicAnd, LogicOr:
-		sep := " AND "
+		sep := defs.SQLAnd
 		if gn.Logic == LogicOr {
-			sep = " OR "
+			sep = defs.SQLOr
 		}
 		clauses, args, err := buildChildren(gn.Children, tf, d, argIdx, sep)
 		if err != nil {
@@ -143,7 +143,7 @@ func (gn GroupNode) Build(tf TableFields, d dialect.DialectProvider, argIdx *int
 		if childClause == "" {
 			return "", nil, nil
 		}
-		return "NOT " + defs.SQLOpenParen + childClause + defs.SQLCloseParen, childArgs, nil
+		return defs.SQLNot + defs.SQLOpenParen + childClause + defs.SQLCloseParen, childArgs, nil
 	}
 
 	return "", nil, fmt.Errorf("qqm: unknown LogicOp %d", gn.Logic)
@@ -191,7 +191,7 @@ func cmdOpToSQL(op CommandOp) string {
 	case CmdLte:
 		return " <= "
 	case CmdLike:
-		return " LIKE "
+		return defs.SQLLike
 	default:
 		return defs.SQLEquals
 	}

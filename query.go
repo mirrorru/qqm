@@ -547,7 +547,10 @@ func (q *Query[QROW]) One(ctx context.Context, tx txproc.TxProcessor, keys ...an
 func (q *Query[QROW]) Many(ctx context.Context, tx txproc.TxProcessor, filter *Filter) (result []*QROW, err error) {
 	var sb strings.Builder
 	sb.WriteString(q.sql.ListCmdStart)
-	where, args := filter.BuildWhere(q.flatFields, q.dialect)
+	where, args, buildErr := filter.BuildWhere(q.flatFields, q.dialect)
+	if buildErr != nil {
+		return nil, buildErr
+	}
 	sb.WriteString(where)
 	sb.WriteString(q.sql.ListSortString)
 	sb.WriteString(filter.BuildOffsetAndLimit(q.dialect))
