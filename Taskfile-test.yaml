@@ -40,6 +40,12 @@ tasks:
       - grep -v -e '_mock.go' -e '_mock_test.go' {{.COVER_DIR}}/smoke_raw.out > {{.COVER_DIR}}/smoke.out
       - go tool cover -func={{.COVER_DIR}}/smoke.out | grep -v -e '_mock'
 
+  concurrent:
+    desc: "Тесты многопоточности (build tag: concurrent)"
+    cmds:
+      - go vet ./...
+      - go test -count=1 -race -tags=concurrent ./test/concurrent/...
+
   functional:
     desc: "Functional-тесты с покрытием (build tag: functional)"
     deps:
@@ -53,9 +59,10 @@ tasks:
       - go tool cover -func={{.COVER_DIR}}/functional.out | grep -v -e '_mock'
 
   all:
-    desc: Все тесты (unit + smoke + functional)
+    desc: Все тесты (unit + concurrent + smoke + functional)
     deps:
       - unit
+      - concurrent
       - smoke
       - functional
     cmds:
@@ -77,6 +84,7 @@ tasks:
     desc: Полный CI-прогон
     deps:
       - unit
+      - concurrent
       - smoke
       - functional
 
