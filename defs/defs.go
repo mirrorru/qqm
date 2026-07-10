@@ -1,0 +1,36 @@
+package defs
+
+const (
+	SQLInsertInto = "INSERT INTO "
+	SQLValues     = "\nVALUES "
+	SQLReturning  = "\nRETURNING "
+	SQLUpdate     = "UPDATE "
+	SQLSet        = "\nSET "
+	SQLSelect     = "SELECT "
+	SQLFrom       = " FROM "
+	SQLWhere      = "\nWHERE "
+	SQLDelete     = "DELETE FROM "
+	SQLAnd        = " AND "
+	SQLEquals     = " = "
+	SQLCommaSpace = ", "
+	SQLSpace      = " "
+	SQLOpenParen  = " ( "
+	SQLCloseParen = " ) "
+	SQLIn         = " IN "
+	SQLOrderBy    = "\nORDER BY "
+	SQLAsc        = " ASC"
+	SQLDesc       = " DESC"
+
+	SQLInnerJoin = " INNER JOIN "
+	SQLLeftJoin  = " LEFT JOIN "
+	SQLRightJoin = " RIGHT JOIN "
+	SQLJoin      = " JOIN "
+	SQLOn        = " ON "
+	SQLAs        = " AS "
+
+	SQLCreateTable   = "CREATE TABLE "
+	SQLNotNull       = " NOT NULL"
+	SQLPrimaryKey    = " PRIMARY KEY"
+	SQLReferences    = " REFERENCES "
+	SQLAutoincrement = " AUTOINCREMENT"
+)

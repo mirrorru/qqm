@@ -1,6 +1,9 @@
 package dialect
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 // PostgreSQLDialect реализует диалект PostgreSQL.
 // EN: PostgreSQLDialect implements the PostgreSQL dialect.
@@ -25,3 +28,16 @@ func (PostgreSQLDialect) Placeholder(pos int) string { return "$" + strconv.Itoa
 // SupportsReturning сообщает, поддерживает ли диалект RETURNING.
 // EN: SupportsReturning reports whether the dialect supports RETURNING.
 func (PostgreSQLDialect) SupportsReturning() bool { return true }
+
+// ILIKE возвращает регистронезависимое LIKE-условие для PostgreSQL.
+// EN: ILIKE returns case-insensitive LIKE for PostgreSQL.
+func (PostgreSQLDialect) ILIKE(col string, placeholder string) string {
+	return col + " ILIKE " + placeholder
+}
+
+func (PostgreSQLDialect) OffsetAndLimit(offset, limit uint32) string {
+	if limit == 0 && offset == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" OFFSET %d LIMIT %d", offset, limit)
+}

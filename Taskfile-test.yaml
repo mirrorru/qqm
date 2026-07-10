@@ -8,7 +8,7 @@ vars:
   TEST_ROOT_DSN: 'postgres://{{.TEST_PG_USER}}:{{.TEST_PG_PASSWORD}}@{{.TEST_PG_HOST}}/postgres?sslmode=disable'
   TEST_PG_DSN: 'postgres://{{.TEST_PG_USER}}:{{.TEST_PG_PASSWORD}}@{{.TEST_PG_HOST}}/{{.TEST_PG_DB}}?sslmode=disable'
   COVER_DIR: coverage
-  COVER_PKGS: ./meta/...,./dialect/...,./executor/...,./table/...
+  COVER_PKGS: ./meta/...,./dialect/...,./...
 
 tasks:
   gen:mocks:
