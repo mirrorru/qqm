@@ -40,3 +40,4 @@ jobs:
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           working-directory: ${{ matrix.modules }}
+          args: --config=.golangci.pipeline.yaml --timeout=5m
