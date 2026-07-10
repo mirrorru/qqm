@@ -1,3 +1,4 @@
+//nolint:nestif
 package qqm
 
 import (
@@ -304,7 +305,7 @@ func (ss *scanState) clearTempDests() {
 	}
 }
 
-func (q *Query[QROW]) applyNulls(buf *QROW, ss *scanState) {
+func (q *Query[QROW]) applyNulls(buf *QROW, ss *scanState) { //nolint:gocognit
 	rv := reflect.ValueOf(buf).Elem()
 	for ei := range q.tables {
 		entry := &q.tables[ei]

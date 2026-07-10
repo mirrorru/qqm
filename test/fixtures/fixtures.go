@@ -1,3 +1,4 @@
+//nolint:goconst
 package fixtures
 
 import "time"

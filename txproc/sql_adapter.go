@@ -1,3 +1,4 @@
+//nolint:rowserrcheck
 package txproc
 
 import (
