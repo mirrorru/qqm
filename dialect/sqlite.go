@@ -36,5 +36,11 @@ func (SQLiteDialect) OffsetAndLimit(offset, limit uint32) string {
 	if limit == 0 && offset == 0 {
 		return ""
 	}
-	return fmt.Sprintf(" OFFSET %d LIMIT %d", offset, limit)
+	if offset == 0 {
+		return fmt.Sprintf(" LIMIT %d", limit)
+	}
+	if limit == 0 {
+		return fmt.Sprintf(" LIMIT -1 OFFSET %d", offset)
+	}
+	return fmt.Sprintf(" LIMIT %d OFFSET %d", limit, offset)
 }

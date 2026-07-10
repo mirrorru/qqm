@@ -8,7 +8,7 @@ vars:
   TEST_ROOT_DSN: 'postgres://{{.TEST_PG_USER}}:{{.TEST_PG_PASSWORD}}@{{.TEST_PG_HOST}}/postgres?sslmode=disable'
   TEST_PG_DSN: 'postgres://{{.TEST_PG_USER}}:{{.TEST_PG_PASSWORD}}@{{.TEST_PG_HOST}}/{{.TEST_PG_DB}}?sslmode=disable'
   COVER_DIR: coverage
-  COVER_PKGS: ./meta/...,./dialect/...,./executor/...,./table/...
+  COVER_PKGS: ./meta/...,./dialect/...,./executor/...,./table/...,./v2/...
 
 tasks:
   gen:mocks:
@@ -39,6 +39,27 @@ tasks:
       - go test -count=1 -tags=smoke -coverprofile={{.COVER_DIR}}/smoke_raw.out -coverpkg={{.COVER_PKGS}} ./test/smoke/...
       - grep -v -e '_mock.go' -e '_mock_test.go' {{.COVER_DIR}}/smoke_raw.out > {{.COVER_DIR}}/smoke.out
       - go tool cover -func={{.COVER_DIR}}/smoke.out | grep -v -e '_mock'
+
+  v2:smoke:
+    desc: "V2 smoke-тесты с покрытием (build tag: smoke)"
+    cmds:
+      - go vet ./v2/...
+      - mkdir -p {{.COVER_DIR}}
+      - go test -count=1 -tags=smoke -run 'V2Smoke' -coverprofile={{.COVER_DIR}}/v2_smoke_raw.out -coverpkg={{.COVER_PKGS}} ./test/smoke/...
+      - grep -v -e '_mock.go' -e '_mock_test.go' {{.COVER_DIR}}/v2_smoke_raw.out > {{.COVER_DIR}}/v2_smoke.out
+      - go tool cover -func={{.COVER_DIR}}/v2_smoke.out | grep -v -e '_mock'
+
+  v2:functional:
+    desc: "V2 functional-тесты с покрытием (build tag: functional)"
+    deps:
+      - db:create
+    cmds:
+      - defer: { task: db:drop }
+      - go vet ./v2/...
+      - mkdir -p {{.COVER_DIR}}
+      - TEST_PG_DSN={{.TEST_PG_DSN}} go test -count=1 -tags=functional -run 'V2Functional' -coverprofile={{.COVER_DIR}}/v2_functional_raw.out -coverpkg={{.COVER_PKGS}} ./test/functional/...
+      - grep -v -e '_mock.go' -e '_mock_test.go' {{.COVER_DIR}}/v2_functional_raw.out > {{.COVER_DIR}}/v2_functional.out
+      - go tool cover -func={{.COVER_DIR}}/v2_functional.out | grep -v -e '_mock'
 
   functional:
     desc: "Functional-тесты с покрытием (build tag: functional)"

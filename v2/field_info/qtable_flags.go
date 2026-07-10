@@ -52,7 +52,7 @@ func parseTableTag(tag string) (result TableFlags, ok bool) {
 		case isKey(keyAlias, key):
 			result.Alias = key[len(keyAlias):]
 		case isKey(keyJoinTo, key):
-			s := strings.ToLower(key[len(keySort):])
+			s := strings.ToLower(key[len(keyJoinTo):])
 			ss := strings.Split(s, inKeySeparator)
 			result.RefMap = make(map[string]string, len(ss))
 			for _, kv := range ss {
@@ -62,7 +62,7 @@ func parseTableTag(tag string) (result TableFlags, ok bool) {
 				}
 			}
 		case isKey(keySort, key):
-			result.SortOrder, _ = strconv.Atoi(key[len(keyAlias):])
+			result.SortOrder, _ = strconv.Atoi(key[len(keySort):])
 		}
 	}
 	return result, true

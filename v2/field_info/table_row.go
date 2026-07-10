@@ -24,16 +24,11 @@ func NewTable[ROW any](dialect dialect.DialectProvider) *Table[ROW] {
 	rowType := reflect.TypeOf(row)
 
 	fields := dot.MustMake(CollectTableFields(rowType))
-	names := make(map[string]int, len(fields))
-	for idx := range fields {
-		fields[idx].SQLName = dialect.QuoteIdent(fields[idx].SQLName)
-		names[fields[idx].SQLName] = idx
-	}
 	tableDef := TableDefinition{
 		TableName:  getTableName(rowType),
 		Fields:     fields,
 		Indexes:    fields.allIndexes(),
-		FieldNames: names,
+		FieldNames: buildFieldNames(fields),
 	}
 
 	result := &Table[ROW]{

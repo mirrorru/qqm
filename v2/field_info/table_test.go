@@ -76,6 +76,103 @@ type testRefRow struct {
 	Name   string
 }
 
+type testUserRow struct {
+	ID   int64  `tbl:"pk;auto"`
+	Name string
+}
+
+func (testUserRow) SQLName() string { return "users" }
+
+type testOrderRow struct {
+	ID     int64 `tbl:"pk;auto"`
+	UserID int64 `tbl:"ref=users.id"`
+	Total  int
+}
+
+func (testOrderRow) SQLName() string { return "orders" }
+
+type testUsePkRow struct {
+	ID   int64  `tbl:"pk;auto"`
+	Name string
+}
+
+type testRefMapRow struct {
+	ID    int64  `tbl:"pk;auto"`
+	Owner string `tbl:"ref=u.id"`
+}
+
+func (testRefMapRow) SQLName() string { return "items" }
+
+type testDetailRow struct {
+	ID     int64  `tbl:"pk;auto"`
+	UserID int64  `tbl:"ref=users.id"`
+	Name   string
+}
+
+func (testDetailRow) SQLName() string { return "details" }
+
+type testOrphanRow struct {
+	ID   int64 `tbl:"pk;auto"`
+	Data string
+}
+
+func (testOrphanRow) SQLName() string { return "orphans" }
+
+type testBadRefRow struct {
+	ID     int64  `tbl:"pk;auto"`
+	DataID int64  `tbl:"ref=ghost.id"`
+}
+
+func (testBadRefRow) SQLName() string { return "data" }
+
+type testRevUserRow struct {
+	ID    int64 `tbl:"pk;auto"`
+	RefID int64 `tbl:"ref=items.id"`
+}
+
+func (testRevUserRow) SQLName() string { return "users" }
+
+type testItemRow struct {
+	ID   int64 `tbl:"pk;auto"`
+	Name string
+}
+
+func (testItemRow) SQLName() string { return "items" }
+
+type testSortUserRow struct {
+	ID   int64  `tbl:"pk;auto"`
+	Name string `tbl:"sort=2"`
+}
+
+func (testSortUserRow) SQLName() string { return "users" }
+
+type testSortOrderRow struct {
+	ID      int64 `tbl:"pk;auto"`
+	UserID  int64 `tbl:"ref=users.id;sort=1,desc"`
+	Total   int
+}
+
+func (testSortOrderRow) SQLName() string { return "orders" }
+
+type testSettingsRow struct {
+	Name string
+}
+
+func (testSettingsRow) SQLName() string { return "settings" }
+
+type testWidgetsRow struct {
+	Name string
+}
+
+func (testWidgetsRow) SQLName() string { return "widgets" }
+
+type testChildRow struct {
+	ID      int64 `tbl:"pk;auto"`
+	OwnerID int64 `tbl:"ref=widgets.id"`
+}
+
+func (testChildRow) SQLName() string { return "children" }
+
 type testEmptyStruct struct{}
 
 type testPrivateFieldsOnly struct {
@@ -836,8 +933,7 @@ func TestTableDefinition_BuildOrderByClause_NoSort(t *testing.T) {
 
 	table := field_info.NewTable[testSimpleRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
-	// ORDER BY должен быть, но пустой
-	assert.Contains(t, sql.ListSortString, "ORDER BY")
+	assert.Empty(t, sql.ListSortString)
 }
 
 // TestTableDefinition_BuildInsertSQL_SQLite проверяет INSERT SQL для SQLite
@@ -1010,7 +1106,7 @@ func TestNewQuery_EmptyQuery(t *testing.T) {
 	t.Parallel()
 
 	type emptyQuery struct{}
-	query := field_info.NewQuery[emptyQuery]()
+	query := field_info.NewQuery[emptyQuery](dialect.SQLiteDialect{})
 	assert.NotNil(t, query)
 }
 
@@ -1019,11 +1115,11 @@ func TestNewQuery_WithTables(t *testing.T) {
 	t.Parallel()
 
 	type queryRow struct {
-		User testSimpleRow
-		Post testSortRow
+		User  testUserRow  `tbl:"from"`
+		Order testOrderRow
 	}
 
-	query := field_info.NewQuery[queryRow]()
+	query := field_info.NewQuery[queryRow](dialect.SQLiteDialect{})
 	assert.NotNil(t, query)
 }
 
@@ -1036,7 +1132,7 @@ func TestNewQuery_SkipsUnexportedAndAnonymous(t *testing.T) {
 		Public  testSortRow
 	}
 
-	query := field_info.NewQuery[queryWithPrivate]()
+	query := field_info.NewQuery[queryWithPrivate](dialect.SQLiteDialect{})
 	assert.NotNil(t, query)
 }
 
@@ -1146,4 +1242,242 @@ func TestTableDefinition_AllIndexes(t *testing.T) {
 	assert.Contains(t, defs.Indexes.PKCols, 0)        // ID
 	assert.Contains(t, defs.Indexes.SortingCols, 1)   // Name
 	assert.Contains(t, defs.Indexes.RefCols, 4)       // RefID
+}
+
+// TestQuery_SQL_TwoTables проверяет SQL-генерацию для двухтабличного JOIN
+func TestQuery_SQL_TwoTables(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		User  testUserRow  `tbl:"from"`
+		Order testOrderRow
+	}
+
+	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	sql := query.SQLs()
+
+	assert.Contains(t, sql.ListCmdStart, "SELECT")
+	assert.Contains(t, sql.ListCmdStart, "users.id")
+	assert.Contains(t, sql.ListCmdStart, "users.name")
+	assert.Contains(t, sql.ListCmdStart, "orders.id")
+	assert.Contains(t, sql.ListCmdStart, "orders.user_id")
+	assert.Contains(t, sql.ListCmdStart, "orders.total")
+	assert.Contains(t, sql.ListCmdStart, "FROM users")
+	assert.Contains(t, sql.ListCmdStart, "INNER JOIN orders")
+	assert.Contains(t, sql.ListCmdStart, "ON orders.user_id = users.id")
+}
+
+// TestQuery_SQL_WithAlias проверяет алиасы таблиц в JOIN
+func TestQuery_SQL_WithAlias(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		U testUserRow `tbl:"from;alias=u"`
+		O testOrderRow
+	}
+
+	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	sql := query.SQLs()
+
+	assert.Contains(t, sql.ListCmdStart, "FROM users AS u")
+	assert.Contains(t, sql.ListCmdStart, "INNER JOIN orders")
+	assert.Contains(t, sql.ListCmdStart, "ON orders.user_id = u.id")
+	assert.Contains(t, sql.ListCmdStart, "u.id")
+	assert.Contains(t, sql.ListCmdStart, "u.name")
+}
+
+// TestQuery_SQL_LEFT_JOIN проверяет LEFT JOIN
+func TestQuery_SQL_LEFT_JOIN(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		User  testUserRow   `tbl:"from"`
+		Order testOrderRow  `tbl:"join=left"`
+	}
+
+	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	sql := query.SQLs()
+
+	assert.Contains(t, sql.ListCmdStart, "LEFT JOIN orders")
+}
+
+// TestQuery_SQL_RefMap проверяет map= для перевода ref-имён в алиасы
+func TestQuery_SQL_RefMap(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		U    testUserRow  `tbl:"from;alias=u"`
+		Item testRefMapRow `tbl:"map=u:u"`
+	}
+
+	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	sql := query.SQLs()
+
+	assert.Contains(t, sql.ListCmdStart, "ON items.owner = u.id")
+}
+
+// TestQuery_SQL_OrderBy проверяет глобальную сортировку со всех таблиц
+func TestQuery_SQL_OrderBy(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		User  testSortUserRow  `tbl:"from"`
+		Order testSortOrderRow
+	}
+
+	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	sql := query.SQLs()
+
+	assert.Contains(t, sql.ListSortString, "ORDER BY")
+	assert.Contains(t, sql.ListSortString, "user_id")
+	assert.Contains(t, sql.ListSortString, "name")
+	assert.Contains(t, sql.ListSortString, "DESC")
+
+	userIDIdx := strings.Index(sql.ListSortString, "user_id")
+	nameIdx := strings.Index(sql.ListSortString, "name")
+	assert.Less(t, userIDIdx, nameIdx, "user_id (sort=1) должен быть перед name (sort=2)")
+}
+
+// TestQuery_SQL_GetOneCmd проверяет GetOne SQL с PK основной + UsePk таблиц
+func TestQuery_SQL_GetOneCmd(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		User   testUserRow   `tbl:"from"`
+		Detail testDetailRow `tbl:"pk"`
+	}
+
+	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	sql := query.SQLs()
+
+	assert.Contains(t, sql.GetOneCmd, "SELECT")
+	assert.Contains(t, sql.GetOneCmd, "FROM users")
+	assert.Contains(t, sql.GetOneCmd, "WHERE")
+	assert.Contains(t, sql.GetOneCmd, "users.id = ?")
+	assert.Contains(t, sql.GetOneCmd, "details.id = ?")
+}
+
+// TestQuery_SQL_GetOneCmd_PrimaryTableNoPK проверяет GetOne SQL без PK основной таблицы
+func TestQuery_SQL_GetOneCmd_PrimaryTableNoPK(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		Widget testWidgetsRow `tbl:"from"`
+		Child  testChildRow
+	}
+
+	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	sql := query.SQLs()
+
+	assert.Empty(t, sql.GetOneCmd)
+}
+
+// TestQuery_IDX_Mapping проверяет сквозную нумерацию и idxMapping
+func TestQuery_IDX_Mapping(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		User  testUserRow  `tbl:"from"`
+		Order testOrderRow
+	}
+
+	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	flatFields := query.FlatFields()
+
+	assert.Len(t, flatFields, 5)
+
+	assert.Equal(t, "users.id", flatFields[0].SQLName)
+	assert.Equal(t, "users.name", flatFields[1].SQLName)
+	assert.Equal(t, "orders.id", flatFields[2].SQLName)
+	assert.Equal(t, "orders.user_id", flatFields[3].SQLName)
+	assert.Equal(t, "orders.total", flatFields[4].SQLName)
+}
+
+// TestQuery_FlatFields проверяет квалифицированные имена в flatFields
+func TestQuery_FlatFields(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		User  testUserRow  `tbl:"from;alias=u"`
+		Order testOrderRow `tbl:"alias=o"`
+	}
+
+	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	flatFields := query.FlatFields()
+
+	assert.Contains(t, flatFields[0].SQLName, "u.")
+	assert.Contains(t, flatFields[2].SQLName, "o.")
+}
+
+// TestQuery_MissingFK проверяет ошибку при отсутствии FK-связи
+func TestQuery_MissingFK(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		User   testUserRow   `tbl:"from"`
+		Orphan testOrphanRow
+	}
+
+	assert.Panics(t, func() {
+		field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	})
+}
+
+// TestQuery_RefToNonexistentTable проверяет ошибку при ref на несуществующую таблицу
+func TestQuery_RefToNonexistentTable(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		User testUserRow  `tbl:"from"`
+		Data testBadRefRow
+	}
+
+	assert.Panics(t, func() {
+		field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	})
+}
+
+// TestQuery_NoSortFields проверяет пустой ORDER BY при отсутствии sort-полей
+func TestQuery_NoSortFields(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		User  testUserRow  `tbl:"from"`
+		Order testOrderRow
+	}
+
+	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	sql := query.SQLs()
+
+	assert.Empty(t, sql.ListSortString)
+}
+
+// TestQuery_RIGHT_JOIN проверяет RIGHT JOIN
+func TestQuery_RIGHT_JOIN(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		User  testUserRow  `tbl:"from"`
+		Order testOrderRow `tbl:"join=right"`
+	}
+
+	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	sql := query.SQLs()
+
+	assert.Contains(t, sql.ListCmdStart, "RIGHT JOIN orders")
+}
+
+// TestQuery_ReverseFK проверяет обратный поиск FK (forward + reverse)
+func TestQuery_ReverseFK(t *testing.T) {
+	t.Parallel()
+
+	type qRow struct {
+		Item testItemRow  `tbl:"from"`
+		User testRevUserRow
+	}
+
+	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	sql := query.SQLs()
+
+	assert.Contains(t, sql.ListCmdStart, "ON users.ref_id = items.id")
 }

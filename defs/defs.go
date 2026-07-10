@@ -21,6 +21,13 @@ const (
 	SQLAsc        = " ASC"
 	SQLDesc       = " DESC"
 
+	SQLInnerJoin = " INNER JOIN "
+	SQLLeftJoin  = " LEFT JOIN "
+	SQLRightJoin = " RIGHT JOIN "
+	SQLJoin      = " JOIN "
+	SQLOn        = " ON "
+	SQLAs        = " AS "
+
 	SQLCreateTable   = "CREATE TABLE "
 	SQLNotNull       = " NOT NULL"
 	SQLPrimaryKey    = " PRIMARY KEY"
