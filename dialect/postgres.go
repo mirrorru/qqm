@@ -31,7 +31,9 @@ func (PostgreSQLDialect) SupportsReturning() bool { return true }
 
 // ILIKE возвращает регистронезависимое LIKE-условие для PostgreSQL.
 // EN: ILIKE returns case-insensitive LIKE for PostgreSQL.
-func (PostgreSQLDialect) ILIKE(col string, placeholder string) string { return col + " ILIKE " + placeholder }
+func (PostgreSQLDialect) ILIKE(col string, placeholder string) string {
+	return col + " ILIKE " + placeholder
+}
 
 func (PostgreSQLDialect) OffsetAndLimit(offset, limit uint32) string {
 	if limit == 0 && offset == 0 {

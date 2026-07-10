@@ -1,11 +1,9 @@
 package fixtures
 
-import "time"
-
 type DictSubjWithPersonAndLegal struct {
-	Subj   DictsSubjTableRowShort   `qqm:"primary"`
-	Person *DictsSubjPersonRowShort `qqm:"join=LEFT"`
-	Legal  *DictsSubjLegalRowShort  `qqm:"join=LEFT"`
+	Subj   DictsSubjTableRowShort  `tbl:"from"`
+	Person DictsSubjPersonRowShort `tbl:"join=left"`
+	Legal  DictsSubjLegalRowShort  `tbl:"join=left"`
 }
 
 type dictsSubjTableMarker struct{}
@@ -16,9 +14,9 @@ func (dictsSubjTableMarker) SQLName() string {
 
 type DictsSubjTableRowShort struct {
 	dictsSubjTableMarker
-	ID      SubjID      `qqm:"pk;auto"`
-	Name    SubjName    `qqm:"order=1"`
-	Address SubjAddress `qqm:"order=2"`
+	ID      SubjID      `tbl:"pk;auto"`
+	Name    SubjName    `tbl:"sort=1"`
+	Address SubjAddress `tbl:"sort=2"`
 }
 
 type dictsSubjPersonMarker struct{}
@@ -29,7 +27,7 @@ func (dictsSubjPersonMarker) SQLName() string {
 
 type DictsSubjPersonRowShort struct {
 	dictsSubjPersonMarker
-	SubjID SubjID `qqm:"pk;ref=subj_table.id"`
+	SubjID SubjID `tbl:"pk;ref=subj_table.id"`
 	Val    SomeVal
 }
 
@@ -41,13 +39,12 @@ func (dictsSubjLegalMarker) SQLName() string {
 
 type DictsSubjLegalRowShort struct {
 	dictsSubjLegalMarker
-	SubjID SubjID `qqm:"pk;ref=subj_table.id"`
+	SubjID SubjID `tbl:"pk;ref=subj_table.id"`
 	INN    SubjINN
 }
 
 type SubjID int64
 type SubjName string
 type SubjAddress string
-type SubjBirthday time.Time
 type SubjINN string
 type SomeVal int

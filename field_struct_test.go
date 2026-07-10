@@ -1,4 +1,4 @@
-package field_info_test
+package qqm_test
 
 type complexRow struct {
 	mustIgnorePrivateInt int      `qqm:"pk"`

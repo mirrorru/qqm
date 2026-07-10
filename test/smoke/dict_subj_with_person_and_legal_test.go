@@ -45,21 +45,21 @@ func TestSmoke_MultiQuery_DictSubjWithPersonAndLegal(t *testing.T) {
 
 	subjTbl := qqm.NewTable[fixtures.DictsSubjTableRowShort](dialect.SQLiteDialect{})
 
-	subj1, err := subjTbl.Insert(ctx, ex, &fixtures.DictsSubjTableRowShort{
-		Name:    "Subject 1",
-		Address: "Address 1",
+	subj1, _, err := subjTbl.Ins(ctx, ex, &fixtures.DictsSubjTableRowShort{
+		Name:    fixtures.SubjName("Subject 1"),
+		Address: fixtures.SubjAddress("Address 1"),
 	})
 	require.NoError(t, err)
 
-	subj2, err := subjTbl.Insert(ctx, ex, &fixtures.DictsSubjTableRowShort{
-		Name:    "Subject 2",
-		Address: "Address 2",
+	subj2, _, err := subjTbl.Ins(ctx, ex, &fixtures.DictsSubjTableRowShort{
+		Name:    fixtures.SubjName("Subject 2"),
+		Address: fixtures.SubjAddress("Address 2"),
 	})
 	require.NoError(t, err)
 
-	subj3, err := subjTbl.Insert(ctx, ex, &fixtures.DictsSubjTableRowShort{
-		Name:    "Subject 3",
-		Address: "Address 3",
+	subj3, _, err := subjTbl.Ins(ctx, ex, &fixtures.DictsSubjTableRowShort{
+		Name:    fixtures.SubjName("Subject 3"),
+		Address: fixtures.SubjAddress("Address 3"),
 	})
 	require.NoError(t, err)
 
@@ -75,36 +75,35 @@ func TestSmoke_MultiQuery_DictSubjWithPersonAndLegal(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO subj_legal (subj_id, inn) VALUES (?, ?)`, subj3.ID, "INN-003")
 	require.NoError(t, err)
 
-	q, err := qqm.NewQuery[fixtures.DictSubjWithPersonAndLegal](dialect.SQLiteDialect{})
-	require.NoError(t, err)
+	q := qqm.NewQuery[fixtures.DictSubjWithPersonAndLegal](dialect.SQLiteDialect{})
 
-	t.Run("List returns all subjects with their joined data", func(t *testing.T) {
-		results, err := q.List(ctx, ex)
+	t.Run("Many returns all subjects with their joined data", func(t *testing.T) {
+		results, err := q.Many(ctx, ex, nil)
 		require.NoError(t, err)
 		assert.Len(t, results, 3)
 
-		byName := make(map[string]fixtures.DictSubjWithPersonAndLegal)
+		byName := make(map[fixtures.SubjName]fixtures.DictSubjWithPersonAndLegal)
 		for _, r := range results {
-			byName[string(r.Subj.Name)] = *r
+			byName[r.Subj.Name] = *r
 		}
 
-		subj1Row := byName["Subject 1"]
+		subj1Row := byName[fixtures.SubjName("Subject 1")]
 		assert.Equal(t, subj1.ID, subj1Row.Subj.ID)
-		require.NotNil(t, subj1Row.Person, "Person should not be nil when record exists")
+		assert.NotZero(t, subj1Row.Person.SubjID, "Person should not be zero when record exists")
 		assert.Equal(t, fixtures.SomeVal(100), subj1Row.Person.Val)
-		require.NotNil(t, subj1Row.Legal, "Legal should not be nil when record exists")
+		assert.NotZero(t, subj1Row.Legal.SubjID, "Legal should not be zero when record exists")
 		assert.Equal(t, fixtures.SubjINN("INN-001"), subj1Row.Legal.INN)
 
-		subj2Row := byName["Subject 2"]
+		subj2Row := byName[fixtures.SubjName("Subject 2")]
 		assert.Equal(t, subj2.ID, subj2Row.Subj.ID)
-		require.NotNil(t, subj2Row.Person, "Person should not be nil when record exists")
+		assert.NotZero(t, subj2Row.Person.SubjID, "Person should not be zero when record exists")
 		assert.Equal(t, fixtures.SomeVal(200), subj2Row.Person.Val)
-		assert.Nil(t, subj2Row.Legal, "Legal should be nil when no record exists")
+		assert.Zero(t, subj2Row.Legal.SubjID, "Legal should be zero when no record exists")
 
-		subj3Row := byName["Subject 3"]
+		subj3Row := byName[fixtures.SubjName("Subject 3")]
 		assert.Equal(t, subj3.ID, subj3Row.Subj.ID)
-		assert.Nil(t, subj3Row.Person, "Person should be nil when no record exists")
-		require.NotNil(t, subj3Row.Legal, "Legal should not be nil when record exists")
+		assert.Zero(t, subj3Row.Person.SubjID, "Person should be zero when no record exists")
+		assert.NotZero(t, subj3Row.Legal.SubjID, "Legal should not be zero when record exists")
 		assert.Equal(t, fixtures.SubjINN("INN-003"), subj3Row.Legal.INN)
 	})
 
@@ -113,10 +112,10 @@ func TestSmoke_MultiQuery_DictSubjWithPersonAndLegal(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, row)
 		assert.Equal(t, subj1.ID, row.Subj.ID)
-		assert.Equal(t, "Subject 1", string(row.Subj.Name))
-		require.NotNil(t, row.Person, "Person should not be nil")
+		assert.Equal(t, fixtures.SubjName("Subject 1"), row.Subj.Name)
+		assert.NotZero(t, row.Person.SubjID, "Person should not be zero")
 		assert.Equal(t, fixtures.SomeVal(100), row.Person.Val)
-		require.NotNil(t, row.Legal, "Legal should not be nil")
+		assert.NotZero(t, row.Legal.SubjID, "Legal should not be zero")
 		assert.Equal(t, fixtures.SubjINN("INN-001"), row.Legal.INN)
 	})
 
@@ -125,9 +124,9 @@ func TestSmoke_MultiQuery_DictSubjWithPersonAndLegal(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, row)
 		assert.Equal(t, subj2.ID, row.Subj.ID)
-		require.NotNil(t, row.Person, "Person should not be nil")
+		assert.NotZero(t, row.Person.SubjID, "Person should not be zero")
 		assert.Equal(t, fixtures.SomeVal(200), row.Person.Val)
-		assert.Nil(t, row.Legal, "Legal should be nil")
+		assert.Zero(t, row.Legal.SubjID, "Legal should be zero")
 	})
 
 	t.Run("One returns subject with Legal only", func(t *testing.T) {
@@ -135,8 +134,8 @@ func TestSmoke_MultiQuery_DictSubjWithPersonAndLegal(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, row)
 		assert.Equal(t, subj3.ID, row.Subj.ID)
-		assert.Nil(t, row.Person, "Person should be nil")
-		require.NotNil(t, row.Legal, "Legal should not be nil")
+		assert.Zero(t, row.Person.SubjID, "Person should be zero")
+		assert.NotZero(t, row.Legal.SubjID, "Legal should not be zero")
 		assert.Equal(t, fixtures.SubjINN("INN-003"), row.Legal.INN)
 	})
 }

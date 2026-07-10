@@ -1,12 +1,12 @@
-package field_info_test
+package qqm_test
 
 import (
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/mirrorru/qqm"
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/v2/field_info"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -71,13 +71,13 @@ type testSortRow struct {
 }
 
 type testRefRow struct {
-	ID     int64  `tbl:"pk;auto"`
-	UserID int64  `tbl:"ref=users.id"`
+	ID     int64 `tbl:"pk;auto"`
+	UserID int64 `tbl:"ref=users.id"`
 	Name   string
 }
 
 type testUserRow struct {
-	ID   int64  `tbl:"pk;auto"`
+	ID   int64 `tbl:"pk;auto"`
 	Name string
 }
 
@@ -92,7 +92,7 @@ type testOrderRow struct {
 func (testOrderRow) SQLName() string { return "orders" }
 
 type testUsePkRow struct {
-	ID   int64  `tbl:"pk;auto"`
+	ID   int64 `tbl:"pk;auto"`
 	Name string
 }
 
@@ -104,8 +104,8 @@ type testRefMapRow struct {
 func (testRefMapRow) SQLName() string { return "items" }
 
 type testDetailRow struct {
-	ID     int64  `tbl:"pk;auto"`
-	UserID int64  `tbl:"ref=users.id"`
+	ID     int64 `tbl:"pk;auto"`
+	UserID int64 `tbl:"ref=users.id"`
 	Name   string
 }
 
@@ -119,8 +119,8 @@ type testOrphanRow struct {
 func (testOrphanRow) SQLName() string { return "orphans" }
 
 type testBadRefRow struct {
-	ID     int64  `tbl:"pk;auto"`
-	DataID int64  `tbl:"ref=ghost.id"`
+	ID     int64 `tbl:"pk;auto"`
+	DataID int64 `tbl:"ref=ghost.id"`
 }
 
 func (testBadRefRow) SQLName() string { return "data" }
@@ -147,9 +147,9 @@ type testSortUserRow struct {
 func (testSortUserRow) SQLName() string { return "users" }
 
 type testSortOrderRow struct {
-	ID      int64 `tbl:"pk;auto"`
-	UserID  int64 `tbl:"ref=users.id;sort=1,desc"`
-	Total   int
+	ID     int64 `tbl:"pk;auto"`
+	UserID int64 `tbl:"ref=users.id;sort=1,desc"`
+	Total  int
 }
 
 func (testSortOrderRow) SQLName() string { return "orders" }
@@ -190,7 +190,7 @@ func TestParseFieldTag_EmptyTag(t *testing.T) {
 		Field int `tbl:""`
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(emptyTag{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(emptyTag{}))
 	require.NoError(t, err)
 	require.Len(t, fields, 1)
 
@@ -217,7 +217,7 @@ func TestParseFieldTag_AllFlags(t *testing.T) {
 		Field int `tbl:"pk;ro;auto;embed;ins;upd;rskip;col=my_col;prefix=pfx_;ref=tbl.id;sort=3,desc"`
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(allFlags{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(allFlags{}))
 	require.NoError(t, err)
 	require.Len(t, fields, 1)
 
@@ -245,7 +245,7 @@ func TestParseFieldTag_OmitFlag(t *testing.T) {
 		Normal  int
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(omitField{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(omitField{}))
 	require.NoError(t, err)
 	// Omitted поле должно быть пропущено
 	require.Len(t, fields, 1)
@@ -260,7 +260,7 @@ func TestParseFieldTag_UnknownKey(t *testing.T) {
 		Field int `tbl:"pk;unknown;ro"`
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(unknownKey{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(unknownKey{}))
 	require.NoError(t, err)
 	require.Len(t, fields, 1)
 
@@ -277,7 +277,7 @@ func TestParseFieldTag_SortInvalidValue(t *testing.T) {
 		Field int `tbl:"sort=abc"`
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(invalidSort{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(invalidSort{}))
 	require.NoError(t, err)
 	require.Len(t, fields, 1)
 
@@ -293,7 +293,7 @@ func TestParseFieldTag_SortEmptyValue(t *testing.T) {
 		Field int `tbl:"sort="`
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(emptySort{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(emptySort{}))
 	require.NoError(t, err)
 	require.Len(t, fields, 1)
 
@@ -309,7 +309,7 @@ func TestParseFieldTag_SortAsc(t *testing.T) {
 		Field int `tbl:"sort=1,asc"`
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(ascSort{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(ascSort{}))
 	require.NoError(t, err)
 	require.Len(t, fields, 1)
 
@@ -325,7 +325,7 @@ func TestParseFieldTag_SortPositionOnly(t *testing.T) {
 		Field int `tbl:"sort=5"`
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(posOnly{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(posOnly{}))
 	require.NoError(t, err)
 	require.Len(t, fields, 1)
 
@@ -337,7 +337,7 @@ func TestParseFieldTag_SortPositionOnly(t *testing.T) {
 func TestCollectTableFields_NonStruct(t *testing.T) {
 	t.Parallel()
 
-	_, err := field_info.CollectTableFields(reflect.TypeOf(123))
+	_, err := qqm.CollectTableFields(reflect.TypeOf(123))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "varPtr must be a pointer to struct")
 }
@@ -346,7 +346,7 @@ func TestCollectTableFields_NonStruct(t *testing.T) {
 func TestCollectTableFields_EmptyStruct(t *testing.T) {
 	t.Parallel()
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(testEmptyStruct{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(testEmptyStruct{}))
 	require.NoError(t, err)
 	assert.Empty(t, fields)
 }
@@ -355,7 +355,7 @@ func TestCollectTableFields_EmptyStruct(t *testing.T) {
 func TestCollectTableFields_PrivateFieldsOnly(t *testing.T) {
 	t.Parallel()
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(testPrivateFieldsOnly{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(testPrivateFieldsOnly{}))
 	require.NoError(t, err)
 	assert.Empty(t, fields)
 }
@@ -364,7 +364,7 @@ func TestCollectTableFields_PrivateFieldsOnly(t *testing.T) {
 func TestCollectTableFields_EmbeddedStruct(t *testing.T) {
 	t.Parallel()
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(testEmbeddedRow{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(testEmbeddedRow{}))
 	require.NoError(t, err)
 	// Именованное поле-структура с prefix= теперь распаковывается (исправление бага #4)
 	require.Len(t, fields, 3)
@@ -388,11 +388,11 @@ func TestCollectTableFields_EmbeddedStructWithEmbedTag(t *testing.T) {
 		Email string `tbl:"col=email_addr"`
 	}
 	type rowWithEmbed struct {
-		ID   int64             `tbl:"pk;auto"`
-		Info nestedWithEmbed   `tbl:"prefix=info_;embed"`
+		ID   int64           `tbl:"pk;auto"`
+		Info nestedWithEmbed `tbl:"prefix=info_;embed"`
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(rowWithEmbed{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(rowWithEmbed{}))
 	require.NoError(t, err)
 	require.Len(t, fields, 3)
 
@@ -418,7 +418,7 @@ func TestCollectTableFields_PrefixWithoutEmbed(t *testing.T) {
 		Data nested `tbl:"prefix=data_"` // без embed, но с prefix
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(rowWithPrefix{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(rowWithPrefix{}))
 	require.NoError(t, err)
 	// Структура должна распаковаться из-за prefix
 	require.Len(t, fields, 3)
@@ -441,7 +441,7 @@ func TestCollectTableFields_FlagInheritance(t *testing.T) {
 		Data nested `tbl:"ro;prefix=data_"` // ro наследуется дочерними полями
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(rowWithReadOnlyParent{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(rowWithReadOnlyParent{}))
 	require.NoError(t, err)
 	require.Len(t, fields, 3)
 
@@ -463,7 +463,7 @@ func TestCollectTableFields_AnonymousStruct(t *testing.T) {
 		ExportedNested
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(anonymousRow{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(anonymousRow{}))
 	require.NoError(t, err)
 	require.Len(t, fields, 2)
 
@@ -476,7 +476,7 @@ func TestCollectTableFields_AnonymousStruct(t *testing.T) {
 func TestCollectTableFields_AnonymousStructUnexported(t *testing.T) {
 	t.Parallel()
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(testAnonymousRow{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(testAnonymousRow{}))
 	require.NoError(t, err)
 	// testAnonymousNested — неэкспортированный тип, поэтому поле игнорируется
 	require.Len(t, fields, 1)
@@ -487,11 +487,11 @@ func TestCollectTableFields_AnonymousStructUnexported(t *testing.T) {
 func TestCollectTableFields_ColNameOverride(t *testing.T) {
 	t.Parallel()
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(testSimpleRow{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(testSimpleRow{}))
 	require.NoError(t, err)
 
 	// Находим поле с col=user_name
-	var nameField *field_info.TableField
+	var nameField *qqm.TableField
 	for i := range fields {
 		if fields[i].Path[0] == "Name" {
 			nameField = &fields[i]
@@ -507,9 +507,9 @@ func TestFieldFlags_CanInsert(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name          string
-		rowType       interface{}
-		expectInsert  bool
+		name         string
+		rowType      interface{}
+		expectInsert bool
 	}{
 		{
 			name:         "default",
@@ -517,43 +517,43 @@ func TestFieldFlags_CanInsert(t *testing.T) {
 			expectInsert: true,
 		},
 		{
-			name:         "read_only",
-			rowType:      struct {
+			name: "read_only",
+			rowType: struct {
 				Field int `tbl:"ro"`
 			}{},
 			expectInsert: false,
 		},
 		{
-			name:         "auto_gen",
-			rowType:      struct {
+			name: "auto_gen",
+			rowType: struct {
 				Field int `tbl:"auto"`
 			}{},
 			expectInsert: false,
 		},
 		{
-			name:         "force_insert",
-			rowType:      struct {
+			name: "force_insert",
+			rowType: struct {
 				Field int `tbl:"ins"`
 			}{},
 			expectInsert: true,
 		},
 		{
-			name:         "force_insert_with_auto",
-			rowType:      struct {
+			name: "force_insert_with_auto",
+			rowType: struct {
 				Field int `tbl:"ins;auto"`
 			}{},
 			expectInsert: true,
 		},
 		{
-			name:         "force_insert_with_read_only",
-			rowType:      struct {
+			name: "force_insert_with_read_only",
+			rowType: struct {
 				Field int `tbl:"ins;ro"`
 			}{},
 			expectInsert: true,
 		},
 		{
-			name:         "read_only_and_auto",
-			rowType:      struct {
+			name: "read_only_and_auto",
+			rowType: struct {
 				Field int `tbl:"ro;auto"`
 			}{},
 			expectInsert: false,
@@ -570,14 +570,14 @@ func TestFieldFlags_CanInsert(t *testing.T) {
 			}
 			// Используем рефлексию для создания таблицы с нужным типом
 			rowType := reflect.TypeOf(tt.rowType)
-			table := field_info.NewTable[struct{ Field int }](dialect.SQLiteDialect{})
+			table := qqm.NewTable[struct{ Field int }](dialect.SQLiteDialect{})
 			_ = table
 			_ = rowType
 			// Проверяем через CollectTableFields
-			fields, err := field_info.CollectTableFields(rowType)
+			fields, err := qqm.CollectTableFields(rowType)
 			require.NoError(t, err)
 			require.Len(t, fields, 1)
-			
+
 			// Проверяем флаги
 			hasInsert := fields[0].Flags.ForceInsert || !fields[0].Flags.ReadOnly && !fields[0].Flags.AutoGen
 			assert.Equal(t, tt.expectInsert, hasInsert)
@@ -591,42 +591,42 @@ func TestFieldFlags_CanUpdate(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		flags        field_info.FieldFlags
+		flags        qqm.FieldFlags
 		expectUpdate bool
 	}{
 		{
 			name:         "default",
-			flags:        field_info.FieldFlags{},
+			flags:        qqm.FieldFlags{},
 			expectUpdate: true,
 		},
 		{
 			name:         "read_only",
-			flags:        field_info.FieldFlags{ReadOnly: true},
+			flags:        qqm.FieldFlags{ReadOnly: true},
 			expectUpdate: false,
 		},
 		{
 			name:         "is_pk",
-			flags:        field_info.FieldFlags{IsPK: true},
+			flags:        qqm.FieldFlags{IsPK: true},
 			expectUpdate: false,
 		},
 		{
 			name:         "force_update",
-			flags:        field_info.FieldFlags{ForceUpdate: true},
+			flags:        qqm.FieldFlags{ForceUpdate: true},
 			expectUpdate: true,
 		},
 		{
 			name:         "force_update_with_pk",
-			flags:        field_info.FieldFlags{ForceUpdate: true, IsPK: true},
+			flags:        qqm.FieldFlags{ForceUpdate: true, IsPK: true},
 			expectUpdate: true,
 		},
 		{
 			name:         "force_update_with_read_only",
-			flags:        field_info.FieldFlags{ForceUpdate: true, ReadOnly: true},
+			flags:        qqm.FieldFlags{ForceUpdate: true, ReadOnly: true},
 			expectUpdate: true,
 		},
 		{
 			name:         "read_only_and_pk",
-			flags:        field_info.FieldFlags{ReadOnly: true, IsPK: true},
+			flags:        qqm.FieldFlags{ReadOnly: true, IsPK: true},
 			expectUpdate: false,
 		},
 	}
@@ -647,27 +647,27 @@ func TestFieldFlags_CanSelect(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		flags        field_info.FieldFlags
+		flags        qqm.FieldFlags
 		expectSelect bool
 	}{
 		{
 			name:         "default",
-			flags:        field_info.FieldFlags{},
+			flags:        qqm.FieldFlags{},
 			expectSelect: true,
 		},
 		{
 			name:         "skip_reading",
-			flags:        field_info.FieldFlags{SkipReading: true},
+			flags:        qqm.FieldFlags{SkipReading: true},
 			expectSelect: false,
 		},
 		{
 			name:         "read_only",
-			flags:        field_info.FieldFlags{ReadOnly: true},
+			flags:        qqm.FieldFlags{ReadOnly: true},
 			expectSelect: true,
 		},
 		{
 			name:         "auto_gen",
-			flags:        field_info.FieldFlags{AutoGen: true},
+			flags:        qqm.FieldFlags{AutoGen: true},
 			expectSelect: true,
 		},
 	}
@@ -688,32 +688,32 @@ func TestFieldFlags_Merge(t *testing.T) {
 
 	t.Run("merge_pk", func(t *testing.T) {
 		t.Parallel()
-		child := field_info.FieldFlags{}
-		parent := field_info.FieldFlags{IsPK: true}
+		child := qqm.FieldFlags{}
+		parent := qqm.FieldFlags{IsPK: true}
 		child.Merge(parent)
 		assert.True(t, child.IsPK)
 	})
 
 	t.Run("merge_read_only", func(t *testing.T) {
 		t.Parallel()
-		child := field_info.FieldFlags{}
-		parent := field_info.FieldFlags{ReadOnly: true}
+		child := qqm.FieldFlags{}
+		parent := qqm.FieldFlags{ReadOnly: true}
 		child.Merge(parent)
 		assert.True(t, child.ReadOnly)
 	})
 
 	t.Run("merge_prefix_concatenation", func(t *testing.T) {
 		t.Parallel()
-		child := field_info.FieldFlags{Prefix: "child_"}
-		parent := field_info.FieldFlags{Prefix: "parent_"}
+		child := qqm.FieldFlags{Prefix: "child_"}
+		parent := qqm.FieldFlags{Prefix: "parent_"}
 		child.Merge(parent)
 		assert.Equal(t, "parent_child_", child.Prefix)
 	})
 
 	t.Run("merge_sort_pos_not_overwrite", func(t *testing.T) {
 		t.Parallel()
-		child := field_info.FieldFlags{SortPos: 1, SortBackward: true}
-		parent := field_info.FieldFlags{SortPos: 2, SortBackward: false}
+		child := qqm.FieldFlags{SortPos: 1, SortBackward: true}
+		parent := qqm.FieldFlags{SortPos: 2, SortBackward: false}
 		child.Merge(parent)
 		// SortPos не должен перезаписываться, если уже установлен
 		assert.Equal(t, 1, child.SortPos)
@@ -722,8 +722,8 @@ func TestFieldFlags_Merge(t *testing.T) {
 
 	t.Run("merge_sort_pos_inherit_from_parent", func(t *testing.T) {
 		t.Parallel()
-		child := field_info.FieldFlags{}
-		parent := field_info.FieldFlags{SortPos: 3, SortBackward: true}
+		child := qqm.FieldFlags{}
+		parent := qqm.FieldFlags{SortPos: 3, SortBackward: true}
 		child.Merge(parent)
 		assert.Equal(t, 3, child.SortPos)
 		assert.True(t, child.SortBackward)
@@ -731,8 +731,8 @@ func TestFieldFlags_Merge(t *testing.T) {
 
 	t.Run("merge_multiple_flags", func(t *testing.T) {
 		t.Parallel()
-		child := field_info.FieldFlags{AutoGen: true}
-		parent := field_info.FieldFlags{IsPK: true, ReadOnly: true, Prefix: "p_"}
+		child := qqm.FieldFlags{AutoGen: true}
+		parent := qqm.FieldFlags{IsPK: true, ReadOnly: true, Prefix: "p_"}
 		child.Merge(parent)
 		assert.True(t, child.IsPK)
 		assert.True(t, child.ReadOnly)
@@ -746,13 +746,13 @@ func TestTableFields_InsertingCols(t *testing.T) {
 	t.Parallel()
 
 	type insertTest struct {
-		ID       int64  `tbl:"pk;auto"`
+		ID       int64 `tbl:"pk;auto"`
 		Name     string
 		ReadOnly string `tbl:"ro"`
 		ForceIns string `tbl:"ins;auto"`
 	}
 
-	table := field_info.NewTable[insertTest](dialect.SQLiteDialect{})
+	table := qqm.NewTable[insertTest](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 
 	// INSERT должен содержать только Name и ForceIns (не ID, не ReadOnly)
@@ -767,13 +767,13 @@ func TestTableFields_UpdatingCols(t *testing.T) {
 	t.Parallel()
 
 	type updateTest struct {
-		ID       int64  `tbl:"pk"`
+		ID       int64 `tbl:"pk"`
 		Name     string
 		ReadOnly string `tbl:"ro"`
 		ForceUpd string `tbl:"upd;ro"`
 	}
 
-	table := field_info.NewTable[updateTest](dialect.SQLiteDialect{})
+	table := qqm.NewTable[updateTest](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 
 	// UPDATE должен содержать только Name и ForceUpd (не ID, не ReadOnly)
@@ -786,12 +786,12 @@ func TestTableFields_SelectingCols(t *testing.T) {
 	t.Parallel()
 
 	type selectTest struct {
-		ID     int64  `tbl:"pk"`
+		ID     int64 `tbl:"pk"`
 		Name   string
 		Hidden string `tbl:"rskip"`
 	}
 
-	table := field_info.NewTable[selectTest](dialect.SQLiteDialect{})
+	table := qqm.NewTable[selectTest](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 
 	// SELECT должен содержать ID и Name (не Hidden)
@@ -810,7 +810,7 @@ func TestTableFields_PkCols(t *testing.T) {
 		Other string
 	}
 
-	table := field_info.NewTable[pkTest](dialect.SQLiteDialect{})
+	table := qqm.NewTable[pkTest](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 
 	// WHERE должен содержать оба PK
@@ -823,7 +823,7 @@ func TestTableFields_PkCols(t *testing.T) {
 func TestTableFields_SortingCols(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testSortRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testSortRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 
 	// ORDER BY должен содержать age (sort=1,desc) и name (sort=2)
@@ -840,7 +840,7 @@ func TestTableFields_SortingCols(t *testing.T) {
 func TestTableFields_RefCols(t *testing.T) {
 	t.Parallel()
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(testRefRow{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(testRefRow{}))
 	require.NoError(t, err)
 
 	// Считаем поля с Ref
@@ -858,7 +858,7 @@ func TestTableFields_RefCols(t *testing.T) {
 func TestTableDefinition_BuildInsertSQL_NoInsertCols(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testAllAutoRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testAllAutoRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 	assert.Empty(t, sql.InsertCmd)
 }
@@ -867,7 +867,7 @@ func TestTableDefinition_BuildInsertSQL_NoInsertCols(t *testing.T) {
 func TestTableDefinition_BuildUpdateSQL_NoPK(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testNoPKRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testNoPKRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 	assert.Empty(t, sql.UpdateCmd)
 }
@@ -876,7 +876,7 @@ func TestTableDefinition_BuildUpdateSQL_NoPK(t *testing.T) {
 func TestTableDefinition_BuildUpdateSQL_NoUpdateCols(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testAllReadOnlyRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testAllReadOnlyRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 	assert.Empty(t, sql.UpdateCmd)
 }
@@ -885,7 +885,7 @@ func TestTableDefinition_BuildUpdateSQL_NoUpdateCols(t *testing.T) {
 func TestTableDefinition_BuildGetOneSQL_NoPK(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testNoPKRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testNoPKRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 	assert.Empty(t, sql.GetOneCmd)
 }
@@ -899,7 +899,7 @@ func TestTableDefinition_BuildGetOneSQL_NoSelectCols(t *testing.T) {
 		Name string `tbl:"rskip"`
 	}
 
-	table := field_info.NewTable[allHidden](dialect.SQLiteDialect{})
+	table := qqm.NewTable[allHidden](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 	assert.Empty(t, sql.GetOneCmd)
 }
@@ -908,7 +908,7 @@ func TestTableDefinition_BuildGetOneSQL_NoSelectCols(t *testing.T) {
 func TestTableDefinition_BuildDeleteSQL_NoPK(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testNoPKRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testNoPKRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 	assert.Empty(t, sql.DeleteCmd)
 }
@@ -922,7 +922,7 @@ func TestTableDefinition_BuildListSQL_NoSelectCols(t *testing.T) {
 		Name string `tbl:"rskip"`
 	}
 
-	table := field_info.NewTable[allHidden](dialect.SQLiteDialect{})
+	table := qqm.NewTable[allHidden](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 	assert.Empty(t, sql.ListCmdStart)
 }
@@ -931,7 +931,7 @@ func TestTableDefinition_BuildListSQL_NoSelectCols(t *testing.T) {
 func TestTableDefinition_BuildOrderByClause_NoSort(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testSimpleRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testSimpleRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 	assert.Empty(t, sql.ListSortString)
 }
@@ -940,7 +940,7 @@ func TestTableDefinition_BuildOrderByClause_NoSort(t *testing.T) {
 func TestTableDefinition_BuildInsertSQL_SQLite(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testSimpleRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testSimpleRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 
 	assert.Contains(t, sql.InsertCmd, "INSERT INTO")
@@ -957,13 +957,13 @@ func TestTableDefinition_BuildInsertSQL_DeadCode(t *testing.T) {
 
 	type insertBugTest struct {
 		ID       int64  `tbl:"pk;auto"` // auto — не входит в INSERT
-		Name     string                  // входит в INSERT (индекс 1)
-		Age      int                     // входит в INSERT (индекс 2)
+		Name     string // входит в INSERT (индекс 1)
+		Age      int    // входит в INSERT (индекс 2)
 		ReadOnly string `tbl:"ro"`       // ro — не входит в INSERT
 		ForceIns string `tbl:"ins;auto"` // входит в INSERT (индекс 4)
 	}
 
-	table := field_info.NewTable[insertBugTest](dialect.SQLiteDialect{})
+	table := qqm.NewTable[insertBugTest](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 
 	// InsertCols должен содержать индексы [1, 2, 4] (Name, Age, ForceIns)
@@ -976,7 +976,7 @@ func TestTableDefinition_BuildInsertSQL_DeadCode(t *testing.T) {
 func TestTableDefinition_BuildInsertSQL_Postgres(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testSimpleRow](dialect.PostgreSQLDialect{})
+	table := qqm.NewTable[testSimpleRow](dialect.PostgreSQLDialect{})
 	sql := table.SQLs()
 
 	assert.Contains(t, sql.InsertCmd, "INSERT INTO")
@@ -989,7 +989,7 @@ func TestTableDefinition_BuildInsertSQL_Postgres(t *testing.T) {
 func TestTableDefinition_BuildUpdateSQL_SQLite(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testSimpleRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testSimpleRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 
 	assert.Contains(t, sql.UpdateCmd, "UPDATE")
@@ -1003,7 +1003,7 @@ func TestTableDefinition_BuildUpdateSQL_SQLite(t *testing.T) {
 func TestTableDefinition_BuildGetOneSQL_SQLite(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testSimpleRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testSimpleRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 
 	assert.Contains(t, sql.GetOneCmd, "SELECT")
@@ -1016,7 +1016,7 @@ func TestTableDefinition_BuildGetOneSQL_SQLite(t *testing.T) {
 func TestTableDefinition_BuildDeleteSQL_SQLite(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testSimpleRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testSimpleRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 
 	assert.Contains(t, sql.DeleteCmd, "DELETE FROM")
@@ -1028,7 +1028,7 @@ func TestTableDefinition_BuildDeleteSQL_SQLite(t *testing.T) {
 func TestTableDefinition_BuildListSQL_SQLite(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testSimpleRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testSimpleRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 
 	assert.Contains(t, sql.ListCmdStart, "SELECT")
@@ -1040,7 +1040,7 @@ func TestTableDefinition_BuildListSQL_SQLite(t *testing.T) {
 func TestNewTable_TableName(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testSimpleRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testSimpleRow](dialect.SQLiteDialect{})
 	defs := table.Defs()
 
 	assert.Equal(t, "test_simple_row", defs.TableName)
@@ -1059,7 +1059,7 @@ func TestNewTable_SQLNamer(t *testing.T) {
 		customName
 	}
 
-	table := field_info.NewTable[withSQLName](dialect.SQLiteDialect{})
+	table := qqm.NewTable[withSQLName](dialect.SQLiteDialect{})
 	defs := table.Defs()
 
 	// Имя должно быть преобразовано из CamelCase в snake_case
@@ -1070,7 +1070,7 @@ func TestNewTable_SQLNamer(t *testing.T) {
 func TestNewTable_FieldNames(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testSimpleRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testSimpleRow](dialect.SQLiteDialect{})
 	defs := table.Defs()
 
 	// Проверяем, что все имена полей есть в маппинге
@@ -1084,7 +1084,7 @@ func TestNewTable_FieldNames(t *testing.T) {
 func TestNewTable_QuoteIdent(t *testing.T) {
 	t.Parallel()
 
-	table := field_info.NewTable[testSimpleRow](dialect.SQLiteDialect{})
+	table := qqm.NewTable[testSimpleRow](dialect.SQLiteDialect{})
 	defs := table.Defs()
 
 	// SQLite не экранирует идентификаторы, поэтому имена должны остаться без изменений
@@ -1093,7 +1093,7 @@ func TestNewTable_QuoteIdent(t *testing.T) {
 	assert.Contains(t, defs.FieldNames, "user_name")
 	assert.Contains(t, defs.FieldNames, "age")
 	assert.Contains(t, defs.FieldNames, "secret")
-	
+
 	// Проверяем, что индексы корректны
 	assert.Equal(t, 0, defs.FieldNames["id"])
 	assert.Equal(t, 1, defs.FieldNames["user_name"])
@@ -1106,7 +1106,7 @@ func TestNewQuery_EmptyQuery(t *testing.T) {
 	t.Parallel()
 
 	type emptyQuery struct{}
-	query := field_info.NewQuery[emptyQuery](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[emptyQuery](dialect.SQLiteDialect{})
 	assert.NotNil(t, query)
 }
 
@@ -1115,11 +1115,11 @@ func TestNewQuery_WithTables(t *testing.T) {
 	t.Parallel()
 
 	type queryRow struct {
-		User  testUserRow  `tbl:"from"`
+		User  testUserRow `tbl:"from"`
 		Order testOrderRow
 	}
 
-	query := field_info.NewQuery[queryRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[queryRow](dialect.SQLiteDialect{})
 	assert.NotNil(t, query)
 }
 
@@ -1132,7 +1132,7 @@ func TestNewQuery_SkipsUnexportedAndAnonymous(t *testing.T) {
 		Public  testSortRow
 	}
 
-	query := field_info.NewQuery[queryWithPrivate](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[queryWithPrivate](dialect.SQLiteDialect{})
 	assert.NotNil(t, query)
 }
 
@@ -1145,10 +1145,10 @@ func TestCollectTableFields_DuplicateColumnNames(t *testing.T) {
 		Age  int    `tbl:"col=same_name"`
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(duplicateCols{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(duplicateCols{}))
 	require.NoError(t, err)
 	require.Len(t, fields, 2)
-	
+
 	// Оба поля имеют одинаковое SQL-имя
 	assert.Equal(t, "same_name", fields[0].SQLName)
 	assert.Equal(t, "same_name", fields[1].SQLName)
@@ -1170,9 +1170,9 @@ func TestCollectTableFields_NestedEmbedded(t *testing.T) {
 		ID int64 `tbl:"pk"`
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(Level1{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(Level1{}))
 	require.NoError(t, err)
-	
+
 	// Должны быть распакованы все уровни
 	assert.GreaterOrEqual(t, len(fields), 3)
 }
@@ -1191,12 +1191,12 @@ func TestCollectTableFields_MixedTags(t *testing.T) {
 		RefID     int64  `tbl:"ref=other.id"`
 	}
 
-	fields, err := field_info.CollectTableFields(reflect.TypeOf(mixedTags{}))
+	fields, err := qqm.CollectTableFields(reflect.TypeOf(mixedTags{}))
 	require.NoError(t, err)
-	
+
 	// Password должен быть пропущен (omit)
 	assert.Len(t, fields, 6)
-	
+
 	// Проверяем флаги
 	for _, f := range fields {
 		switch f.Path[0] {
@@ -1235,13 +1235,13 @@ func TestTableDefinition_AllIndexes(t *testing.T) {
 		RefID    int64  `tbl:"ref=users.id"`
 	}
 
-	table := field_info.NewTable[allIndexesTest](dialect.SQLiteDialect{})
+	table := qqm.NewTable[allIndexesTest](dialect.SQLiteDialect{})
 	defs := table.Defs()
-	
+
 	// Проверяем через SQL, что все индексы корректны
-	assert.Contains(t, defs.Indexes.PKCols, 0)        // ID
-	assert.Contains(t, defs.Indexes.SortingCols, 1)   // Name
-	assert.Contains(t, defs.Indexes.RefCols, 4)       // RefID
+	assert.Contains(t, defs.Indexes.PKCols, 0)      // ID
+	assert.Contains(t, defs.Indexes.SortingCols, 1) // Name
+	assert.Contains(t, defs.Indexes.RefCols, 4)     // RefID
 }
 
 // TestQuery_SQL_TwoTables проверяет SQL-генерацию для двухтабличного JOIN
@@ -1249,11 +1249,11 @@ func TestQuery_SQL_TwoTables(t *testing.T) {
 	t.Parallel()
 
 	type qRow struct {
-		User  testUserRow  `tbl:"from"`
+		User  testUserRow `tbl:"from"`
 		Order testOrderRow
 	}
 
-	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	sql := query.SQLs()
 
 	assert.Contains(t, sql.ListCmdStart, "SELECT")
@@ -1276,7 +1276,7 @@ func TestQuery_SQL_WithAlias(t *testing.T) {
 		O testOrderRow
 	}
 
-	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	sql := query.SQLs()
 
 	assert.Contains(t, sql.ListCmdStart, "FROM users AS u")
@@ -1291,11 +1291,11 @@ func TestQuery_SQL_LEFT_JOIN(t *testing.T) {
 	t.Parallel()
 
 	type qRow struct {
-		User  testUserRow   `tbl:"from"`
-		Order testOrderRow  `tbl:"join=left"`
+		User  testUserRow  `tbl:"from"`
+		Order testOrderRow `tbl:"join=left"`
 	}
 
-	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	sql := query.SQLs()
 
 	assert.Contains(t, sql.ListCmdStart, "LEFT JOIN orders")
@@ -1306,11 +1306,11 @@ func TestQuery_SQL_RefMap(t *testing.T) {
 	t.Parallel()
 
 	type qRow struct {
-		U    testUserRow  `tbl:"from;alias=u"`
+		U    testUserRow   `tbl:"from;alias=u"`
 		Item testRefMapRow `tbl:"map=u:u"`
 	}
 
-	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	sql := query.SQLs()
 
 	assert.Contains(t, sql.ListCmdStart, "ON items.owner = u.id")
@@ -1321,11 +1321,11 @@ func TestQuery_SQL_OrderBy(t *testing.T) {
 	t.Parallel()
 
 	type qRow struct {
-		User  testSortUserRow  `tbl:"from"`
+		User  testSortUserRow `tbl:"from"`
 		Order testSortOrderRow
 	}
 
-	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	sql := query.SQLs()
 
 	assert.Contains(t, sql.ListSortString, "ORDER BY")
@@ -1347,7 +1347,7 @@ func TestQuery_SQL_GetOneCmd(t *testing.T) {
 		Detail testDetailRow `tbl:"pk"`
 	}
 
-	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	sql := query.SQLs()
 
 	assert.Contains(t, sql.GetOneCmd, "SELECT")
@@ -1366,7 +1366,7 @@ func TestQuery_SQL_GetOneCmd_PrimaryTableNoPK(t *testing.T) {
 		Child  testChildRow
 	}
 
-	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	sql := query.SQLs()
 
 	assert.Empty(t, sql.GetOneCmd)
@@ -1377,11 +1377,11 @@ func TestQuery_IDX_Mapping(t *testing.T) {
 	t.Parallel()
 
 	type qRow struct {
-		User  testUserRow  `tbl:"from"`
+		User  testUserRow `tbl:"from"`
 		Order testOrderRow
 	}
 
-	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	flatFields := query.FlatFields()
 
 	assert.Len(t, flatFields, 5)
@@ -1402,7 +1402,7 @@ func TestQuery_FlatFields(t *testing.T) {
 		Order testOrderRow `tbl:"alias=o"`
 	}
 
-	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	flatFields := query.FlatFields()
 
 	assert.Contains(t, flatFields[0].SQLName, "u.")
@@ -1414,12 +1414,12 @@ func TestQuery_MissingFK(t *testing.T) {
 	t.Parallel()
 
 	type qRow struct {
-		User   testUserRow   `tbl:"from"`
+		User   testUserRow `tbl:"from"`
 		Orphan testOrphanRow
 	}
 
 	assert.Panics(t, func() {
-		field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+		qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	})
 }
 
@@ -1428,12 +1428,12 @@ func TestQuery_RefToNonexistentTable(t *testing.T) {
 	t.Parallel()
 
 	type qRow struct {
-		User testUserRow  `tbl:"from"`
+		User testUserRow `tbl:"from"`
 		Data testBadRefRow
 	}
 
 	assert.Panics(t, func() {
-		field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+		qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	})
 }
 
@@ -1442,11 +1442,11 @@ func TestQuery_NoSortFields(t *testing.T) {
 	t.Parallel()
 
 	type qRow struct {
-		User  testUserRow  `tbl:"from"`
+		User  testUserRow `tbl:"from"`
 		Order testOrderRow
 	}
 
-	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	sql := query.SQLs()
 
 	assert.Empty(t, sql.ListSortString)
@@ -1461,7 +1461,7 @@ func TestQuery_RIGHT_JOIN(t *testing.T) {
 		Order testOrderRow `tbl:"join=right"`
 	}
 
-	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	sql := query.SQLs()
 
 	assert.Contains(t, sql.ListCmdStart, "RIGHT JOIN orders")
@@ -1472,11 +1472,11 @@ func TestQuery_ReverseFK(t *testing.T) {
 	t.Parallel()
 
 	type qRow struct {
-		Item testItemRow  `tbl:"from"`
+		Item testItemRow `tbl:"from"`
 		User testRevUserRow
 	}
 
-	query := field_info.NewQuery[qRow](dialect.SQLiteDialect{})
+	query := qqm.NewQuery[qRow](dialect.SQLiteDialect{})
 	sql := query.SQLs()
 
 	assert.Contains(t, sql.ListCmdStart, "ON users.ref_id = items.id")

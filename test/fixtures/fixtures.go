@@ -4,7 +4,7 @@ import "time"
 
 // User — структура с простым ключом
 type User struct {
-	ID    int64 `qqm:"pk;auto"`
+	ID    int64 `tbl:"pk;auto"`
 	Name  string
 	Email string
 }
@@ -13,7 +13,7 @@ func (u *User) SQLName() string { return "users" }
 
 // UserWithAge — структура с простым ключом и возрастом
 type UserWithAge struct {
-	ID    int64 `qqm:"pk;auto"`
+	ID    int64 `tbl:"pk;auto"`
 	Name  string
 	Email string
 	Age   int
@@ -21,8 +21,8 @@ type UserWithAge struct {
 
 // OrgUser — структура с составным ключом
 type OrgUser struct {
-	OrgID  int64 `qqm:"pk"`
-	UserID int64 `qqm:"pk"`
+	OrgID  int64 `tbl:"pk"`
+	UserID int64 `tbl:"pk"`
 	Name   string
 	Email  string
 }
@@ -31,12 +31,12 @@ func (o *OrgUser) SQLName() string { return "org_users" }
 
 // RoomID — простой ключ с автогенерацией
 type RoomID struct {
-	ID int64 `qqm:"pk;auto"`
+	ID int64 `tbl:"pk;auto"`
 }
 
 // MappingRoomID — ключ комнаты для составного ключа (без auto)
 type MappingRoomID struct {
-	ID int64 `qqm:"pk"`
+	ID int64 `tbl:"pk"`
 }
 
 // TeacherID — тип для составного ключа
@@ -44,7 +44,7 @@ type TeacherID int64
 
 // TeacherKey — ключ преподавателя
 type TeacherKey struct {
-	Key TeacherID `qqm:"pk;col=ID"`
+	Key TeacherID `tbl:"pk;col=ID"`
 }
 
 // Rooms — таблица комнат
@@ -52,22 +52,22 @@ type Rooms struct {
 	RoomID
 	Name      string
 	Square    float64
-	CreatedAt int64 `qqm:"auto;update"`
+	CreatedAt int64 `tbl:"auto;upd"`
 }
 
 // RoomMapping — таблица связей комнат и преподавателей
 type RoomMapping struct {
-	MappingRoomID `qqm:"prefix=room_;ref=rooms.id"`
-	TeacherKey    `qqm:"prefix=teacher_"`
-	From          int64 `qqm:"col=time_from"`
-	To            int64 `qqm:"col=time_to"`
-	CreatedAt     int64 `qqm:"auto"`
+	MappingRoomID `tbl:"prefix=room_;ref=rooms.id"`
+	TeacherKey    `tbl:"prefix=teacher_"`
+	From          int64 `tbl:"col=time_from"`
+	To            int64 `tbl:"col=time_to"`
+	CreatedAt     int64 `tbl:"auto"`
 }
 
 // FullRoomMapping — полная связь с автором
 type FullRoomMapping struct {
 	RoomMapping
-	Author string `qqm:"col=author_name"`
+	Author string `tbl:"col=author_name"`
 }
 
 // SomeID — тип для SomeTable
@@ -75,63 +75,63 @@ type SomeID int64
 
 // SomeTable — структура с anonymous non-struct PK и auto полем
 type SomeTable struct {
-	SomeID  `qqm:"pk;auto"`
+	SomeID  `tbl:"pk;auto"`
 	FieldRW string
-	FieldRO time.Time `qqm:"auto"`
+	FieldRO time.Time `tbl:"auto"`
 }
 
 // EmbeddedPK — структура с PK для тестов anonymous struct
 type EmbeddedPK struct {
-	ID int64 `qqm:"pk;col=id"`
+	ID int64 `tbl:"pk;col=id"`
 }
 
 // EmbeddedFields — структура с полями для тестов prefix
 type EmbeddedFields struct {
-	Name  string `qqm:"col=name"`
-	Email string `qqm:"col=email"`
+	Name  string `tbl:"col=name"`
+	Email string `tbl:"col=email"`
 }
 
 // RowWithEmbeddedPK — структура с embedded PK и prefix
 type RowWithEmbeddedPK struct {
 	EmbeddedPK
-	EmbeddedFields `qqm:"prefix=usr_"`
-	Status         string `qqm:"col=status"`
+	EmbeddedFields `tbl:"prefix=usr_"`
+	Status         string `tbl:"col=status"`
 }
 
 // DeepNested — структура для тестов глубокой вложенности
 type DeepNested struct {
-	EmbeddedFields `qqm:"prefix=deep_"`
-	Extra          int `qqm:"col=extra"`
+	EmbeddedFields `tbl:"prefix=deep_"`
+	Extra          int `tbl:"col=extra"`
 }
 
 // RowWithDeepEmbed — структура с глубокой вложенностью
 type RowWithDeepEmbed struct {
-	DeepNested `qqm:"prefix=nested_"`
-	TopField   string `qqm:"col=top_field"`
+	DeepNested `tbl:"prefix=nested_"`
+	TopField   string `tbl:"col=top_field"`
 }
 
 // AutoEmbedded — структура с auto и update полями
 type AutoEmbedded struct {
-	CreatedAt string `qqm:"col=created_at;auto"`
-	UpdatedAt string `qqm:"col=updated_at;auto;update"`
+	CreatedAt string `tbl:"col=created_at;auto"`
+	UpdatedAt string `tbl:"col=updated_at;auto;upd"`
 }
 
 // RowWithAutoEmbed — структура с embedded auto/update полями
 type RowWithAutoEmbed struct {
-	ID int64 `qqm:"pk"`
+	ID int64 `tbl:"pk"`
 	AutoEmbedded
-	Value string `qqm:"col=value"`
+	Value string `tbl:"col=value"`
 }
 
 // PKWithAuto — структура с auto PK
 type PKWithAuto struct {
-	ID int64 `qqm:"pk;auto"`
+	ID int64 `tbl:"pk;auto"`
 }
 
 // RowWithPKAuto — структура с embedded auto PK
 type RowWithPKAuto struct {
 	PKWithAuto
-	Name string `qqm:"col=name"`
+	Name string `tbl:"col=name"`
 }
 
 // Address — структура для тестирования префикса на именованных полях-структурах
@@ -143,16 +143,16 @@ type Address struct {
 
 // PersonWithAddress — структура с двумя именованными полями-структурами с префиксами
 type PersonWithAddress struct {
-	ID          int64 `qqm:"pk"`
+	ID          int64 `tbl:"pk"`
 	Name        string
-	HomeAddress Address `qqm:"prefix=home_"`
-	WorkAddress Address `qqm:"prefix=work_"`
+	HomeAddress Address `tbl:"prefix=home_"`
+	WorkAddress Address `tbl:"prefix=work_"`
 }
 
 // Order — структура заказа с FK на User
 type Order struct {
-	ID     int64 `qqm:"pk;auto"`
-	UserID int64 `qqm:"ref=users.id"`
+	ID     int64 `tbl:"pk;auto"`
+	UserID int64 `tbl:"ref=users.id"`
 	Amount float64
 }
 
@@ -160,8 +160,8 @@ func (o *Order) SQLName() string { return "orders" }
 
 // OrderItem — структура позиции заказа с FK на Order
 type OrderItem struct {
-	ID       int64 `qqm:"pk;auto"`
-	OrderID  int64 `qqm:"ref=orders.id"`
+	ID       int64 `tbl:"pk;auto"`
+	OrderID  int64 `tbl:"ref=orders.id"`
 	Quantity int
 	Price    float64
 }
@@ -170,28 +170,28 @@ func (oi *OrderItem) SQLName() string { return "order_items" }
 
 // UserWithOrder — Query-структура: User + Order (INNER JOIN)
 type UserWithOrder struct {
-	User  User
+	User  User `tbl:"from"`
 	Order Order
 }
 
-// UserWithOrderPtr — Query-структура: User + *Order (LEFT JOIN по умолчанию для указателя)
-type UserWithOrderPtr struct {
-	User  User
-	Order *Order
+// UserWithOrderLeft — Query-структура: User + Order (LEFT JOIN)
+type UserWithOrderLeft struct {
+	User  User  `tbl:"from"`
+	Order Order `tbl:"join=left"`
 }
 
 // UserOrderItem — Query-структура с тремя таблицами: User + Order + OrderItem
 type UserOrderItem struct {
-	User      User
+	User      User `tbl:"from"`
 	Order     Order
 	OrderItem *OrderItem
 }
 
 // UserWithSort — структура с sort-тегами
 type UserWithSort struct {
-	ID    int64  `qqm:"pk;auto"`
-	Name  string `qqm:"sort=1"`
-	Email string `qqm:"sort=2,desc"`
+	ID    int64  `tbl:"pk;auto"`
+	Name  string `tbl:"sort=1"`
+	Email string `tbl:"sort=2,desc"`
 	Age   int
 }
 
@@ -199,34 +199,33 @@ func (u *UserWithSort) SQLName() string { return "users" }
 
 // UserWithSortMulti — структура с несколькими sort-полями и DESC
 type UserWithSortMulti struct {
-	ID    int64  `qqm:"pk;auto"`
-	Name  string `qqm:"sort=2"`
-	Email string `qqm:"sort=1,desc"`
-	Age   int    `qqm:"sort=3"`
+	ID    int64  `tbl:"pk;auto"`
+	Name  string `tbl:"sort=2"`
+	Email string `tbl:"sort=1,desc"`
+	Age   int    `tbl:"sort=3"`
 }
 
 func (u *UserWithSortMulti) SQLName() string { return "user_with_sort_multi" }
 
+// UserWithSortAndOrder — QROW с сортировкой для тестов Query Many
+type UserWithSortAndOrder struct {
+	User  UserWithSort `tbl:"from"`
+	Order Order
+}
+
+// UserNoPK — структура пользователя без PK
+type UserNoPK struct {
+	Name  string
+	Email string
+}
+
+func (u *UserNoPK) SQLName() string { return "users" }
+
 // OrderWithSort — структура заказа с sort для Query-тестов
 type OrderWithSort struct {
-	ID     int64   `qqm:"pk;auto"`
-	UserID int64   `qqm:"ref=users.id;sort=1"`
-	Amount float64 `qqm:"sort=2,desc"`
+	ID     int64   `tbl:"pk;auto"`
+	UserID int64   `tbl:"ref=users.id;sort=1"`
+	Amount float64 `tbl:"sort=2,desc"`
 }
 
 func (o *OrderWithSort) SQLName() string { return "orders" }
-
-// RowWithCreate — структура с create= для тестов CREATE TABLE
-type RowWithCreate struct {
-	ID     int64  `qqm:"pk;auto"`
-	Name   string `qqm:"create=DEFAULT 'unknown'"`
-	Status string `qqm:"create=DEFAULT 'active'"`
-	Count  int    `qqm:"create=DEFAULT 0"`
-}
-
-// RowWithInsert — структура с insert флагом (поле участвует в INSERT, но исключается из UPDATE)
-type RowWithInsert struct {
-	ID        int64 `qqm:"pk;auto"`
-	Name      string
-	CreatedAt string `qqm:"insert"`
-}

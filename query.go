@@ -1,335 +1,576 @@
 package qqm
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"reflect"
+	"slices"
 	"strings"
-	"sync"
 
+	"github.com/mirrorru/dot"
 	"github.com/mirrorru/qqm/defs"
 	"github.com/mirrorru/qqm/dialect"
-	"github.com/mirrorru/qqm/meta"
+	"github.com/mirrorru/qqm/txproc"
 )
 
-// queryBuilder кэширует SQL-запросы для таблицы.
-// Использует sync.Once для ленивой генерации.
-// EN: queryBuilder caches SQL queries for a table.
-// Uses sync.Once for lazy generation.
-type queryBuilder struct {
-	insertOnce      sync.Once
-	updateOnce      sync.Once
-	selectOnce      sync.Once
-	deleteOnce      sync.Once
-	listOnce        sync.Once
-	createTableOnce sync.Once
-
-	insertSQL      string
-	updateSQL      string
-	selectSQL      string
-	deleteSQL      string
-	listSQL        string
-	createTableSQL string
+type queryTableEntry struct {
+	fieldIdx  int
+	tableDef  *TableDefinition
+	flags     TableFlags
+	alias     string
+	isPrimary bool
+	offsets   struct {
+		destStart   int
+		fieldsStart int
+	}
+	refFieldIdxs []int // позиции ref-полей в tempDest (для NULL-проверки)
+	fieldCount   int   // количество selectable полей
 }
 
-// newQueryBuilder создаёт новый queryBuilder для кэширования SQL.
-// EN: newQueryBuilder creates a new queryBuilder for SQL caching.
-func newQueryBuilder() *queryBuilder {
-	return &queryBuilder{}
+type scanState struct {
+	dest      []any
+	tempDests [][]any
 }
 
-// InsertSQL возвращает кэшированный SQL INSERT.
-// EN: InsertSQL returns the cached INSERT SQL.
-func (qb *queryBuilder) InsertSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-	qb.insertOnce.Do(func() {
-		qb.insertSQL = buildInsertSQL(d, m)
-	})
-	return qb.insertSQL
+type Query[QROW any] struct {
+	dialect    dialect.DialectProvider
+	tables     []queryTableEntry
+	primaryIdx int
+	flatFields TableFields
+	idxMapping map[string]int
+	sql        sqlTexts
+	qrowType   reflect.Type
 }
 
-// UpdateSQL возвращает кэшированный SQL UPDATE.
-// EN: UpdateSQL returns the cached UPDATE SQL.
-func (qb *queryBuilder) UpdateSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-	qb.updateOnce.Do(func() {
-		qb.updateSQL = buildUpdateSQL(d, m)
-	})
-	return qb.updateSQL
+func NewQuery[QROW any](d dialect.DialectProvider) *Query[QROW] {
+	var ptr *QROW
+	t := reflect.TypeOf(ptr).Elem()
+
+	if t.Kind() != reflect.Struct {
+		panic("QROW must be a struct")
+	}
+
+	entries, primaryIdx := buildEntries(t)
+	q := &Query[QROW]{
+		dialect:    d,
+		tables:     entries,
+		primaryIdx: primaryIdx,
+		qrowType:   t,
+	}
+	q.buildJoinOnClauses()
+	q.buildFlatFields()
+	q.buildDest()
+	q.sql = q.buildSQL()
+	return q
 }
 
-// SelectSQL возвращает кэшированный SQL SELECT по PK.
-// EN: SelectSQL returns the cached SELECT SQL by PK.
-func (qb *queryBuilder) SelectSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-	qb.selectOnce.Do(func() {
-		qb.selectSQL = buildSelectSQL(d, m)
-	})
-	return qb.selectSQL
+func (q *Query[QROW]) SQLs() sqlTexts {
+	return q.sql
 }
 
-// DeleteSQL возвращает кэшированный SQL DELETE по PK.
-// EN: DeleteSQL returns the cached DELETE SQL by PK.
-func (qb *queryBuilder) DeleteSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-	qb.deleteOnce.Do(func() {
-		qb.deleteSQL = buildDeleteSQL(d, m)
-	})
-	return qb.deleteSQL
+func (q *Query[QROW]) FlatFields() TableFields {
+	return q.flatFields
 }
 
-// ListSQL возвращает кэшированный SQL SELECT ALL.
-// EN: ListSQL returns the cached SELECT ALL SQL.
-func (qb *queryBuilder) ListSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-	qb.listOnce.Do(func() {
-		qb.listSQL = buildListSQL(d, m)
-	})
-	return qb.listSQL
+func buildEntries(t reflect.Type) ([]queryTableEntry, int) {
+	entries := make([]queryTableEntry, 0, t.NumField())
+	primaryIdx := -1
+
+	for idx := range t.NumField() {
+		sf := t.Field(idx)
+		if !sf.IsExported() || sf.Anonymous {
+			continue
+		}
+		tFlags, ok := parseTableTag(sf.Tag.Get(tagName))
+		if !ok {
+			continue
+		}
+		if tFlags.IsFrom {
+			if primaryIdx != -1 {
+				panic("multiple primary tag fields found")
+			}
+			primaryIdx = len(entries)
+		}
+
+		sqlName := getTableName(sf.Type)
+		fields := dot.MustMake(CollectTableFields(sf.Type))
+		tableDef := &TableDefinition{
+			TableName:  sqlName,
+			Fields:     fields,
+			Indexes:    fields.allIndexes(),
+			FieldNames: buildFieldNames(fields),
+		}
+
+		alias := tFlags.Alias
+		if alias == "" {
+			alias = sqlName
+		}
+
+		fieldCount := 0
+		for _, f := range fields {
+			if f.Flags.canSelect() {
+				fieldCount++
+			}
+		}
+
+		entries = append(entries, queryTableEntry{
+			fieldIdx:   idx,
+			tableDef:   tableDef,
+			flags:      tFlags,
+			alias:      alias,
+			isPrimary:  tFlags.IsFrom,
+			fieldCount: fieldCount,
+		})
+	}
+
+	if primaryIdx == -1 {
+		primaryIdx = 0
+	}
+	if len(entries) > 0 {
+		entries[primaryIdx].isPrimary = true
+	}
+
+	return entries, primaryIdx
 }
 
-// CreateTableSQL возвращает кэшированный SQL CREATE TABLE.
-// EN: CreateTableSQL returns the cached CREATE TABLE SQL.
-func (qb *queryBuilder) CreateTableSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-	qb.createTableOnce.Do(func() {
-		qb.createTableSQL = buildCreateTableSQL(d, m)
-	})
-	return qb.createTableSQL
+func buildFieldNames(fields TableFields) map[string]int {
+	names := make(map[string]int, len(fields))
+	for idx := range fields {
+		names[fields[idx].SQLName] = idx
+	}
+	return names
 }
 
-// buildInsertSQL формирует SQL INSERT с учётом диалекта и метаданных.
-// EN: buildInsertSQL builds INSERT SQL accounting for dialect and metadata.
-func buildInsertSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-	cols := m.InsertColumns()
+func (q *Query[QROW]) buildJoinOnClauses() {
+	for i := range q.tables {
+		if q.tables[i].isPrimary {
+			continue
+		}
+		_, err := buildJoinOnClause(&q.tables[i], q.tables[:i])
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func buildJoinOnClause(cur *queryTableEntry, prev []queryTableEntry) (string, error) {
+	var conditions []string
+	curAlias := cur.alias
+
+	buildCond := func(refAlias, refCol, col string) {
+		conditions = append(conditions,
+			fmt.Sprintf("%s.%s = %s.%s", curAlias, col, refAlias, refCol))
+	}
+
+	for _, field := range cur.tableDef.Fields {
+		if field.Flags.Ref == "" {
+			continue
+		}
+		refTable, refCol := parseRef(field.Flags.Ref)
+		refAlias := lookupAlias(cur.flags.RefMap, refTable)
+
+		for pi := range prev {
+			if prev[pi].alias == refAlias || prev[pi].tableDef.TableName == refTable {
+				buildCond(prev[pi].alias, refCol, field.SQLName)
+			}
+		}
+	}
+
+	for pi := range prev {
+		pe := &prev[pi]
+		for _, field := range pe.tableDef.Fields {
+			if field.Flags.Ref == "" {
+				continue
+			}
+			refTable, refCol := parseRef(field.Flags.Ref)
+			translated := lookupAlias(pe.flags.RefMap, refTable)
+			if translated == cur.alias || refTable == cur.tableDef.TableName {
+				buildCond(pe.alias, field.SQLName, refCol)
+			}
+		}
+	}
+
+	if len(conditions) == 0 {
+		return "", fmt.Errorf("qqm: no FK relationship found for table %q", cur.tableDef.TableName)
+	}
+
+	return strings.Join(conditions, defs.SQLAnd), nil
+}
+
+func parseRef(ref string) (table, column string) {
+	parts := strings.SplitN(ref, ".", 2)
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return parts[0], ""
+}
+
+func lookupAlias(refMap map[string]string, name string) string {
+	if refMap != nil {
+		if alias, ok := refMap[name]; ok {
+			return alias
+		}
+	}
+	return name
+}
+
+func (q *Query[QROW]) buildFlatFields() {
+	q.flatFields = nil
+	q.idxMapping = make(map[string]int)
+
+	for ei := range q.tables {
+		entry := &q.tables[ei]
+		entry.offsets.fieldsStart = len(q.flatFields)
+
+		for _, field := range entry.tableDef.Fields {
+			if !field.Flags.canSelect() {
+				continue
+			}
+			qf := TableField{
+				Index:   append([]int{entry.fieldIdx}, field.Index...),
+				Path:    field.Path,
+				SQLName: entry.alias + "." + field.SQLName,
+				Flags:   field.Flags,
+			}
+			q.idxMapping[qf.SQLName] = len(q.flatFields)
+			q.flatFields = append(q.flatFields, qf)
+		}
+	}
+}
+
+func (q *Query[QROW]) buildDest() {
+	var di int
+	for ei := range q.tables {
+		entry := &q.tables[ei]
+		entry.offsets.destStart = di
+		entry.refFieldIdxs = nil
+
+		ti := 0
+		for _, field := range entry.tableDef.Fields {
+			if !field.Flags.canSelect() {
+				continue
+			}
+			if !entry.isPrimary && field.Flags.Ref != "" {
+				entry.refFieldIdxs = append(entry.refFieldIdxs, ti)
+			}
+			if !entry.isPrimary {
+				ti++
+			}
+			di++
+		}
+	}
+}
+
+func (q *Query[QROW]) newScanState(row *QROW) *scanState {
+	ss := &scanState{
+		dest:      make([]any, 0, len(q.flatFields)),
+		tempDests: make([][]any, len(q.tables)),
+	}
+
+	rv := reflect.ValueOf(row).Elem()
+
+	for ei := range q.tables {
+		entry := &q.tables[ei]
+
+		if !entry.isPrimary {
+			ss.tempDests[ei] = make([]any, entry.fieldCount)
+		}
+
+		ti := 0
+		for _, field := range entry.tableDef.Fields {
+			if !field.Flags.canSelect() {
+				continue
+			}
+			if entry.isPrimary {
+				fullPath := append([]int{entry.fieldIdx}, field.Index...)
+				fv := rv.FieldByIndex(fullPath)
+				ss.dest = append(ss.dest, fv.Addr().Interface())
+			} else {
+				ss.dest = append(ss.dest, &ss.tempDests[ei][ti])
+				ti++
+			}
+		}
+	}
+
+	return ss
+}
+
+func (ss *scanState) clearTempDests() {
+	for _, td := range ss.tempDests {
+		for i := range td {
+			td[i] = nil
+		}
+	}
+}
+
+func (q *Query[QROW]) applyNulls(buf *QROW, ss *scanState) {
+	rv := reflect.ValueOf(buf).Elem()
+	for ei := range q.tables {
+		entry := &q.tables[ei]
+		if entry.isPrimary {
+			continue
+		}
+		if len(entry.refFieldIdxs) == 0 {
+			continue
+		}
+
+		tempDest := ss.tempDests[ei]
+
+		allNull := true
+		for _, idx := range entry.refFieldIdxs {
+			if idx < len(tempDest) && tempDest[idx] != nil {
+				allNull = false
+				break
+			}
+		}
+
+		if allNull {
+			fv := rv.Field(entry.fieldIdx)
+			fv.Set(reflect.Zero(fv.Type()))
+		} else {
+			rowVal := rv.Field(entry.fieldIdx)
+			ti := 0
+			for _, field := range entry.tableDef.Fields {
+				if !field.Flags.canSelect() {
+					continue
+				}
+				if ti < len(tempDest) && tempDest[ti] != nil {
+					fv := rowVal.FieldByIndex(field.Index)
+					srcVal := reflect.ValueOf(tempDest[ti])
+					if srcVal.Type().AssignableTo(fv.Type()) {
+						fv.Set(srcVal)
+					} else if srcVal.Type().ConvertibleTo(fv.Type()) {
+						fv.Set(srcVal.Convert(fv.Type()))
+					}
+				}
+				ti++
+			}
+		}
+	}
+}
+
+func (q *Query[QROW]) buildSQL() sqlTexts {
+	return sqlTexts{
+		GetOneCmd:      q.buildGetOneSQL(),
+		ListCmdStart:   q.buildListSQL(),
+		ListSortString: q.buildOrderByClause(),
+	}
+}
+
+func (q *Query[QROW]) collectSelectColumns() []string {
+	var cols []string
+	for _, entry := range q.tables {
+		for _, idx := range entry.tableDef.Indexes.SelectCols {
+			field := entry.tableDef.Fields[idx]
+			cols = append(cols, entry.alias+"."+field.SQLName)
+		}
+	}
+	return cols
+}
+
+func (q *Query[QROW]) buildListSQL() string {
+	if len(q.tables) == 0 {
+		return ""
+	}
+	cols := q.collectSelectColumns()
 	if len(cols) == 0 {
 		return ""
 	}
 
-	quotedCols := make([]string, len(cols))
-	placeholders := make([]string, len(cols))
-	for i, col := range cols {
-		quotedCols[i] = d.QuoteIdent(col)
-		placeholders[i] = d.Placeholder(i + 1)
-	}
-
-	sql := defs.SQLInsertInto + d.QuoteIdent(m.TableName) + defs.SQLSpace +
-		defs.SQLOpenParen + strings.Join(quotedCols, defs.SQLCommaSpace) + defs.SQLCloseParen +
-		defs.SQLValues + defs.SQLOpenParen + strings.Join(placeholders, defs.SQLCommaSpace) + defs.SQLCloseParen
-
-	if d.SupportsReturning() {
-		allCols := make([]string, len(m.Columns))
-		for i, col := range m.Columns {
-			allCols[i] = d.QuoteIdent(col)
-		}
-		sql += defs.SQLReturning + strings.Join(allCols, defs.SQLCommaSpace)
-	}
-
-	return sql
+	var sb strings.Builder
+	sb.WriteString(defs.SQLSelect)
+	sb.WriteString(strings.Join(cols, defs.SQLCommaSpace))
+	sb.WriteString(defs.SQLFrom)
+	q.writeFromJoin(&sb)
+	return sb.String()
 }
 
-// buildUpdateSQL формирует SQL UPDATE с учётом диалекта и метаданных.
-// EN: buildUpdateSQL builds UPDATE SQL accounting for dialect and metadata.
-func buildUpdateSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-	cols := m.UpdateColumns()
-	if len(cols) == 0 || len(m.PKFields) == 0 {
-		return ""
+func (q *Query[QROW]) writeFromJoin(sb *strings.Builder) {
+	if len(q.tables) == 0 {
+		return
+	}
+	primary := &q.tables[q.primaryIdx]
+	sb.WriteString(primary.tableDef.TableName)
+	if primary.alias != primary.tableDef.TableName {
+		sb.WriteString(defs.SQLAs)
+		sb.WriteString(primary.alias)
 	}
 
-	setClauses := make([]string, len(cols))
-	for i, col := range cols {
-		setClauses[i] = d.QuoteIdent(col) + defs.SQLEquals + d.Placeholder(i+1)
-	}
-
-	whereClauses := buildWhereClauses(d, m, len(cols))
-
-	sql := defs.SQLUpdate + d.QuoteIdent(m.TableName) +
-		defs.SQLSet + strings.Join(setClauses, defs.SQLCommaSpace) +
-		defs.SQLWhere + strings.Join(whereClauses, defs.SQLAnd)
-
-	if d.SupportsReturning() {
-		allCols := make([]string, len(m.Columns))
-		for i, col := range m.Columns {
-			allCols[i] = d.QuoteIdent(col)
-		}
-		sql += defs.SQLReturning + strings.Join(allCols, defs.SQLCommaSpace)
-	}
-
-	return sql
-}
-
-// buildSelectSQL формирует SQL SELECT по PK с учётом диалекта и метаданных.
-// EN: buildSelectSQL builds SELECT by PK SQL accounting for dialect and metadata.
-func buildSelectSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-	if len(m.PKFields) == 0 {
-		return ""
-	}
-
-	allCols := make([]string, len(m.Columns))
-	for i, col := range m.Columns {
-		allCols[i] = d.QuoteIdent(col)
-	}
-
-	whereClauses := buildWhereClauses(d, m, 0)
-
-	return defs.SQLSelect + strings.Join(allCols, defs.SQLCommaSpace) +
-		defs.SQLFrom + d.QuoteIdent(m.TableName) +
-		defs.SQLWhere + strings.Join(whereClauses, defs.SQLAnd)
-}
-
-// buildDeleteSQL формирует SQL DELETE по PK с учётом диалекта и метаданных.
-// EN: buildDeleteSQL builds DELETE by PK SQL accounting for dialect and metadata.
-func buildDeleteSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-	if len(m.PKFields) == 0 {
-		return ""
-	}
-
-	whereClauses := buildWhereClauses(d, m, 0)
-
-	return defs.SQLDelete + d.QuoteIdent(m.TableName) +
-		defs.SQLWhere + strings.Join(whereClauses, defs.SQLAnd)
-}
-
-// buildListSQL формирует SQL SELECT ALL с учётом диалекта, метаданных и сортировки.
-// EN: buildListSQL builds SELECT ALL SQL accounting for dialect, metadata and sort.
-func buildListSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-	allCols := make([]string, len(m.Columns))
-	for i, col := range m.Columns {
-		allCols[i] = d.QuoteIdent(col)
-	}
-
-	sql := defs.SQLSelect + strings.Join(allCols, defs.SQLCommaSpace) +
-		defs.SQLFrom + d.QuoteIdent(m.TableName)
-
-	if len(m.SortFields) > 0 {
-		sql += buildOrderByClause(d, m, "")
-	}
-
-	return sql
-}
-
-// buildOrderByClause строит "ORDER BY col1 ASC, col2 DESC" из SortFields.
-// tableAlias — алиас таблицы (например, "t1") для квалифицированных имён в Query; пустая строка для простой таблицы.
-// EN: buildOrderByClause builds "ORDER BY col1 ASC, col2 DESC" from SortFields.
-// tableAlias — table alias (e.g. "t1") for qualified names in Query; empty string for a simple table.
-func buildOrderByClause(d dialect.DialectProvider, m *meta.RowMeta, tableAlias string) string {
-	parts := make([]string, len(m.SortFields))
-	for i, sf := range m.SortFields {
-		dir := defs.SQLAsc
-		if sf.SortDirection == "DESC" {
-			dir = defs.SQLDesc
-		}
-		col := d.QuoteIdent(sf.Column)
-		if tableAlias != "" {
-			col = d.QuoteIdent(tableAlias) + "." + col
-		}
-		parts[i] = col + dir
-	}
-	return defs.SQLOrderBy + strings.Join(parts, defs.SQLCommaSpace)
-}
-
-// buildWhereClauses формирует условия WHERE для PK-полей.
-// offset добавляется к индексу плейсхолдеров.
-// EN: buildWhereClauses builds WHERE conditions for PK fields.
-// offset is added to placeholder index.
-func buildWhereClauses(d dialect.DialectProvider, m *meta.RowMeta, offset int) []string {
-	whereClauses := make([]string, len(m.PKFields))
-	for i, pk := range m.PKFields {
-		whereClauses[i] = d.QuoteIdent(pk.Column) + defs.SQLEquals + d.Placeholder(offset+i+1)
-	}
-	return whereClauses
-}
-
-// buildCreateTableSQL строит CREATE TABLE с учётом pk, default= и ref=.
-// EN: buildCreateTableSQL builds CREATE TABLE accounting for pk, default= and ref=.
-func buildCreateTableSQL(d dialect.DialectProvider, m *meta.RowMeta) string {
-	var b strings.Builder
-	b.WriteString(defs.SQLCreateTable)
-	b.WriteString(d.QuoteIdent(m.TableName))
-	b.WriteString(" (\n")
-
-	var pkCols []string
-	first := true
-
-	for _, fm := range m.Fields {
-		if fm.IsOmit {
+	for i := range q.tables {
+		if q.tables[i].isPrimary {
 			continue
 		}
-
-		if !first {
-			b.WriteString(",\n")
-		}
-		first = false
-
-		b.WriteString("\t")
-		b.WriteString(d.QuoteIdent(fm.Column))
-		b.WriteString(defs.SQLSpace)
-
-		sqlType := goTypeToSQL(fm.GoType)
-		if fm.IsPK && fm.IsAuto && d.Name() == "sqlite" {
-			sqlType = "INTEGER"
-		}
-		b.WriteString(sqlType)
-
-		if fm.IsPK && fm.IsAuto {
-			b.WriteString(defs.SQLPrimaryKey)
-			if d.Name() == "sqlite" {
-				b.WriteString(defs.SQLAutoincrement)
-			}
-		} else if fm.IsPK {
-			pkCols = append(pkCols, d.QuoteIdent(fm.Column))
-		} else {
-			b.WriteString(defs.SQLNotNull)
+		entry := &q.tables[i]
+		joinType := entry.flags.JoinMode
+		if joinType == JoinModeNone {
+			joinType = JoinModeInner
 		}
 
-		if fm.CreateClause != "" {
-			b.WriteString(defs.SQLSpace)
-			b.WriteString(fm.CreateClause)
+		var joinSQL string
+		switch joinType {
+		case JoinModeLeft:
+			joinSQL = defs.SQLLeftJoin
+		case JoinModeRight:
+			joinSQL = defs.SQLRightJoin
+		case JoinModeInner:
+			joinSQL = defs.SQLInnerJoin
+		default:
+			joinSQL = defs.SQLJoin
 		}
 
-		if fm.RefTable != "" {
-			b.WriteString(defs.SQLReferences)
-			b.WriteString(d.QuoteIdent(fm.RefTable))
-			refCol := fm.RefColumn
-			if refCol == "" {
-				refCol = "id"
-			}
-			b.WriteString(defs.SQLOpenParen)
-			b.WriteString(d.QuoteIdent(refCol))
-			b.WriteString(defs.SQLCloseParen)
+		sb.WriteString(joinSQL)
+		sb.WriteString(entry.tableDef.TableName)
+		if entry.alias != entry.tableDef.TableName {
+			sb.WriteString(defs.SQLAs)
+			sb.WriteString(entry.alias)
 		}
+
+		onClause, _ := buildJoinOnClause(entry, q.tables[:i])
+		sb.WriteString(defs.SQLOn)
+		sb.WriteString(onClause)
 	}
-
-	if len(pkCols) > 0 {
-		b.WriteString(",\n\t")
-		b.WriteString(defs.SQLPrimaryKey)
-		b.WriteString(" (")
-		b.WriteString(strings.Join(pkCols, defs.SQLCommaSpace))
-		b.WriteString(")")
-	}
-
-	b.WriteString("\n)")
-	return b.String()
 }
 
-// goTypeToSQL преобразует Go-тип в SQL-тип для CREATE TABLE.
-// EN: goTypeToSQL converts Go type to SQL type for CREATE TABLE.
-func goTypeToSQL(t reflect.Type) string {
-	for t.Kind() == reflect.Pointer {
-		t = t.Elem()
+func (q *Query[QROW]) buildGetOneSQL() string {
+	if len(q.tables) == 0 {
+		return ""
+	}
+	primary := &q.tables[q.primaryIdx]
+	if len(primary.tableDef.Indexes.PKCols) == 0 {
+		return ""
 	}
 
-	switch t.Kind() {
-	case reflect.Int, reflect.Int32:
-		return "INTEGER"
-	case reflect.Int64:
-		return "BIGINT"
-	case reflect.Float32:
-		return "REAL"
-	case reflect.Float64:
-		return "DOUBLE PRECISION"
-	case reflect.String:
-		return "TEXT"
-	case reflect.Bool:
-		return "BOOLEAN"
+	baseSQL := q.buildListSQL()
+	if baseSQL == "" {
+		return ""
 	}
 
-	switch t.String() {
-	case "time.Time":
-		return "TIMESTAMPTZ"
+	var sb strings.Builder
+	sb.WriteString(baseSQL)
+
+	phIdx := 1
+	sb.WriteString(defs.SQLWhere)
+	for pos, idx := range primary.tableDef.Indexes.PKCols {
+		if pos > 0 {
+			sb.WriteString(defs.SQLAnd)
+		}
+		field := primary.tableDef.Fields[idx]
+		sb.WriteString(primary.alias + "." + field.SQLName)
+		sb.WriteString(defs.SQLEquals)
+		sb.WriteString(q.dialect.Placeholder(phIdx))
+		phIdx++
 	}
 
-	return "TEXT"
+	for i := range q.tables {
+		if q.tables[i].isPrimary {
+			continue
+		}
+		entry := &q.tables[i]
+		if !entry.flags.UsePk {
+			continue
+		}
+		if len(entry.tableDef.Indexes.PKCols) == 0 {
+			continue
+		}
+		for _, idx := range entry.tableDef.Indexes.PKCols {
+			sb.WriteString(defs.SQLAnd)
+			field := entry.tableDef.Fields[idx]
+			sb.WriteString(entry.alias + "." + field.SQLName)
+			sb.WriteString(defs.SQLEquals)
+			sb.WriteString(q.dialect.Placeholder(phIdx))
+			phIdx++
+		}
+	}
+	sb.WriteString(q.dialect.OffsetAndLimit(0, 1))
+
+	return sb.String()
+}
+
+type sortField struct {
+	sqlName string
+	desc    bool
+	key     int
+}
+
+func (q *Query[QROW]) buildOrderByClause() string {
+	var sorts []sortField
+	for _, entry := range q.tables {
+		tableOrder := entry.flags.SortOrder
+		for _, field := range entry.tableDef.Fields {
+			if field.Flags.SortPos == 0 {
+				continue
+			}
+			sorts = append(sorts, sortField{
+				sqlName: entry.alias + "." + field.SQLName,
+				desc:    field.Flags.SortBackward,
+				key:     tableOrder*1000 + field.Flags.SortPos,
+			})
+		}
+	}
+
+	if len(sorts) == 0 {
+		return ""
+	}
+
+	slices.SortStableFunc(sorts, func(a, b sortField) int {
+		return a.key - b.key
+	})
+
+	var sb strings.Builder
+	sb.WriteString(defs.SQLOrderBy)
+	for pos, sf := range sorts {
+		if pos > 0 {
+			sb.WriteString(defs.SQLCommaSpace)
+		}
+		sb.WriteString(sf.sqlName)
+		if sf.desc {
+			sb.WriteString(defs.SQLDesc)
+		}
+	}
+
+	return sb.String()
+}
+
+func (q *Query[QROW]) One(ctx context.Context, tx txproc.TxProcessor, keys ...any) (*QROW, error) {
+	buf := new(QROW)
+	ss := q.newScanState(buf)
+	err := tx.QueryRowContext(ctx, q.sql.GetOneCmd, keys...).Scan(ss.dest...)
+	if err != nil {
+		return nil, err
+	}
+	q.applyNulls(buf, ss)
+	return buf, nil
+}
+
+func (q *Query[QROW]) Many(ctx context.Context, tx txproc.TxProcessor, filter *Filter) (result []*QROW, err error) {
+	var sb strings.Builder
+	sb.WriteString(q.sql.ListCmdStart)
+	where, args := filter.BuildWhere(q.flatFields, q.dialect)
+	sb.WriteString(where)
+	sb.WriteString(q.sql.ListSortString)
+	sb.WriteString(filter.BuildOffsetAndLimit(q.dialect))
+
+	rows, err := tx.QueryContext(ctx, sb.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err = errors.Join(err, rows.Close())
+	}()
+
+	buf := new(QROW)
+	ss := q.newScanState(buf)
+	for rows.Next() {
+		ss.clearTempDests()
+		if err = rows.Scan(ss.dest...); err != nil {
+			return nil, err
+		}
+		q.applyNulls(buf, ss)
+		rowBuf := new(QROW)
+		*rowBuf = *buf
+		result = append(result, rowBuf)
+	}
+
+	return result, rows.Err()
 }

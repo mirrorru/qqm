@@ -10,7 +10,7 @@ import (
 	"github.com/mirrorru/qqm/dialect"
 	"github.com/mirrorru/qqm/test/fixtures"
 	"github.com/mirrorru/qqm/txproc"
-	v2 "github.com/mirrorru/qqm/v2/field_info"
+	"github.com/mirrorru/qqm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -34,9 +34,9 @@ func TestV2Smoke_Table_CRUD(t *testing.T) {
 
 	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
-	tbl := v2.NewTable[fixtures.V2User](dialect.SQLiteDialect{})
+	tbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
 
-	user := &fixtures.V2User{
+	user := &fixtures.User{
 		Name:  "Alice",
 		Email: "alice@test.com",
 	}
@@ -88,9 +88,9 @@ func TestV2Smoke_Table_Insert_NoPK(t *testing.T) {
 
 	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
-	tbl := v2.NewTable[fixtures.V2UserNoPK](dialect.SQLiteDialect{})
+	tbl := qqm.NewTable[fixtures.UserNoPK](dialect.SQLiteDialect{})
 
-	user := &fixtures.V2UserNoPK{
+	user := &fixtures.UserNoPK{
 		Name:  "NoPKUser",
 		Email: "nopk@test.com",
 	}
@@ -118,13 +118,13 @@ func TestV2Smoke_Table_Many(t *testing.T) {
 
 	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
-	tbl := v2.NewTable[fixtures.V2UserWithSort](dialect.SQLiteDialect{})
+	tbl := qqm.NewTable[fixtures.UserWithSort](dialect.SQLiteDialect{})
 
-	_, _, err = tbl.Ins(ctx, ex, &fixtures.V2UserWithSort{Name: "Charlie", Email: "charlie@test.com", Age: 30})
+	_, _, err = tbl.Ins(ctx, ex, &fixtures.UserWithSort{Name: "Charlie", Email: "charlie@test.com", Age: 30})
 	require.NoError(t, err)
-	_, _, err = tbl.Ins(ctx, ex, &fixtures.V2UserWithSort{Name: "Alice", Email: "alice@test.com", Age: 25})
+	_, _, err = tbl.Ins(ctx, ex, &fixtures.UserWithSort{Name: "Alice", Email: "alice@test.com", Age: 25})
 	require.NoError(t, err)
-	_, _, err = tbl.Ins(ctx, ex, &fixtures.V2UserWithSort{Name: "Bob", Email: "bob@test.com", Age: 35})
+	_, _, err = tbl.Ins(ctx, ex, &fixtures.UserWithSort{Name: "Bob", Email: "bob@test.com", Age: 35})
 	require.NoError(t, err)
 
 	t.Run("Many returns all rows", func(t *testing.T) {
@@ -143,8 +143,8 @@ func TestV2Smoke_Table_Many(t *testing.T) {
 	})
 
 	t.Run("Many with Name filter", func(t *testing.T) {
-		filter := &v2.Filter{
-			Range: v2.And(v2.Cond(1, v2.CmdEq, "Alice")),
+		filter := &qqm.Filter{
+			Range: qqm.And(qqm.Cond(1, qqm.CmdEq, "Alice")),
 		}
 		results, err := tbl.Many(ctx, ex, filter)
 		require.NoError(t, err)
@@ -153,7 +153,7 @@ func TestV2Smoke_Table_Many(t *testing.T) {
 	})
 
 	t.Run("Many with Limit", func(t *testing.T) {
-		filter := &v2.Filter{
+		filter := &qqm.Filter{
 			Limit: 2,
 			Range: nil,
 		}
@@ -163,8 +163,8 @@ func TestV2Smoke_Table_Many(t *testing.T) {
 	})
 
 	t.Run("Many with Age > filter", func(t *testing.T) {
-		filter := &v2.Filter{
-			Range: v2.And(v2.Cond(3, v2.CmdGt, 30)),
+		filter := &qqm.Filter{
+			Range: qqm.And(qqm.Cond(3, qqm.CmdGt, 30)),
 		}
 		results, err := tbl.Many(ctx, ex, filter)
 		require.NoError(t, err)
@@ -196,20 +196,20 @@ func TestV2Smoke_Query_Many_INNER_JOIN(t *testing.T) {
 	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
-	userTbl := v2.NewTable[fixtures.V2User](dialect.SQLiteDialect{})
-	orderTbl := v2.NewTable[fixtures.V2Order](dialect.SQLiteDialect{})
+	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := qqm.NewTable[fixtures.Order](dialect.SQLiteDialect{})
 
-	_, _, err = userTbl.Ins(ctx, ex, &fixtures.V2User{ID: 1, Name: "Alice", Email: "alice@test.com"})
+	_, _, err = userTbl.Ins(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
-	_, _, err = userTbl.Ins(ctx, ex, &fixtures.V2User{ID: 2, Name: "Bob", Email: "bob@test.com"})
-	require.NoError(t, err)
-
-	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.V2Order{UserID: 1, Amount: 150.0})
-	require.NoError(t, err)
-	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.V2Order{UserID: 1, Amount: 250.0})
+	_, _, err = userTbl.Ins(ctx, ex, &fixtures.User{ID: 2, Name: "Bob", Email: "bob@test.com"})
 	require.NoError(t, err)
 
-	query := v2.NewQuery[fixtures.V2UserWithOrder](dialect.SQLiteDialect{})
+	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.Order{UserID: 1, Amount: 150.0})
+	require.NoError(t, err)
+	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.Order{UserID: 1, Amount: 250.0})
+	require.NoError(t, err)
+
+	query := qqm.NewQuery[fixtures.UserWithOrder](dialect.SQLiteDialect{})
 
 	results, err := query.Many(ctx, ex, nil)
 	require.NoError(t, err)
@@ -242,23 +242,23 @@ func TestV2Smoke_Query_Many_LEFT_JOIN(t *testing.T) {
 	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
-	userTbl := v2.NewTable[fixtures.V2User](dialect.SQLiteDialect{})
-	orderTbl := v2.NewTable[fixtures.V2Order](dialect.SQLiteDialect{})
+	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := qqm.NewTable[fixtures.Order](dialect.SQLiteDialect{})
 
-	_, _, err = userTbl.Ins(ctx, ex, &fixtures.V2User{ID: 1, Name: "Alice", Email: "alice@test.com"})
+	_, _, err = userTbl.Ins(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
-	_, _, err = userTbl.Ins(ctx, ex, &fixtures.V2User{ID: 2, Name: "Bob", Email: "bob@test.com"})
-	require.NoError(t, err)
-
-	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.V2Order{UserID: 1, Amount: 150.0})
+	_, _, err = userTbl.Ins(ctx, ex, &fixtures.User{ID: 2, Name: "Bob", Email: "bob@test.com"})
 	require.NoError(t, err)
 
-	query := v2.NewQuery[fixtures.V2UserWithOrderLeft](dialect.SQLiteDialect{})
+	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.Order{UserID: 1, Amount: 150.0})
+	require.NoError(t, err)
+
+	query := qqm.NewQuery[fixtures.UserWithOrderLeft](dialect.SQLiteDialect{})
 	results, err := query.Many(ctx, ex, nil)
 	require.NoError(t, err)
 	assert.Len(t, results, 2)
 
-	byName := make(map[string]fixtures.V2UserWithOrderLeft)
+	byName := make(map[string]fixtures.UserWithOrderLeft)
 	for _, r := range results {
 		byName[r.User.Name] = *r
 	}
@@ -297,18 +297,18 @@ func TestV2Smoke_Query_One_INNER_JOIN(t *testing.T) {
 	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
-	userTbl := v2.NewTable[fixtures.V2User](dialect.SQLiteDialect{})
-	orderTbl := v2.NewTable[fixtures.V2Order](dialect.SQLiteDialect{})
+	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := qqm.NewTable[fixtures.Order](dialect.SQLiteDialect{})
 
-	alice, _, err := userTbl.Ins(ctx, ex, &fixtures.V2User{ID: 1, Name: "Alice", Email: "alice@test.com"})
+	alice, _, err := userTbl.Ins(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
-	_, _, err = userTbl.Ins(ctx, ex, &fixtures.V2User{ID: 2, Name: "Bob", Email: "bob@test.com"})
-	require.NoError(t, err)
-
-	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.V2Order{UserID: alice.ID, Amount: 150.0})
+	_, _, err = userTbl.Ins(ctx, ex, &fixtures.User{ID: 2, Name: "Bob", Email: "bob@test.com"})
 	require.NoError(t, err)
 
-	query := v2.NewQuery[fixtures.V2UserWithOrder](dialect.SQLiteDialect{})
+	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 150.0})
+	require.NoError(t, err)
+
+	query := qqm.NewQuery[fixtures.UserWithOrder](dialect.SQLiteDialect{})
 
 	t.Run("One returns single row by PK", func(t *testing.T) {
 		row, err := query.One(ctx, ex, int64(1))
@@ -347,18 +347,18 @@ func TestV2Smoke_Query_One_LEFT_JOIN(t *testing.T) {
 	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
-	userTbl := v2.NewTable[fixtures.V2User](dialect.SQLiteDialect{})
-	orderTbl := v2.NewTable[fixtures.V2Order](dialect.SQLiteDialect{})
+	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := qqm.NewTable[fixtures.Order](dialect.SQLiteDialect{})
 
-	alice, _, err := userTbl.Ins(ctx, ex, &fixtures.V2User{ID: 1, Name: "Alice", Email: "alice@test.com"})
+	alice, _, err := userTbl.Ins(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
-	_, _, err = userTbl.Ins(ctx, ex, &fixtures.V2User{ID: 2, Name: "Bob", Email: "bob@test.com"})
-	require.NoError(t, err)
-
-	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.V2Order{UserID: alice.ID, Amount: 150.0})
+	_, _, err = userTbl.Ins(ctx, ex, &fixtures.User{ID: 2, Name: "Bob", Email: "bob@test.com"})
 	require.NoError(t, err)
 
-	query := v2.NewQuery[fixtures.V2UserWithOrderLeft](dialect.SQLiteDialect{})
+	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.Order{UserID: alice.ID, Amount: 150.0})
+	require.NoError(t, err)
+
+	query := qqm.NewQuery[fixtures.UserWithOrderLeft](dialect.SQLiteDialect{})
 
 	t.Run("One with LEFT JOIN returns user with order", func(t *testing.T) {
 		row, err := query.One(ctx, ex, int64(1))
@@ -401,24 +401,24 @@ func TestV2Smoke_Query_Many_Sort(t *testing.T) {
 	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
-	userTbl := v2.NewTable[fixtures.V2UserWithSort](dialect.SQLiteDialect{})
-	orderTbl := v2.NewTable[fixtures.V2Order](dialect.SQLiteDialect{})
+	userTbl := qqm.NewTable[fixtures.UserWithSort](dialect.SQLiteDialect{})
+	orderTbl := qqm.NewTable[fixtures.Order](dialect.SQLiteDialect{})
 
-	_, _, err = userTbl.Ins(ctx, ex, &fixtures.V2UserWithSort{ID: 1, Name: "Charlie", Email: "c@test.com", Age: 30})
+	_, _, err = userTbl.Ins(ctx, ex, &fixtures.UserWithSort{ID: 1, Name: "Charlie", Email: "c@test.com", Age: 30})
 	require.NoError(t, err)
-	_, _, err = userTbl.Ins(ctx, ex, &fixtures.V2UserWithSort{ID: 2, Name: "Alice", Email: "a@test.com", Age: 25})
+	_, _, err = userTbl.Ins(ctx, ex, &fixtures.UserWithSort{ID: 2, Name: "Alice", Email: "a@test.com", Age: 25})
 	require.NoError(t, err)
-	_, _, err = userTbl.Ins(ctx, ex, &fixtures.V2UserWithSort{ID: 3, Name: "Bob", Email: "b@test.com", Age: 35})
-	require.NoError(t, err)
-
-	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.V2Order{UserID: 1, Amount: 100.0})
-	require.NoError(t, err)
-	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.V2Order{UserID: 2, Amount: 200.0})
-	require.NoError(t, err)
-	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.V2Order{UserID: 3, Amount: 300.0})
+	_, _, err = userTbl.Ins(ctx, ex, &fixtures.UserWithSort{ID: 3, Name: "Bob", Email: "b@test.com", Age: 35})
 	require.NoError(t, err)
 
-	query := v2.NewQuery[fixtures.V2UserWithSortAndOrder](dialect.SQLiteDialect{})
+	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.Order{UserID: 1, Amount: 100.0})
+	require.NoError(t, err)
+	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.Order{UserID: 2, Amount: 200.0})
+	require.NoError(t, err)
+	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.Order{UserID: 3, Amount: 300.0})
+	require.NoError(t, err)
+
+	query := qqm.NewQuery[fixtures.UserWithSortAndOrder](dialect.SQLiteDialect{})
 
 	results, err := query.Many(ctx, ex, nil)
 	require.NoError(t, err)
@@ -451,26 +451,26 @@ func TestV2Smoke_Query_Many_WithFilter(t *testing.T) {
 	ex := txproc.NewDBAdapterVal(db)
 	ctx := context.Background()
 
-	userTbl := v2.NewTable[fixtures.V2User](dialect.SQLiteDialect{})
-	orderTbl := v2.NewTable[fixtures.V2Order](dialect.SQLiteDialect{})
+	userTbl := qqm.NewTable[fixtures.User](dialect.SQLiteDialect{})
+	orderTbl := qqm.NewTable[fixtures.Order](dialect.SQLiteDialect{})
 
-	_, _, err = userTbl.Ins(ctx, ex, &fixtures.V2User{ID: 1, Name: "Alice", Email: "alice@test.com"})
+	_, _, err = userTbl.Ins(ctx, ex, &fixtures.User{ID: 1, Name: "Alice", Email: "alice@test.com"})
 	require.NoError(t, err)
-	_, _, err = userTbl.Ins(ctx, ex, &fixtures.V2User{ID: 2, Name: "Bob", Email: "bob@test.com"})
-	require.NoError(t, err)
-
-	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.V2Order{UserID: 1, Amount: 150.0})
-	require.NoError(t, err)
-	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.V2Order{UserID: 1, Amount: 250.0})
-	require.NoError(t, err)
-	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.V2Order{UserID: 2, Amount: 100.0})
+	_, _, err = userTbl.Ins(ctx, ex, &fixtures.User{ID: 2, Name: "Bob", Email: "bob@test.com"})
 	require.NoError(t, err)
 
-	query := v2.NewQuery[fixtures.V2UserWithOrder](dialect.SQLiteDialect{})
+	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.Order{UserID: 1, Amount: 150.0})
+	require.NoError(t, err)
+	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.Order{UserID: 1, Amount: 250.0})
+	require.NoError(t, err)
+	_, _, err = orderTbl.Ins(ctx, ex, &fixtures.Order{UserID: 2, Amount: 100.0})
+	require.NoError(t, err)
+
+	query := qqm.NewQuery[fixtures.UserWithOrder](dialect.SQLiteDialect{})
 
 	t.Run("Filter by User.Name (flatField idx=1)", func(t *testing.T) {
-		filter := &v2.Filter{
-			Range: v2.And(v2.Cond(1, v2.CmdEq, "Alice")),
+		filter := &qqm.Filter{
+			Range: qqm.And(qqm.Cond(1, qqm.CmdEq, "Alice")),
 		}
 		results, err := query.Many(ctx, ex, filter)
 		require.NoError(t, err)
@@ -481,8 +481,8 @@ func TestV2Smoke_Query_Many_WithFilter(t *testing.T) {
 	})
 
 	t.Run("Filter by Order.Amount > (flatField idx=5)", func(t *testing.T) {
-		filter := &v2.Filter{
-			Range: v2.And(v2.Cond(5, v2.CmdGt, 200.0)),
+		filter := &qqm.Filter{
+			Range: qqm.And(qqm.Cond(5, qqm.CmdGt, 200.0)),
 		}
 		results, err := query.Many(ctx, ex, filter)
 		require.NoError(t, err)
@@ -491,10 +491,10 @@ func TestV2Smoke_Query_Many_WithFilter(t *testing.T) {
 	})
 
 	t.Run("Filter with Offset and Limit", func(t *testing.T) {
-		filter := &v2.Filter{
+		filter := &qqm.Filter{
 			Offset: 1,
 			Limit:  1,
-			Range:  v2.And(v2.Cond(1, v2.CmdEq, "Alice")),
+			Range:  qqm.And(qqm.Cond(1, qqm.CmdEq, "Alice")),
 		}
 		results, err := query.Many(ctx, ex, filter)
 		require.NoError(t, err)
