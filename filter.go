@@ -32,22 +32,34 @@ const (
 	LogicNot
 )
 
+// Filter — структура фильтра для Many().
+// Offset и Limit задают пагинацию, Range — дерево условий.
+// EN: Filter — filter structure for Many().
+// Offset and Limit set pagination, Range — condition tree.
 type Filter struct {
 	Offset uint32
 	Limit  uint32
 	Range  FilterNode
 }
 
+// FilterNode — интерфейс узла дерева фильтра.
+// Реализации: ConditionNode (условие), GroupNode (And/Or/Not-группа).
+// EN: FilterNode — filter tree node interface.
+// Implementations: ConditionNode (condition), GroupNode (And/Or/Not group).
 type FilterNode interface {
 	Build(tf TableFields, d dialect.DialectProvider, argIdx *int) (clause string, args []any, err error)
 }
 
+// ConditionNode — лист дерева фильтра: одно условие над полем.
+// EN: ConditionNode — filter tree leaf: a single condition on a field.
 type ConditionNode struct {
 	FieldIdx int
 	Op       CommandOp
 	Value    any
 }
 
+// GroupNode — группа условий с логическим оператором.
+// EN: GroupNode — group of conditions with a logical operator.
 type GroupNode struct {
 	Logic    LogicOp
 	Children []FilterNode
@@ -197,18 +209,26 @@ func cmdOpToSQL(op CommandOp) string {
 	}
 }
 
+// Cond создаёт узел условия: fieldIdx — индекс поля в TableFields, op — оператор, value — значение.
+// EN: Cond creates a condition node: fieldIdx — field index in TableFields, op — operator, value — value.
 func Cond(fieldIdx int, op CommandOp, value any) *ConditionNode {
 	return &ConditionNode{FieldIdx: fieldIdx, Op: op, Value: value}
 }
 
+// And создаёт группу с логическим AND.
+// EN: And creates a logical AND group.
 func And(children ...FilterNode) *GroupNode {
 	return &GroupNode{Logic: LogicAnd, Children: children}
 }
 
+// Or создаёт группу с логическим OR.
+// EN: Or creates a logical OR group.
 func Or(children ...FilterNode) *GroupNode {
 	return &GroupNode{Logic: LogicOr, Children: children}
 }
 
+// Not создаёт группу с логическим NOT (ровно один ребёнок).
+// EN: Not creates a logical NOT group (exactly one child).
 func Not(child FilterNode) *GroupNode {
 	return &GroupNode{Logic: LogicNot, Children: []FilterNode{child}}
 }

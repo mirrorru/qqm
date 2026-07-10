@@ -10,12 +10,12 @@ qqm — ORM-подобная Go-библиотека для типизирова
        ↓
     qqm.go (public API)
        ↓
-    Table[ROW] / Query[QROW] (CRUD + JOIN + DDL)
+    Table[ROW] / Query[QROW] (CRUD + JOIN)
        ↓
-    meta.RowMeta (метаданные структуры)
+    TableFields / FieldFlags (метаданные структуры)
     dialect.DialectProvider (диалект БД)
        ↓
-    Executor (абстракция выполнения SQL)
+    txproc.TxProcessor (абстракция выполнения SQL)
        ↓
     database/sql  или  pgx
 ```
@@ -29,80 +29,77 @@ qqm — ORM-подобная Go-библиотека для типизирова
 - `NewTable[ROW](dialect)` — создание типизированной таблицы
 - `NewQuery[QROW](dialect)` — создание multi-table запроса с JOIN
 - `SQLiteDialect`, `PostgreSQLDialect` — предопределённые диалекты
-- `And`, `Or` — операторы комбинирования фильтров
-- `Field()`, `Eq()`, `Gt()`, ... — конструкторы фильтров
-- `AndFilter()`, `OrFilter()` — комбинирование фильтров
+- `Cond()`, `And()`, `Or()`, `Not()` — конструкторы фильтров (filter.go)
 
 Все типы и функции — в корневом пакете `qqm`.
 
-### 2. Table[ROW] (table.go)
+### 2. Table[ROW] (table_row.go)
 
 Generic-структура, параметризованная типом строки ROW.
 
 ```go
 type Table[ROW any] struct {
-    internal *TableInternals
+    tableDef TableDefinition
+    sql      sqlTexts
+    dialect  dialect.DialectProvider
 }
 ```
 
-**Интерфейс CRUD[ROW]:**
-- `Insert(ctx, ex, src *ROW) (*ROW, error)` — вставка с RETURNING
-- `GetByKey(ctx, ex, keys...) (*ROW, error)` — SELECT по PK
-- `Update(ctx, ex, src *ROW) error` — UPDATE по PK
-- `Delete(ctx, ex, keys...) error` — DELETE по PK
-- `List(ctx, ex, filter) ([]*ROW, error)` — SELECT с фильтрацией
+**Методы:**
+- `Ins(ctx, tx, *ROW) (*ROW, Result, error)` — вставка с RETURNING
+- `Upd(ctx, tx, *ROW) (*ROW, Result, error)` — UPDATE по PK с RETURNING
+- `One(ctx, tx, keys...) (*ROW, error)` — SELECT по PK
+- `Del(ctx, tx, keys...) (Result, error)` — DELETE по PK
+- `Many(ctx, tx, filter) ([]*ROW, error)` — SELECT с фильтрацией и сортировкой
 
 **Тип ROW:** структура передаётся по значению (value‑type), не указатель.
-`NewTable[ROW]` принимает только ROW без `*` — при попытке передать указатель будет panic.
+`NewTable[ROW]` принимает только ROW без `*`.
 
-**Внутренняя оптимизация сканирования:**
-- `scanDestHelper` — кеширует индексы полей и переиспользует срез `[]any` для дестинаций
-- `resetForRow` — обновляет указатели в `dest` для текущей строки за O(1) на поле
-- Insert, GetByKey, List используют `scanHelper` вместо `Meta().ScanDest()`
+**Доступ к SQL:** `tbl.SQLs()` возвращает `sqlTexts` с полями: `InsertCmd`, `UpdateCmd`, `DeleteCmd`, `GetOneCmd`, `ListCmdStart`, `ListSortString`.
 
-### 3. Query[QROW] (multi_query.go)
+**Доступ к метаданным:** `tbl.Defs()` возвращает `TableDefinition` (TableName, Fields, Indexes).
+
+### 3. Query[QROW] (query.go)
 
 Generic-структура для SELECT-запросов по нескольким таблицам с JOIN.
 
 ```go
 type Query[QROW any] struct {
-    dialect      dialect.DialectProvider
-    qmeta        *queryMeta
-    qrowType     reflect.Type
-    scanTemplate *scanContext
+    dialect    dialect.DialectProvider
+    tables     []queryTableEntry
+    primaryIdx int
+    flatFields TableFields
+    idxMapping map[string]int
+    sql        sqlTexts
+    qrowType   reflect.Type
 }
 ```
 
-**Метод:**
-- `List(ctx, ex, filter) ([]*QROW, error)` — SELECT с JOIN и фильтрацией
+**Методы:**
+- `One(ctx, tx, keys...) (*QROW, error)` — SELECT с JOIN по PK первичной таблицы
+- `Many(ctx, tx, filter) ([]*QROW, error)` — SELECT с JOIN, фильтрацией и сортировкой
 
 **Оптимизация сканирования:**
-- `scanTemplate` создаётся один раз в `NewQuery` (вместо `newScanContext` на каждую строку)
-- `buildScanTemplate` — строит шаблон дестинаций и кеширует индексы полей
-- `resetForRow` — обновляет указатели в `dest` для очередной строки
-- Для pointer-полей (`*Order`) значения сканируются во временный `[]any`
-  Если все PK-колонки NULL → указатель устанавливается в nil
-  Иначе — создаётся структура, значения копируются с приведением типов
-- Для value-полей (`Order`) адреса полей напрямую помещаются в `dest`
-
-**Результат:** одна аллокация `dest` и одна `apply` на строку вместо полного пересоздания контекста.
+- `newScanState` создаёт один буфер dest и массив tempDests на строку
+- `clearTempDests` обнуляет временные дестинации между строками
+- `applyNulls` после Scan проверяет ref-поля на NULL: если все NULL — обнуляет всю структуру таблицы (LEFT JOIN)
 
 **Авто-вывод JOIN:**
 - Поля QROW — существующие ROW-структуры (User, Order и т.д.)
-- Тип JOIN определяется по типу поля: `*Order` → LEFT, `Order` → INNER
-- Условие ON выводится из тега `ref=table.col` на полях ROW-структур
-- Явное переопределение через теги поля: `join=LEFT`, `table=...`, `primary`
+- JOIN-условия выводятся из тегов `ref=table.col` на полях ROW-структур
+- Тип JOIN задаётся тегом `join=left|right|inner` на поле QROW
+- Первичная таблица помечается тегом `from`
+- `buildFlatFields` создаёт плоский список полей с квалифицированными именами (`alias.col`) для фильтрации
 
-### 4. Метаданные (meta/)
+### 4. Метаданные (field_struct.go)
 
-`meta.BuildRowMeta(type, tableName)` — сбор метаданных через reflect.
+`CollectTableFields(reflect.Type)` — сбор метаданных через reflect.
 
 **Процесс:**
 - Проход по всем публичным полям структуры
-- Парсинг тегов `qqm:"..."`
-- Для embedded и именованных полей-структур с `prefix=...` — рекурсивный обход
-- Валидация дубликатов имён колонок
-- Кеширование через `meta.Cache` (sync.Map, ленивая инициализация)
+- Парсинг тегов `tbl:"..."`
+- Для anonymous, embed и полей-структур с `prefix=...` — рекурсивный обход
+- Кеширование через `sync.Map` (ленивая инициализация)
 
 **Правила маппинга:**
 | Сценарий | Результат |
@@ -110,31 +107,55 @@ type Query[QROW any] struct {
 | Поле без тегов | Колонка = snake_case от имени поля |
 | `col=name` | Колонка = name |
 | `pk` | Поле — первичный ключ |
-| `auto` | Пропускается в INSERT |
-| `update` | Разрешает UPDATE для auto-поля |
+| `ro` | Read-only: только SELECT |
+| `auto` | Автогенерация: пропускается в INSERT |
+| `ins` | Принудительное включение в INSERT |
+| `upd` | Принудительное включение в UPDATE |
+| `rskip` | Исключается из SELECT |
 | `omit` | Полностью исключается из SQL |
-| `prefix=...` на embedded struct | Колонки с префиксом |
-| `prefix=...` на именованной struct | Колонки с префиксом (новая возможность) |
-| `insert` | Только в INSERT, исключается из UPDATE |
+| `embed` | Принудительная распаковка |
+| `prefix=...` на структуре | Распаковка колонок с префиксом |
+| `ref=table.col` | Внешний ключ |
+| `sort=<pos>[,dir]` | Позиция и направление в ORDER BY |
 
-### 5. Генерация SQL (query.go)
+**Наследование флагов (Merge):**
+- `ro`, `auto`, `ins`, `upd`, `rskip` — наследуются (OR)
+- `prefix` — конкатенируется (`parentPrefix + childPrefix`)
+- `sort` — наследуется только при `child.SortPos == 0`
 
-SQL-запросы генерируются один раз и кешируются в `tableInternals`:
+### 5. SQL-индексы полей (field_struct.go)
 
-- `InsertSQL()` — INSERT INTO ... VALUES (...) RETURNING ...
-- `UpdateSQL()` — UPDATE ... SET ... WHERE pk = ?
-- `SelectSQL()` — SELECT ... FROM ... WHERE pk = ?
-- `DeleteSQL()` — DELETE FROM ... WHERE pk = ?
-- `ListSQL()` — SELECT ... FROM ... [ORDER BY ...]
-- `CreateTableSQL()` — CREATE TABLE ... (col TYPE ... PRIMARY KEY ... REFERENCES ... DEFAULT ...)
+`fieldsIndexes` содержит заранее вычисленные индексы для разных операций:
 
-Плейсхолдеры зависят от диалекта: `?` для SQLite, `$N` для PostgreSQL.
+| Индекс | Назначение |
+|--------|-----------|
+| `PKCols` | WHERE для One, Upd, Del |
+| `SelectCols` | RETURNING, Scan-дестинации |
+| `InsertCols` | INSERT VALUES |
+| `UpdateCols` | UPDATE SET |
+| `SortingCols` | ORDER BY |
+| `RefCols` | Внешние ключи для JOIN ON |
 
-ORDER BY формируется из тегов `sort=<pos>[,dir]`: собираются все поля с `sort=`, сортируются по позиции, генерируется `ORDER BY col1 ASC, col2 DESC`.
+### 6. Генерация SQL (table_definition.go)
 
-CREATE TABLE учитывает: `pk` → PRIMARY KEY, `default=...` → DEFAULT, `ref=table.col` → REFERENCES.
+SQL-запросы генерируются один раз и хранятся в `sqlTexts`:
 
-### 6. Диалекты (dialect/)
+```go
+type sqlTexts struct {
+    InsertCmd      string  // INSERT INTO ... VALUES (...) RETURNING ...
+    UpdateCmd      string  // UPDATE ... SET ... WHERE pk = ? RETURNING ...
+    DeleteCmd      string  // DELETE FROM ... WHERE pk = ?
+    GetOneCmd      string  // SELECT ... FROM ... WHERE pk = ?
+    ListCmdStart   string  // SELECT ... FROM ... [WHERE ...]
+    ListSortString string  // ORDER BY col1 ASC, col2 DESC
+}
+```
+
+Генерация в `makeSQLs()` при создании `NewTable`. Плейсхолдеры зависят от диалекта: `?` для SQLite, `$N` для PostgreSQL.
+
+ORDER BY формируется из `SortingCols`: поля сортируются по `SortPos`, выводятся через запятую с ASC/DESC.
+
+### 7. Диалекты (dialect/)
 
 ```go
 type DialectProvider interface {
@@ -142,19 +163,23 @@ type DialectProvider interface {
     QuoteIdent(name string) string
     Placeholder(n int) string
     SupportsReturning() bool
+    OffsetAndLimit(offset, limit uint32) string
+    ILIKE(col string, placeholder string) string
 }
 ```
 
 Реализации:
-- `SQLiteDialect` — `?`, RETURNING поддерживается
-- `PostgreSQLDialect` — `$1, $2, ...`, RETURNING поддерживается
+| Диалект | Placeholder | Offset/Limit | ILIKE |
+|---------|-------------|--------------|-------|
+| `SQLiteDialect` | `?` | `LIMIT n OFFSET m` | `LOWER() LIKE LOWER()` |
+| `PostgreSQLDialect` | `$N` | `OFFSET m LIMIT n` | `ILIKE` |
 
-### 7. Executor
+### 8. TxProcessor (txproc/)
 
-Абстракция выполнения SQL-запросов. Файлы в корневом пакете `qqm`.
+Абстракция выполнения SQL-запросов в пакете `txproc`.
 
 ```go
-type Executor interface {
+type TxProcessor interface {
     ExecContext(ctx, query, args...) (Result, error)
     QueryContext(ctx, query, args...) (Rows, error)
     QueryRowContext(ctx, query, args...) Row
@@ -169,63 +194,97 @@ type Executor interface {
 | `PGXAdapter` | `NewPGXAdapterVal(conn)` | `*pgx.Conn` |
 | `PGXTxAdapter` | `NewPGXTxAdapterVal(tx)` | `pgx.Tx` |
 
-Адаптеры pgx добавлены для поддержки нативного PostgreSQL-драйвера.
 Адаптеры — value-типы, создаются через конструкторы.
 
-### 8. Фильтрация (filter.go)
+### 9. Фильтрация (filter.go)
 
-Для single-table запросов (`Table.List`) — `whereBuilder` с простыми именами полей.
-Для multi-table запросов (`Query.List`) — `multiWhereBuilder` с квалифицированными именами (`"Order.Amount"`).
+Фильтры строятся как дерево узлов `FilterNode`:
 
 ```go
-Filter       = AndFilter/OrFilter из FieldFilter[]
-FieldFilter  = имя_поля + FilterOp + []Condition
-Condition    = ConditionOp + value
+type Filter struct {
+    Offset uint32
+    Limit  uint32
+    Range  FilterNode   // корень дерева условий
+}
+
+type ConditionNode struct {  // лист: fieldIdx + op + value
+    FieldIdx int
+    Op       CommandOp
+    Value    any
+}
+
+type GroupNode struct {      // группа: LogicOp + Children
+    Logic    LogicOp         // LogicAnd / LogicOr / LogicNot
+    Children []FilterNode
+}
 ```
 
-**Операторы:** `OpEq`, `OpGt`, `OpLt`, `OpGte`, `OpLte`, `OpBetween`, `OpIn`
-**Комбинаторы:** `And`, `Or`
+**Операторы условий (`CommandOp`):** `CmdEq`, `CmdNotEq`, `CmdGt`, `CmdGte`, `CmdLt`, `CmdLte`, `CmdIsNull`, `CmdIsNotNull`, `CmdLike`, `CmdILike`, `CmdIn`
 
-Хелперы: `Eq()`, `Gt()`, `Lt()`, `Gte()`, `Lte()`, `Between()`, `In()`,
-`Field()`, `AndFilter()`, `OrFilter()`
+**Логические операторы (`LogicOp`):** `LogicAnd`, `LogicOr`, `LogicNot`
 
-### 9. Тестирование
+**Хелперы:** `Cond(fieldIdx, op, value)`, `And(children...)`, `Or(children...)`, `Not(child)`
 
-- **Unit-тесты** — в корневом пакете (`qqm`) и `meta/`
-- **Smoke** — `test/smoke/` (build tag: smoke), быстрая проверка на SQLite
-- **Functional** — `test/functional/` (build tag: functional), полные сценарии на PostgreSQL
-- **pgx functional** — `test/functional/pgx_crud_test.go` (build tag: functional), тесты через pgx
+**fieldIdx** — индекс поля в `TableFields`. Для `Table.Many` — в `tableDef.Fields`. Для `Query.Many` — в `FlatFields()`.
 
-Smoke-тесты включают проверку транзакций (commit, rollback, GetByKey внутри транзакции).
+**Построение WHERE:** `Filter.BuildWhere(tableFields, dialect)` → собирает SQL и аргументы, обходя дерево `FilterNode.Build()`.
 
-## Поток вызова Insert
+### 10. Теги таблиц в Query (qtable_flags.go)
 
-```
-tbl.Insert(ctx, ex, &User{...})
-  → Internals().InsertSQL()         // сгенерированный SQL (кеш)
-  → meta.InsertValues(row)          // значения полей для INSERT
-  → scanHelper.resetForRow(buf)     // дестинации для Scan (кеш)
-  → ex.QueryRowContext(sql, args)   // RETURNING
-  → row.Scan(dest...)               // заполнение buf
-  → копирование *result = *buf      // возврат отдельной строки
+```go
+type TableFlags struct {
+    IsFrom    bool              // tbl:"from" — первичная таблица
+    JoinMode  JoinMode          // tbl:"join=left|right|inner"
+    Alias     string            // tbl:"alias=..."
+    RefMap    map[string]string // tbl:"map=k1:v1,k2:v2" — маппинг имён ref-таблиц
+    UsePk     bool              // tbl:"pk" — использовать PK в Query.One
+    SortOrder int               // tbl:"sort=..." — приоритет сортировки таблицы
+}
 ```
 
-Аналогично для GetByKey — тоже через `QueryRowContext`.
+### 11. Тестирование
 
-В List для каждой строки: `resetForRow(buf)` → `Scan(dest)` → копирование `*row = *buf`.
+| Тип | Пакет | Build tag | БД |
+|-----|-------|-----------|----|
+| Unit | `qqm`, `qqm_test`, `meta_test` | (нет) | — |
+| Smoke | `test/smoke` | `smoke` | SQLite :memory: |
+| Functional | `test/functional` | `functional` | PostgreSQL |
+| Concurrent | `test/concurrent` | `concurrent` | SQLite :memory: (+ race) |
 
-## Изменения по сравнению с предыдущей архитектурой
+## Поток вызова Ins
 
-1. **Value-type ROW (breaking change)** — `NewTable[ROW]` принимает только value-тип (`NewTable[User]`), не указатель. Panic при попытке передать `*User`.
-2. **Pointer-результаты** — все CRUD-методы возвращают `*ROW`/`[]*ROW` вместо `ROW`/`[]ROW`; Insert/Update принимают `*ROW`.
-3. **scanDestHelper** — новый внутренний кеш дестинаций для Table, `resetForRow` переиспользует `dest`.
-4. **scanTemplate в Query** — `buildScanTemplate` создаётся один раз в `NewQuery`, `resetForRow` сбрасывает дестинации на каждую строку. Вместо `newScanContext` на строку.
-5. **rowValue** — вспомогательный метод для получения `reflect.Value` из `*ROW`.
-6. **Executor.QueryRowContext + Row** — новый метод/интерфейс для single-row запросов
-7. **DBAdapter/TxAdapter** — value-типы, конструкторы `NewDBAdapterVal`/`NewTxAdapterVal`
-8. **PGXAdapter/PGXTxAdapter** — поддержка pgx (jackc/pgx)
-9. **Named struct prefix** — префикс работает на именованных (неанонимных) полях-структурах
-10. **Public API (qqm.go)** — единая точка входа с реэкспортами фильтров
-11. **errNoRowsReturned удалён** — ошибки обрабатываются через `QueryRowContext`
-12. **Multi-table запросы (Query[QROW])** — SELECT с JOIN, авто-вывод ON из ref=,
-    квалифицированные имена в фильтрах, NULL-безопасное сканирование для LEFT JOIN
+```
+tbl.Ins(ctx, ex, &User{...})
+  → extractArgs(row, InsertCols)       // значения полей для INSERT
+  → ex.QueryRowContext(InsertCmd, args) // RETURNING
+  → row.Scan(extractRefs(buf, SelectCols))
+  → возврат *buf (вставленная строка)
+```
+
+## Поток вызова Many (Table)
+
+```
+tbl.Many(ctx, ex, filter)
+  → filter.BuildWhere(tableDef.Fields, dialect)  // WHERE + args
+  → sql = ListCmdStart + where + ListSortString + offset/limit
+  → ex.QueryContext(sql, args)
+  → для каждой строки:
+      extractRefs(buf, SelectCols) → rows.Scan(refs)
+      копирование *rowBuf = *buf
+  → возврат []*ROW
+```
+
+## Поток вызова Many (Query)
+
+```
+query.Many(ctx, ex, filter)
+  → filter.BuildWhere(flatFields, dialect)  // WHERE + args
+  → sql = ListCmdStart + where + ListSortString + offset/limit
+  → ex.QueryContext(sql, args)
+  → для каждой строки:
+      clearTempDests()
+      rows.Scan(dest)                     // primary-поля напрямую, остальные в tempDests
+      applyNulls(buf, ss)                 // проверка ref-полей на NULL → обнуление структур
+      копирование *rowBuf = *buf
+  → возврат []*QROW
+```
