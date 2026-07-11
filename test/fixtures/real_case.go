@@ -27,8 +27,10 @@ func (dictsSubjPersonMarker) SQLName() string {
 
 type DictsSubjPersonRowShort struct {
 	dictsSubjPersonMarker
-	SubjID SubjID `tbl:"pk;ref=subj_table:id"`
-	Val    SomeVal
+	SubjID   SubjID `tbl:"pk;ref=subj_table:id"`
+	Val      SomeVal
+	Birthday SubjBirthday `tbl:"embed"`
+	Gender   GenderType
 }
 
 type dictsSubjLegalMarker struct{}
