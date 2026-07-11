@@ -58,7 +58,7 @@ type Rooms struct {
 
 // RoomMapping — таблица связей комнат и преподавателей
 type RoomMapping struct {
-	MappingRoomID `tbl:"prefix=room_;ref=rooms.id"`
+	MappingRoomID `tbl:"prefix=room_;ref=rooms:id"`
 	TeacherKey    `tbl:"prefix=teacher_"`
 	From          int64 `tbl:"col=time_from"`
 	To            int64 `tbl:"col=time_to"`
@@ -153,7 +153,7 @@ type PersonWithAddress struct {
 // Order — структура заказа с FK на User
 type Order struct {
 	ID     int64 `tbl:"pk;auto"`
-	UserID int64 `tbl:"ref=users.id"`
+	UserID int64 `tbl:"ref=users:id"`
 	Amount float64
 }
 
@@ -162,7 +162,7 @@ func (o *Order) SQLName() string { return "orders" }
 // OrderItem — структура позиции заказа с FK на Order
 type OrderItem struct {
 	ID       int64 `tbl:"pk;auto"`
-	OrderID  int64 `tbl:"ref=orders.id"`
+	OrderID  int64 `tbl:"ref=orders:id"`
 	Quantity int
 	Price    float64
 }
@@ -192,7 +192,7 @@ type UserOrderItem struct {
 type UserWithSort struct {
 	ID    int64  `tbl:"pk;auto"`
 	Name  string `tbl:"sort=1"`
-	Email string `tbl:"sort=2,desc"`
+	Email string `tbl:"sort=2:desc"`
 	Age   int
 }
 
@@ -202,7 +202,7 @@ func (u *UserWithSort) SQLName() string { return "users" }
 type UserWithSortMulti struct {
 	ID    int64  `tbl:"pk;auto"`
 	Name  string `tbl:"sort=2"`
-	Email string `tbl:"sort=1,desc"`
+	Email string `tbl:"sort=1:desc"`
 	Age   int    `tbl:"sort=3"`
 }
 
@@ -225,8 +225,8 @@ func (u *UserNoPK) SQLName() string { return "users" }
 // OrderWithSort — структура заказа с sort для Query-тестов
 type OrderWithSort struct {
 	ID     int64   `tbl:"pk;auto"`
-	UserID int64   `tbl:"ref=users.id;sort=1"`
-	Amount float64 `tbl:"sort=2,desc"`
+	UserID int64   `tbl:"ref=users:id;sort=1"`
+	Amount float64 `tbl:"sort=2:desc"`
 }
 
 func (o *OrderWithSort) SQLName() string { return "orders" }

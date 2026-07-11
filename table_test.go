@@ -67,12 +67,12 @@ type testAnonymousNested struct {
 type testSortRow struct {
 	ID   int64  `tbl:"pk;auto"`
 	Name string `tbl:"sort=2"`
-	Age  int    `tbl:"sort=1,desc"`
+	Age  int    `tbl:"sort=1:desc"`
 }
 
 type testRefRow struct {
 	ID     int64 `tbl:"pk;auto"`
-	UserID int64 `tbl:"ref=users.id"`
+	UserID int64 `tbl:"ref=users:id"`
 	Name   string
 }
 
@@ -85,9 +85,10 @@ func (testUserRow) SQLName() string { return "users" }
 
 type testOrderRow struct {
 	ID     int64 `tbl:"pk;auto"`
-	UserID int64 `tbl:"ref=users.id"`
+	UserID int64 `tbl:"ref=users:id"`
 	Total  int
 }
+
 
 func (testOrderRow) SQLName() string { return "orders" }
 
@@ -98,14 +99,14 @@ type testUsePkRow struct {
 
 type testRefMapRow struct {
 	ID    int64  `tbl:"pk;auto"`
-	Owner string `tbl:"ref=u.id"`
+	Owner string `tbl:"ref=u:id"`
 }
 
 func (testRefMapRow) SQLName() string { return "items" }
 
 type testDetailRow struct {
 	ID     int64 `tbl:"pk;auto"`
-	UserID int64 `tbl:"ref=users.id"`
+	UserID int64 `tbl:"ref=users:id"`
 	Name   string
 }
 
@@ -120,14 +121,14 @@ func (testOrphanRow) SQLName() string { return "orphans" }
 
 type testBadRefRow struct {
 	ID     int64 `tbl:"pk;auto"`
-	DataID int64 `tbl:"ref=ghost.id"`
+	DataID int64 `tbl:"ref=ghost:id"`
 }
 
 func (testBadRefRow) SQLName() string { return "data" }
 
 type testRevUserRow struct {
 	ID    int64 `tbl:"pk;auto"`
-	RefID int64 `tbl:"ref=items.id"`
+	RefID int64 `tbl:"ref=items:id"`
 }
 
 func (testRevUserRow) SQLName() string { return "users" }
@@ -148,7 +149,7 @@ func (testSortUserRow) SQLName() string { return "users" }
 
 type testSortOrderRow struct {
 	ID     int64 `tbl:"pk;auto"`
-	UserID int64 `tbl:"ref=users.id;sort=1,desc"`
+	UserID int64 `tbl:"ref=users:id;sort=1:desc"`
 	Total  int
 }
 
@@ -168,7 +169,7 @@ func (testWidgetsRow) SQLName() string { return "widgets" }
 
 type testChildRow struct {
 	ID      int64 `tbl:"pk;auto"`
-	OwnerID int64 `tbl:"ref=widgets.id"`
+	OwnerID int64 `tbl:"ref=widgets:id"`
 }
 
 func (testChildRow) SQLName() string { return "children" }
@@ -214,7 +215,7 @@ func TestParseFieldTag_AllFlags(t *testing.T) {
 	t.Parallel()
 
 	type allFlags struct {
-		Field int `tbl:"pk;ro;auto;embed;ins;upd;rskip;col=my_col;prefix=pfx_;ref=tbl.id;sort=3,desc"`
+		Field int `tbl:"pk;ro;auto;embed;ins;upd;rskip;col=my_col;prefix=pfx_;ref=tbl:id;sort=3:desc"`
 	}
 
 	fields, err := qqm.CollectTableFields(reflect.TypeOf(allFlags{}))
@@ -231,7 +232,7 @@ func TestParseFieldTag_AllFlags(t *testing.T) {
 	assert.True(t, flags.SkipReading)
 	assert.Equal(t, "my_col", flags.ColName)
 	assert.Equal(t, "pfx_", flags.Prefix)
-	assert.Equal(t, "tbl.id", flags.Ref)
+	assert.Equal(t, "tbl:id", flags.Ref)
 	assert.Equal(t, 3, flags.SortPos)
 	assert.True(t, flags.SortBackward)
 }
@@ -306,7 +307,7 @@ func TestParseFieldTag_SortAsc(t *testing.T) {
 	t.Parallel()
 
 	type ascSort struct {
-		Field int `tbl:"sort=1,asc"`
+		Field int `tbl:"sort=1:asc"`
 	}
 
 	fields, err := qqm.CollectTableFields(reflect.TypeOf(ascSort{}))
@@ -826,7 +827,7 @@ func TestTableFields_SortingCols(t *testing.T) {
 	table := qqm.NewTable[testSortRow](dialect.SQLiteDialect{})
 	sql := table.SQLs()
 
-	// ORDER BY должен содержать age (sort=1,desc) и name (sort=2)
+	// ORDER BY должен содержать age (sort=1:desc) и name (sort=2)
 	assert.Contains(t, sql.ListSortString, "age")
 	assert.Contains(t, sql.ListSortString, "name")
 	assert.Contains(t, sql.ListSortString, "DESC")
@@ -848,7 +849,7 @@ func TestTableFields_RefCols(t *testing.T) {
 	for _, field := range fields {
 		if field.Flags.Ref != "" {
 			refCount++
-			assert.Equal(t, "users.id", field.Flags.Ref)
+			assert.Equal(t, "users:id", field.Flags.Ref)
 		}
 	}
 	assert.Equal(t, 1, refCount)
@@ -1183,12 +1184,12 @@ func TestCollectTableFields_MixedTags(t *testing.T) {
 
 	type mixedTags struct {
 		ID        int64  `tbl:"pk;auto;sort=1"`
-		Name      string `tbl:"col=user_name;sort=2,desc"`
+		Name      string `tbl:"col=user_name;sort=2:desc"`
 		Email     string `tbl:"ro;rskip"`
 		Password  string `tbl:"omit"`
 		CreatedAt int64  `tbl:"auto;ins"`
 		UpdatedAt int64  `tbl:"auto;upd"`
-		RefID     int64  `tbl:"ref=other.id"`
+		RefID     int64  `tbl:"ref=other:id"`
 	}
 
 	fields, err := qqm.CollectTableFields(reflect.TypeOf(mixedTags{}))
@@ -1218,7 +1219,7 @@ func TestCollectTableFields_MixedTags(t *testing.T) {
 			assert.True(t, f.Flags.AutoGen)
 			assert.True(t, f.Flags.ForceUpdate)
 		case "RefID":
-			assert.Equal(t, "other.id", f.Flags.Ref)
+			assert.Equal(t, "other:id", f.Flags.Ref)
 		}
 	}
 }
@@ -1232,7 +1233,7 @@ func TestTableDefinition_AllIndexes(t *testing.T) {
 		Name     string `tbl:"sort=1"`
 		ReadOnly string `tbl:"ro"`
 		Hidden   string `tbl:"rskip"`
-		RefID    int64  `tbl:"ref=users.id"`
+		RefID    int64  `tbl:"ref=users:id"`
 	}
 
 	table := qqm.NewTable[allIndexesTest](dialect.SQLiteDialect{})

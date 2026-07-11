@@ -86,7 +86,7 @@ type Query[QROW any] struct {
 
 **Авто-вывод JOIN:**
 - Поля QROW — существующие ROW-структуры (User, Order и т.д.)
-- JOIN-условия выводятся из тегов `ref=table.col` на полях ROW-структур
+- JOIN-условия выводятся из тегов `ref=table:col` на полях ROW-структур
 - Тип JOIN задаётся тегом `join=left|right|inner` на поле QROW
 - Первичная таблица помечается тегом `from`
 - `buildFlatFields` создаёт плоский список полей с квалифицированными именами (`alias.col`) для фильтрации
@@ -115,8 +115,8 @@ type Query[QROW any] struct {
 | `omit` | Полностью исключается из SQL |
 | `embed` | Принудительная распаковка |
 | `prefix=...` на структуре | Распаковка колонок с префиксом |
-| `ref=table.col` | Внешний ключ |
-| `sort=<pos>[,dir]` | Позиция и направление в ORDER BY |
+| `ref=table:col` | Внешний ключ |
+| `sort=<pos>[:dir]` | Позиция и направление в ORDER BY |
 
 **Наследование флагов (Merge):**
 - `ro`, `auto`, `ins`, `upd`, `rskip` — наследуются (OR)

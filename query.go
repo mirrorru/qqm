@@ -220,7 +220,7 @@ func buildJoinOnClause(cur *queryTableEntry, prev []queryTableEntry) (string, er
 }
 
 func parseRef(ref string) (table, column string) {
-	parts := strings.SplitN(ref, ".", 2)
+	parts := strings.SplitN(ref, inKVSeparator, 2)
 	if len(parts) == 2 {
 		return parts[0], parts[1]
 	}
