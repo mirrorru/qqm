@@ -3,6 +3,7 @@ package qqm
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"reflect"
@@ -359,7 +360,9 @@ func (q *Query[QROW]) applyNulls(buf *QROW, ss *scanState) { //nolint:gocognit
 				if ti < len(tempDest) && tempDest[ti] != nil {
 					fv := rowVal.FieldByIndex(field.Index)
 					srcVal := reflect.ValueOf(tempDest[ti])
-					if srcVal.Type().AssignableTo(fv.Type()) {
+					if scanner, ok := fv.Addr().Interface().(sql.Scanner); ok {
+						_ = scanner.Scan(tempDest[ti])
+					} else if srcVal.Type().AssignableTo(fv.Type()) {
 						fv.Set(srcVal)
 					} else if srcVal.Type().ConvertibleTo(fv.Type()) {
 						fv.Set(srcVal.Convert(fv.Type()))
