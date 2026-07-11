@@ -48,7 +48,7 @@ func parseTableTag(tag string) (result TableFlags, ok bool) {
 		case isKey(keyOmit, key):
 			return result, false // return false !!!
 		case isKey(keyJoinMode, key):
-			result.JoinMode = JoinModeNames[key[len(keyJoinMode):]]
+			result.JoinMode = JoinModeNames[strings.ToLower(key[len(keyJoinMode):])]
 		case isKey(keyAlias, key):
 			result.Alias = key[len(keyAlias):]
 		case isKey(keyJoinTo, key):
