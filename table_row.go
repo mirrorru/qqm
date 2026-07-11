@@ -119,6 +119,8 @@ func (t *Table[ROW]) Del(ctx context.Context, tx TxProcessor, keys ...any) (Resu
 // filter may be nil — then all rows are returned with ORDER BY from sort tags.
 func (t *Table[ROW]) Many(ctx context.Context, tx TxProcessor, filter *Filter) (result []*ROW, err error) {
 	var sb strings.Builder
+	fieldCount := len(t.tableDef.Indexes.SelectCols)
+	sb.Grow(len(t.sql.ListCmdStart) + fieldCount*20 + 128)
 	sb.WriteString(t.sql.ListCmdStart)
 	where, args, buildErr := filter.BuildWhere(t.tableDef.Fields, t.dialect)
 	if buildErr != nil {
@@ -136,6 +138,14 @@ func (t *Table[ROW]) Many(ctx context.Context, tx TxProcessor, filter *Filter) (
 	defer func() {
 		err = errors.Join(err, rows.Close())
 	}()
+	resultCap := uint32(0)
+	if filter != nil {
+		resultCap = filter.Limit
+	}
+	if resultCap == 0 {
+		resultCap = 64
+	}
+	result = make([]*ROW, 0, resultCap)
 	buf := new(ROW)
 	refs := t.tableDef.extractRefs(buf, t.tableDef.Indexes.SelectCols)
 

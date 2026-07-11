@@ -166,8 +166,8 @@ func buildChildren(children []FilterNode, tf TableFields, d dialect.DialectProvi
 		return "", nil, nil
 	}
 
-	var clauses []string
-	var allArgs []any
+	clauses := make([]string, 0, len(children))
+	allArgs := make([]any, 0, len(children)*2)
 
 	for _, child := range children {
 		clause, args, err := child.Build(tf, d, argIdx)

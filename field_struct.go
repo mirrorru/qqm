@@ -182,70 +182,6 @@ func (tf *FieldFlags) canSelect() bool {
 	return !tf.SkipReading
 }
 
-func (tfs TableFields) insertingCols() []int {
-	result := make([]int, 0, len(tfs))
-	for idx := range tfs {
-		if tfs[idx].Flags.canInsert() {
-			result = append(result, idx)
-		}
-	}
-	return result
-}
-
-func (tfs TableFields) updatingCols() []int {
-	result := make([]int, 0, len(tfs))
-	for idx := range tfs {
-		if tfs[idx].Flags.canUpdate() {
-			result = append(result, idx)
-		}
-	}
-	return result
-}
-
-func (tfs TableFields) selectingCols() []int {
-	result := make([]int, 0, len(tfs))
-	for idx := range tfs {
-		if tfs[idx].Flags.canSelect() {
-			result = append(result, idx)
-		}
-	}
-	return result
-}
-
-func (tfs TableFields) pkCols() []int {
-	result := make([]int, 0, 2)
-	for idx := range tfs {
-		if tfs[idx].Flags.IsPK {
-			result = append(result, idx)
-		}
-	}
-	return result
-}
-
-func (tfs TableFields) sortingCols() []int {
-	result := make([]int, 0, len(tfs)/2)
-	for idx := range tfs {
-		if tfs[idx].Flags.SortPos != 0 {
-			result = append(result, idx)
-		}
-	}
-	slices.SortStableFunc(result, func(a, b int) int {
-		return tfs[a].Flags.SortPos - tfs[b].Flags.SortPos
-	})
-
-	return result
-}
-
-func (tfs TableFields) refCols() []int {
-	result := make([]int, 0, 2)
-	for idx := range tfs {
-		if tfs[idx].Flags.Ref != "" {
-			result = append(result, idx)
-		}
-	}
-	return result
-}
-
 type fieldsIndexes struct {
 	PKCols      []int
 	SelectCols  []int
@@ -256,12 +192,40 @@ type fieldsIndexes struct {
 }
 
 func (tfs TableFields) allIndexes() fieldsIndexes {
-	return fieldsIndexes{
-		PKCols:      tfs.pkCols(),
-		SelectCols:  tfs.selectingCols(),
-		InsertCols:  tfs.insertingCols(),
-		UpdateCols:  tfs.updatingCols(),
-		SortingCols: tfs.sortingCols(),
-		RefCols:     tfs.refCols(),
+	result := fieldsIndexes{
+		PKCols:      make([]int, 0, 2),
+		SelectCols:  make([]int, 0, len(tfs)),
+		InsertCols:  make([]int, 0, len(tfs)),
+		UpdateCols:  make([]int, 0, len(tfs)),
+		SortingCols: make([]int, 0, min(3, len(tfs))),
+		RefCols:     make([]int, 0, 2),
 	}
+
+	for idx := range tfs {
+		flags := &tfs[idx].Flags
+		if flags.IsPK {
+			result.PKCols = append(result.PKCols, idx)
+		}
+		if flags.canSelect() {
+			result.SelectCols = append(result.SelectCols, idx)
+		}
+		if flags.canInsert() {
+			result.InsertCols = append(result.InsertCols, idx)
+		}
+		if flags.canUpdate() {
+			result.UpdateCols = append(result.UpdateCols, idx)
+		}
+		if flags.SortPos != 0 {
+			result.SortingCols = append(result.SortingCols, idx)
+		}
+		if flags.Ref != "" {
+			result.RefCols = append(result.RefCols, idx)
+		}
+	}
+
+	slices.SortStableFunc(result.SortingCols, func(a, b int) int {
+		return tfs[a].Flags.SortPos - tfs[b].Flags.SortPos
+	})
+
+	return result
 }

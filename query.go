@@ -576,6 +576,7 @@ func (q *Query[QROW]) One(ctx context.Context, tx TxProcessor, keys ...any) (*QR
 // For LEFT JOIN with no match, joined table fields are zeroed.
 func (q *Query[QROW]) Many(ctx context.Context, tx TxProcessor, filter *Filter) (result []*QROW, err error) {
 	var sb strings.Builder
+	sb.Grow(len(q.sql.ListCmdStart) + 256)
 	sb.WriteString(q.sql.ListCmdStart)
 	where, args, buildErr := filter.BuildWhere(q.flatFields, q.dialect)
 	if buildErr != nil {
@@ -593,6 +594,7 @@ func (q *Query[QROW]) Many(ctx context.Context, tx TxProcessor, filter *Filter) 
 		err = errors.Join(err, rows.Close())
 	}()
 
+	result = make([]*QROW, 0, 64)
 	buf := new(QROW)
 	ss := q.newScanState(buf)
 	for rows.Next() {

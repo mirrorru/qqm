@@ -220,10 +220,11 @@ func (td *TableDefinition) writeWhereClauses(dlct dialect.DialectProvider, offse
 }
 
 func (td *TableDefinition) writeReturning(sb *strings.Builder) {
-	allCols := make([]string, len(td.Indexes.SelectCols))
-	for i := range td.Indexes.SelectCols {
-		allCols[i] = td.Fields[td.Indexes.SelectCols[i]].SQLName
-	}
 	sb.WriteString(defs.SQLReturning)
-	sb.WriteString(strings.Join(allCols, defs.SQLCommaSpace))
+	for i, idx := range td.Indexes.SelectCols {
+		if i > 0 {
+			sb.WriteString(defs.SQLCommaSpace)
+		}
+		sb.WriteString(td.Fields[idx].SQLName)
+	}
 }
