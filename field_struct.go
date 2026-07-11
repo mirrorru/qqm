@@ -26,7 +26,7 @@ const (
 	keyHide    = "rskip"   // skip field on selecting
 	keyPrefix  = "prefix=" // Subcolumns name prefix
 	keyRef     = "ref="    // FK reference
-	keySort    = "sort="   // Sort <position>[,desc]
+	keySort    = "sort="   // Sort <position>[:desc]
 )
 const keySeparator = ";"
 const inKeySeparator = ","
@@ -92,7 +92,7 @@ func parseFieldTag(tag string) (result FieldFlags, ok bool) {
 			result.Ref = key[len(keyRef):]
 		case isKey(keySort, key):
 			s := strings.ToLower(key[len(keySort):])
-			ss := strings.SplitN(s, inKeySeparator, 2)
+			ss := strings.SplitN(s, inKVSeparator, 2)
 			result.SortPos, _ = strconv.Atoi(ss[0])
 			if len(ss) > 1 {
 				result.SortBackward = ss[1] == "desc"

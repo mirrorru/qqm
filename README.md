@@ -88,7 +88,7 @@ func Example() {
 
 ## Настройка колонок через теги
 
-Формат тега: `tbl:"pk;ro;auto;embed;omit;ins;upd;rskip;col=name;prefix=...;ref=...;sort=<pos>[,dir]"`
+Формат тега: `tbl:"pk;ro;auto;embed;omit;ins;upd;rskip;col=name;prefix=...;ref=...;sort=<pos>[:dir]"`
 
 | Опция | Описание |
 |-------|----------|
@@ -102,8 +102,8 @@ func Example() {
 | `rskip` | Исключение из SELECT (read skip) |
 | `col=name` | Имя колонки в БД (по умолчанию: snake_case от имени поля) |
 | `prefix=...` | Префикс колонок для embedded или именованной структуры |
-| `ref=table.col` | Внешний ключ |
-| `sort=<pos>[,dir]` | Позиция в ORDER BY (1-based), направление ASC/DESC |
+| `ref=table:col` | Внешний ключ |
+| `sort=<pos>[:dir]` | Позиция в ORDER BY (1-based), направление ASC/DESC |
 
 ### Префикс для именованных полей-структур
 
@@ -144,7 +144,7 @@ func (u *User) SQLName() string { return "users" }
 
 type Order struct {
     ID     int64   `tbl:"pk;auto"`
-    UserID int64   `tbl:"ref=users.id"`
+    UserID int64   `tbl:"ref=users:id"`
     Amount float64
 }
 
@@ -358,7 +358,7 @@ type Post struct {
 type UserWithSort struct {
     ID    int64  `tbl:"pk;auto"`
     Name  string `tbl:"sort=1"`       // ORDER BY name ASC
-    Email string `tbl:"sort=2,desc"`  // затем email DESC
+    Email string `tbl:"sort=2:desc"`  // затем email DESC
     Age   int
 }
 ```

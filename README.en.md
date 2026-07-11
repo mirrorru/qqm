@@ -86,7 +86,7 @@ func Example() {
 
 ## Column Configuration via Tags
 
-Tag format: `tbl:"pk;ro;auto;embed;omit;ins;upd;rskip;col=name;prefix=...;ref=...;sort=<pos>[,dir]"`
+Tag format: `tbl:"pk;ro;auto;embed;omit;ins;upd;rskip;col=name;prefix=...;ref=...;sort=<pos>[:dir]"`
 
 | Option | Description |
 |--------|-------------|
@@ -100,8 +100,8 @@ Tag format: `tbl:"pk;ro;auto;embed;omit;ins;upd;rskip;col=name;prefix=...;ref=..
 | `rskip` | Exclude from SELECT (read skip) |
 | `col=name` | Column name in DB (default: snake_case from field name) |
 | `prefix=...` | Prefix for columns from embedded or named struct |
-| `ref=table.col` | Foreign key reference |
-| `sort=<pos>[,dir]` | Position in ORDER BY (1-based), direction ASC/DESC |
+| `ref=table:col` | Foreign key reference |
+| `sort=<pos>[:dir]` | Position in ORDER BY (1-based), direction ASC/DESC |
 
 ### Prefix for Named Struct Fields
 
@@ -142,7 +142,7 @@ func (u *User) SQLName() string { return "users" }
 
 type Order struct {
     ID     int64   `tbl:"pk;auto"`
-    UserID int64   `tbl:"ref=users.id"`
+    UserID int64   `tbl:"ref=users:id"`
     Amount float64
 }
 
@@ -356,7 +356,7 @@ type Post struct {
 type UserWithSort struct {
     ID    int64  `tbl:"pk;auto"`
     Name  string `tbl:"sort=1"`       // ORDER BY name ASC
-    Email string `tbl:"sort=2,desc"`  // then email DESC
+    Email string `tbl:"sort=2:desc"`  // then email DESC
     Age   int
 }
 ```

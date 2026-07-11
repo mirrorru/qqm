@@ -27,19 +27,17 @@ func (dictsSubjPersonMarker) SQLName() string {
 
 type DictsSubjPersonRowShort struct {
 	dictsSubjPersonMarker
-	SubjID SubjID `tbl:"pk;ref=subj_table.id"`
+	SubjID SubjID `tbl:"pk;ref=subj_table:id"`
 	Val    SomeVal
 }
 
 type dictsSubjLegalMarker struct{}
 
-func (dictsSubjLegalMarker) SQLName() string {
-	return "subj_legal"
-}
+func (dictsSubjLegalMarker) SQLName() string { return "subj_legal" }
 
 type DictsSubjLegalRowShort struct {
 	dictsSubjLegalMarker
-	SubjID SubjID `tbl:"pk;ref=subj_table.id"`
+	SubjID SubjID `tbl:"pk;ref=subj_table:id"`
 	INN    SubjINN
 }
 
