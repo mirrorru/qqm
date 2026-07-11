@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0  # Получаем всю историю коммитов для работы с тегами
           repository: 'mirrorru/qqm'  # Внешний приватный репозиторий
